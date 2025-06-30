@@ -8,19 +8,21 @@ export const runtime = "nodejs";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectToDatabase();
 
-    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+    const { id } = await params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
         { error: "Invalid project ID" },
         { status: 400 }
       );
     }
 
-    const projectId = new mongoose.Types.ObjectId(params.id);
+    const projectId = new mongoose.Types.ObjectId(id);
 
     // Use aggregation pipeline to get all data in one query
     const [project] = await Project.aggregate([
@@ -288,7 +290,7 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -300,9 +302,11 @@ export async function PUT(
     const body = await request.json();
     await connectToDatabase();
 
+    const { id } = await params;
+
     // Verify project ownership before update
     const project = await Project.findOneAndUpdate(
-      { _id: params.id, userId },
+      { _id: id, userId },
       body,
       { new: true }
     ).lean();
@@ -327,7 +331,7 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -338,6 +342,8 @@ export async function DELETE(
 
     await connectToDatabase();
 
+    const { id } = await params;
+
     // Start a session for atomic operations
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -345,7 +351,7 @@ export async function DELETE(
     try {
       // Verify project exists and belongs to user
       const project = await Project.findOne({
-        _id: params.id,
+        _id: id,
         userId,
       }).session(session);
 
@@ -355,12 +361,12 @@ export async function DELETE(
       }
 
       // Delete all associated data in order
-      await Upload.deleteMany({ projectId: params.id }).session(session);
-      await Element.deleteMany({ projectId: params.id }).session(session);
-      await Material.deleteMany({ projectId: params.id }).session(session);
+      await Upload.deleteMany({ projectId: id }).session(session);
+      await Element.deleteMany({ projectId: id }).session(session);
+      await Material.deleteMany({ projectId: id }).session(session);
 
       // Finally delete the project
-      await Project.deleteOne({ _id: params.id }).session(session);
+      await Project.deleteOne({ _id: id }).session(session);
 
       // Commit the transaction
       await session.commitTransaction();
@@ -395,7 +401,7 @@ export async function DELETE(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -406,8 +412,10 @@ export async function PATCH(
     await connectToDatabase();
 
     const body = await request.json();
+    const { id } = await params;
+    
     const project = await Project.findOneAndUpdate(
-      { _id: params.id, userId },
+      { _id: id, userId },
       { $set: body },
       { new: true }
     );

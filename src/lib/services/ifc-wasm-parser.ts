@@ -1,3 +1,5 @@
+import { logger } from "../logger";
+
 export interface APIElement {
   id: string;
   type: string;
@@ -94,11 +96,12 @@ async function loadPyodideAndIfcOpenShell(): Promise<PyodideInterface> {
 }
 
 export async function parseIfcWithWasm(file: File): Promise<IFCParseResult> {
-  const pyodide = await loadPyodideAndIfcOpenShell();
-  const buffer = new Uint8Array(await file.arrayBuffer());
-  pyodide.globals.set("ifc_data", buffer);
+  try {
+    const pyodide = await loadPyodideAndIfcOpenShell();
+    const buffer = new Uint8Array(await file.arrayBuffer());
+    pyodide.globals.set("ifc_data", buffer);
 
-  const pythonCode = `
+    const pythonCode = `
 import ifcopenshell
 import json
 import os
@@ -265,7 +268,25 @@ path = '/tmp/temp.ifc'
 with open(path, 'wb') as f:
     f.write(ifc_bytes)
 
-f = ifcopenshell.open(path)
+# Try to open with schema detection and fallback
+try:
+    f = ifcopenshell.open(path)
+except Exception as e:
+    # If IFC4X1 fails, try to convert or use a different approach
+    if "No schema named IFC4X1" in str(e):
+        # Try to read the file and determine schema
+        with open(path, 'r') as f_read:
+            content = f_read.read()
+            if 'IFC4X1' in content:
+                # Try to replace IFC4X1 with IFC4 in the content
+                content = content.replace('IFC4X1', 'IFC4')
+                with open(path, 'w') as f_write:
+                    f_write.write(content)
+                f = ifcopenshell.open(path)
+            else:
+                raise e
+    else:
+        raise e
 
 elements = []
 debug_info = []
@@ -330,6 +351,15 @@ except Exception:
 json.dumps(result)
 `;
 
-  const result = await pyodide.runPythonAsync(pythonCode);
-  return JSON.parse(result);
+    const result = await pyodide.runPythonAsync(pythonCode);
+    return JSON.parse(result);
+  } catch (error) {
+    logger.error("Error in parseIfcWithWasm", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      filename: file.name,
+      size: file.size,
+    });
+    throw new Error(`Failed to parse IFC file: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }

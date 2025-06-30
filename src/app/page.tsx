@@ -6,7 +6,7 @@ import { TermsAcceptanceWrapper } from "@/components/terms-acceptance-wrapper";
 
 export default async function HomePage() {
   const { userId } = await auth();
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const hasAcceptedTerms = cookieStore.has("terms_accepted");
 
   // If user is not authenticated, show landing page
