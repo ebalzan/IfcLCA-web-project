@@ -29,13 +29,13 @@ export async function GET(
     await connectToDatabase();
     const projectId = new mongoose.Types.ObjectId(params.id);
 
-    const elements = await Element.find({ projectId }).lean();
+    const elements = await Element.find({ projectId })
 
     const formattedElements = elements.map((element) => ({
       id: element._id.toString(),
       name: element.name,
       type: element.type || "Unknown",
-      volume: element.volume || 0,
+      volume: element.totalVolume || 0,
       buildingStorey: element.buildingStorey || "-",
     }));
 

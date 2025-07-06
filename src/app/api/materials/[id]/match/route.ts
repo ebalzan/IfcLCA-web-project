@@ -1,87 +1,79 @@
 import { NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/mongodb";
 import { Material, Project } from "@/models";
-import mongoose from "mongoose";
-import { auth } from "@clerk/nextjs/server";
+import IMaterialDB from "@/interfaces/materials/IMaterialDB";
+import { withAuthAndDBParams } from "@/lib/api-middleware";
+import { AuthenticatedRequest, getUserId } from "@/lib/auth-middleware";
+import { Types } from "mongoose";
+import IKBOBMaterial from "@/interfaces/materials/IKBOBMaterial";
 
-export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
+interface MatchMaterialRequest {
+  kbobMatchId: Types.ObjectId
+}
+
+interface MatchMaterialResponse extends Omit<IMaterialDB, '_id' | 'kbobMatchId'> {
+  _id: string
+  kbobMatchId: Omit<IKBOBMaterial, '_id'> & { _id: string }
+}
+
+async function matchMaterialsWithKbob(
+  request: AuthenticatedRequest,
+  context: { params: Promise<{ [key: string]: string }> }
 ) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return new Response("Unauthorized", { status: 401 });
-    }
+  const userId = getUserId(request);
+  const params = await context.params;
 
-    await connectToDatabase();
-    const { kbobId } = await request.json();
+  const body: MatchMaterialRequest = await request.json();
+  const { kbobMatchId } = body;
 
-    // Get the material first to check project ownership
-    const material = await Material.findById(params.id)
-      .select("projectId")
-      .lean();
+  // Get the material first to check project ownership
+  const material = await Material.findById(params.id)
+    .select("projectId")
+    .lean<Pick<IMaterialDB, "projectId">>();
 
-    if (!material) {
-      return NextResponse.json(
-        { error: "Material not found" },
-        { status: 404 }
-      );
-    }
+  if (!material) {
+    return NextResponse.json({ error: "Material not found" }, { status: 404 });
+  }
 
-    // Verify user has access to this project
-    const project = await Project.findOne({
-      _id: material.projectId,
-      userId
-    }).lean();
+  // Verify user has access to this project
+  const project = await Project.findOne({
+    _id: material.projectId,
+    userId,
+  }).lean();
 
-    if (!project) {
-      return NextResponse.json(
-        { error: "Not authorized to modify this material" },
-        { status: 403 }
-      );
-    }
-
-    // Update the material with KBOB match
-    const updatedMaterial = await Material.findByIdAndUpdate(
-      params.id,
-      {
-        $set: {
-          kbobMatchId: new mongoose.Types.ObjectId(kbobId),
-        },
-      },
-      { new: true }
-    ).populate("kbobMatchId");
-
-    if (!updatedMaterial) {
-      return NextResponse.json(
-        { error: "Failed to update material" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({
-      id: updatedMaterial._id.toString(),
-      name: updatedMaterial.name,
-      category: updatedMaterial.category,
-      volume: updatedMaterial.volume,
-      kbobMatch: updatedMaterial.kbobMatchId
-        ? {
-          id: updatedMaterial.kbobMatchId._id.toString(),
-          name: updatedMaterial.kbobMatchId.Name,
-          indicators: {
-            gwp: updatedMaterial.kbobMatchId.GWP,
-            ubp: updatedMaterial.kbobMatchId.UBP,
-            penre: updatedMaterial.kbobMatchId.PENRE,
-          },
-        }
-        : null,
-    });
-  } catch (error) {
-    console.error("Failed to match material:", error);
+  if (!project) {
     return NextResponse.json(
-      { error: "Failed to match material" },
+      { error: "Not authorized to modify this material" },
+      { status: 403 }
+    );
+  }
+
+  // Update the material with KBOB match
+  const updatedMaterial = await Material.findByIdAndUpdate(
+    params.id,
+    {
+      $set: {
+        kbobMatchId,
+      },
+    },
+    { new: true }
+  ).populate<{ kbobMatchId: IKBOBMaterial }>("kbobMatchId", "name category gwp ubp penre")
+  .lean();
+
+  if (!updatedMaterial) {
+    return NextResponse.json(
+      { error: "Failed to update material" },
       { status: 500 }
     );
   }
+
+  return NextResponse.json<MatchMaterialResponse>({
+    ...updatedMaterial,
+    _id: updatedMaterial._id.toString(),
+    kbobMatchId: {
+      ...updatedMaterial.kbobMatchId,
+      _id: updatedMaterial.kbobMatchId._id.toString(),
+    }
+  });
 }
+
+export const POST = withAuthAndDBParams(matchMaterialsWithKbob);

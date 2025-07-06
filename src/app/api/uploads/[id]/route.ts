@@ -1,25 +1,20 @@
-import { NextRequest, NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/mongodb";
+import { NextResponse } from "next/server"; 
 import { Upload } from "@/models";
+import { AuthenticatedRequest } from "@/lib/auth-middleware";
+import { withAuthAndDBParams } from "@/lib/api-middleware";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+async function getUpload(
+  request: AuthenticatedRequest,
+  context: { params: Promise<{ [key: string]: string }> }
 ) {
-  try {
-    await connectToDatabase();
-
-    const upload = await Upload.findById(params.id).populate("elements");
+    const { id } = await context.params;
+    const upload = await Upload.findById(id).populate("elements");
 
     if (!upload) {
       return NextResponse.json({ error: "Upload not found" }, { status: 404 });
     }
 
-    return NextResponse.json(upload);
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to fetch upload status" },
-      { status: 500 }
-    );
-  }
+    return NextResponse.json(upload); 
 }
+
+export const GET = withAuthAndDBParams(getUpload)

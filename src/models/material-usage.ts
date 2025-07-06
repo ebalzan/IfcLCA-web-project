@@ -1,18 +1,23 @@
-import mongoose from "mongoose";
+import { Schema, model, models, Model } from "mongoose";
+import IMaterialUsageDB from "@/interfaces/materials/IMaterialUsageDB";
 
-const materialUsageSchema = new mongoose.Schema(
+type IMaterialUsageModelType = Model<IMaterialUsageDB>
+
+const materialUsageSchema = new Schema<IMaterialUsageDB, IMaterialUsageModelType>(
   {
     materialId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "Material",
       required: true,
     },
     projectId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "Project",
       required: true,
     },
-    volume: Number,
+    volume: {
+      type: Number,
+    },
   },
   {
     timestamps: true,
@@ -21,8 +26,4 @@ const materialUsageSchema = new mongoose.Schema(
 
 materialUsageSchema.index({ materialId: 1, projectId: 1 }, { unique: true });
 
-const MaterialUsage =
-  mongoose.models.MaterialUsage ||
-  mongoose.model("MaterialUsage", materialUsageSchema);
-
-export { MaterialUsage };
+export const MaterialUsage: IMaterialUsageModelType = models.MaterialUsage || model("MaterialUsage", materialUsageSchema);

@@ -2,6 +2,8 @@ import { auth } from "@clerk/nextjs/server";
 import { Dashboard } from "@/components/dashboard";
 import { redirect } from "next/navigation";
 import { unstable_cache } from "next/cache";
+import { logger } from "@/lib/logger";
+import IProjectDB from "@/interfaces/projects/IProjectDB";
 
 interface ProjectCount {
   _count?: {
@@ -29,11 +31,15 @@ const getInitialData = unstable_cache(
         }),
       ]);
 
-      const [projects, activitiesData, emissions] = await Promise.all([
+      const [projects, activitiesData, emissions]: [IProjectDB[], any[], any] = await Promise.all([
         projectsRes.json(),
         activitiesRes.json(),
         emissionsRes.json(),
       ]);
+
+      logger.info("PROJECTS", projects)
+      logger.info("ACTIVITIES", activitiesData)
+      logger.info("EMISSIONS", emissions)
 
       const recentProjects = projects.slice(0, 3);
       const totalElements = projects.reduce(

@@ -19,7 +19,7 @@ export default function RootLayout({
     <ClerkProvider appearance={{ baseTheme: undefined }} dynamic>
       <html lang="en" className={nunitoSans.variable} suppressHydrationWarning>
         <body suppressHydrationWarning>
-          <PostHogProvider>
+          {/* <PostHogProvider> */}
             <ThemeProvider
               attribute="class"
               defaultTheme="system"
@@ -31,7 +31,7 @@ export default function RootLayout({
             >
               <AuthenticatedLayout>{children}</AuthenticatedLayout>
             </ThemeProvider>
-          </PostHogProvider>
+          {/* </PostHogProvider> */}
         </body>
       </html>
     </ClerkProvider>

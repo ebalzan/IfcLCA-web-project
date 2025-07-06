@@ -1,93 +1,101 @@
-import { connectToDatabase } from "@/lib/mongodb";
 import { Project } from "@/models";
-import { auth } from "@clerk/nextjs/server";
+import { withAuthAndDB } from "@/lib/api-middleware";
+import { getUserId, AuthenticatedRequest } from "@/lib/auth-middleware";
 import { NextResponse } from "next/server";
+import IProjectDB from "@/interfaces/projects/IProjectDB";
+import IElementDB from "@/interfaces/elements/IElementDB";
+import IMaterialDB from "@/interfaces/materials/IMaterialDB";
+import IUploadDB from "@/interfaces/uploads/IUploadDB";
 
 export const runtime = "nodejs";
 
-export async function GET() {
-  try {
-    const { userId } = await auth();
+interface IProjectUI extends IProjectDB {
+  elements: IElementDB[]
+  materials: IMaterialDB[]
+  uploads: IUploadDB[]
+  lastActivityAt: Date
+  _count: {
+    elements: number
+    uploads: number
+    materials: number
+  }
+}
 
-    if (!userId) {
-      return new Response("Unauthorized", { status: 401 });
-    }
+async function getProjects(request: AuthenticatedRequest) {
+  const userId = getUserId(request);
 
-    await connectToDatabase();
-
-    // Aggregate projects with their latest activity timestamps
-    const projects = await Project.aggregate([
-      { $match: { userId } },
-      {
-        $lookup: {
-          from: "uploads",
-          localField: "_id",
-          foreignField: "projectId",
-          as: "uploads",
-        },
+  // Aggregate projects with their latest activity timestamps
+  const projects = await Project.aggregate<IProjectUI>([
+    { $match: { userId } },
+    {
+      $lookup: {
+        from: "uploads",
+        localField: "_id",
+        foreignField: "projectId",
+        as: "uploads",
       },
-      {
-        $lookup: {
-          from: "elements",
-          localField: "_id",
-          foreignField: "projectId",
-          as: "elements",
-        },
+    },
+    {
+      $lookup: {
+        from: "elements",
+        localField: "_id",
+        foreignField: "projectId",
+        as: "elements",
       },
-      {
-        $lookup: {
-          from: "materials",
-          localField: "_id",
-          foreignField: "projectId",
-          as: "materials",
-        },
+    },
+    {
+      $lookup: {
+        from: "materials",
+        localField: "_id",
+        foreignField: "projectId",
+        as: "materials",
       },
-      {
-        $addFields: {
-          lastActivityAt: {
-            $max: [
-              "$updatedAt",
-              { $max: "$uploads.createdAt" },
-              { $max: "$elements.createdAt" },
-              { $max: "$materials.createdAt" },
-            ],
-          },
-          _count: {
-            elements: { $size: "$elements" },
-            uploads: { $size: "$uploads" },
-            materials: { $size: "$materials" },
-          },
-          emissions: {
-            $ifNull: [
-              "$emissions",
-              {
-                gwp: 0,
-                ubp: 0,
-                penre: 0,
-                lastCalculated: new Date(),
-              },
-            ],
-          },
-          elements: {
-            $map: {
-              input: "$elements",
-              as: "element",
-              in: {
-                _id: "$$element._id",
-                name: "$$element.name",
-                type: "$$element.type",
-                volume: "$$element.volume",
-                materials: {
-                  $map: {
-                    input: "$$element.materials",
-                    as: "material",
-                    in: {
-                      volume: "$$material.volume",
-                      indicators: {
-                        gwp: "$$material.indicators.gwp",
-                        ubp: "$$material.indicators.ubp",
-                        penre: "$$material.indicators.penre",
-                      },
+    },
+    {
+      $addFields: {
+        lastActivityAt: {
+          $max: [
+            "$updatedAt",
+            { $max: "$uploads.createdAt" },
+            { $max: "$elements.createdAt" },
+            { $max: "$materials.createdAt" },
+          ],
+        },
+        _count: {
+          elements: { $size: "$elements" },
+          uploads: { $size: "$uploads" },
+          materials: { $size: "$materials" },
+        },
+        emissions: {
+          $ifNull: [
+            "$emissions",
+            {
+              gwp: 0,
+              ubp: 0,
+              penre: 0,
+              lastCalculated: new Date(),
+            },
+          ],
+        },
+        elements: {
+          $map: {
+            input: "$elements",
+            as: "element",
+            in: {
+              _id: "$$element._id",
+              name: "$$element.name",
+              type: "$$element.type",
+              volume: "$$element.volume",
+              materials: {
+                $map: {
+                  input: "$$element.materials",
+                  as: "material",
+                  in: {
+                    volume: "$$material.volume",
+                    indicators: {
+                      gwp: "$$material.indicators.gwp",
+                      ubp: "$$material.indicators.ubp",
+                      penre: "$$material.indicators.penre",
                     },
                   },
                 },
@@ -96,65 +104,35 @@ export async function GET() {
           },
         },
       },
-      { $sort: { lastActivityAt: -1 } },
-    ]);
+    },
+    { $sort: { lastActivityAt: -1 } },
+  ])
+  
+  const transformedProjects: IProjectUI[] = projects.map((project) => ({
+    ...project,
+    updatedAt: project.lastActivityAt || project.updatedAt,
+  }))
 
-    const transformedProjects = projects.map((project) => ({
-      id: project._id.toString(),
-      name: project.name,
-      description: project.description,
-      imageUrl: project.imageUrl,
-      updatedAt: project.lastActivityAt || project.updatedAt,
-      _count: project._count,
-      elements: project.elements.map((element) => ({
-        ...element,
-        _id: element._id.toString(),
-        materials: element.materials || [],
-      })),
-    }));
-
-    return NextResponse.json(transformedProjects);
-  } catch (error) {
-    console.error("API - Error fetching projects:", error);
-    return new NextResponse("Internal Server Error", { status: 500 });
-  }
+  return NextResponse.json(transformedProjects);
 }
 
-export async function POST(req: Request) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+async function createProject(request: AuthenticatedRequest) {
+  const userId = getUserId(request);
+  const body: Pick<IProjectDB, "name" | "description" | "imageUrl"> = await request.json();
 
-    const body = await req.json();
-    await connectToDatabase();
+  const project: IProjectDB = await Project.create({
+    ...body,
+    userId,
+    emissions: {
+      gwp: 0,
+      ubp: 0,
+      penre: 0,
+      lastCalculated: new Date(),
+    },
+  });
 
-    const project = await Project.create({
-      ...body,
-      userId,
-      emissions: {
-        gwp: 0,
-        ubp: 0,
-        penre: 0,
-        lastCalculated: new Date(),
-      },
-    });
-
-    return NextResponse.json(project);
-  } catch (error) {
-    console.error("Failed to create project:", error);
-
-    // Track the error with PostHog
-    const { captureServerError } = await import("@/lib/posthog-client");
-    captureServerError(error as Error, userId, {
-      action: "create_project",
-      body: body,
-    });
-
-    return NextResponse.json(
-      { error: "Failed to create project" },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(project);
 }
+
+export const GET = withAuthAndDB(getProjects);
+export const POST = withAuthAndDB(createProject);

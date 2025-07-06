@@ -39,6 +39,11 @@ const inputSchema = z.object({
   uploadId: z.string(),
 });
 
+interface BatchError {
+  batch: number;
+  message: string;
+}
+
 export async function saveElements(
   projectId: string,
   data: { elements: any[]; uploadId: string; materialCount: number }
@@ -63,7 +68,7 @@ export async function saveElements(
     const totalElementCount = data.elements.length;
 
     let savedCount = 0;
-    let errors = [];
+    let errors: BatchError[] = [];
 
     // Process elements in smaller batches
     const batchSize = 20;
@@ -110,10 +115,10 @@ export async function saveElements(
 
         const result = await Element.bulkWrite(operations);
         savedCount += result.upsertedCount + result.modifiedCount;
-      } catch (batchError) {
+      } catch (batchError: unknown) {
         errors.push({
           batch: i / batchSize,
-          error: batchError.message,
+          message: (batchError as Error).message,
         });
       }
     }
@@ -131,14 +136,14 @@ export async function saveElements(
     };
 
     return result;
-  } catch (error) {
+  } catch (error: unknown) {
     if (data?.uploadId) {
       try {
         await Upload.findByIdAndUpdate(data.uploadId, {
           status: "Failed",
-          error: error.message,
+          error: (error as Error).message,
         });
-      } catch (updateError) {
+      } catch (updateError: unknown) {
         console.error("Failed to update upload status:", updateError);
       }
     }

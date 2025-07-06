@@ -1,18 +1,14 @@
 import { NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/mongodb";
 import { Element, Project } from "@/models";
 import mongoose from "mongoose";
-import { auth } from "@clerk/nextjs/server";
+import IMaterialLayer from "@/interfaces/elements/IMaterialLayer";
+import { AuthenticatedRequest, getUserId } from "@/lib/auth-middleware";
+import { withAuthAndDBParams } from "@/lib/api-middleware";
 
-export async function POST(request: Request) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+async function getElementCountsForMaterials(request: AuthenticatedRequest) {
+    const userId = getUserId(request);
 
     const { materialIds } = await request.json();
-    await connectToDatabase();
 
     // Get user's projects
     const userProjects = await Project.find({ userId })
@@ -29,13 +25,15 @@ export async function POST(request: Request) {
     const elements = await Element.find({
       projectId: { $in: projectIds },
       "materials.material": { $in: objectIds }
-    }).lean();
+    })
+    .populate<{ materials: Pick<IMaterialLayer, "material">[] }>("materials.material")
+    .lean({ virtuals: true, getters: true })
 
     // Count elements per material
     const countMap: Record<string, number> = {};
     elements.forEach(element => {
-      element.materials.forEach(mat => {
-        const materialId = mat.material.toString();
+      element.materials.forEach((materialLayer) => {
+        const materialId = materialLayer.material._id.toString();
         if (materialIds.includes(materialId)) {
           countMap[materialId] = (countMap[materialId] || 0) + 1;
         }
@@ -48,12 +46,7 @@ export async function POST(request: Request) {
       return acc;
     }, {} as Record<string, number>);
 
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error("Error fetching element counts:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch element counts" },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(result);
 }
+
+export const POST = withAuthAndDBParams(getElementCountsForMaterials)
