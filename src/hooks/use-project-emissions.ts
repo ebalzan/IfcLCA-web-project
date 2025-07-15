@@ -1,36 +1,8 @@
 import { useMemo } from "react";
-
-interface Material {
-  volume: number;
-  material: {
-    density?: number;
-    kbobMatch?: {
-      GWP?: number;
-      UBP?: number;
-      PENRE?: number;
-    };
-  };
-}
-
-interface Element {
-  materials: Material[];
-}
-
-export type Project = {
-  elements: {
-    materials: {
-      volume: number;
-      material: {
-        density?: number;
-        kbobMatch?: {
-          GWP?: number;
-          UBP?: number;
-          PENRE?: number;
-        };
-      };
-    }[];
-  }[];
-};
+import ILCAIndicators from "@/interfaces/materials/ILCAIndicators";
+import IElementClient from "@/interfaces/client/elements/IElementClient";
+import IMaterialLayerClient from "@/interfaces/client/elements/IMaterialLayerClient";
+import IProjectWithStatsClient from "@/interfaces/client/projects/IProjectWithStatsClient";
 
 export interface ProjectEmissions {
   totals: {
@@ -66,25 +38,25 @@ const defaultEmissions: ProjectEmissions = {
 
 const MILLION = 1_000_000;
 
-export function useProjectEmissions(project?: Project): ProjectEmissions {
+export function useProjectEmissions(project?: IProjectWithStatsClient): ProjectEmissions {
   return useMemo(() => {
-    if (!project?.elements?.length) {
+    if (!project?.elements) {
       return defaultEmissions;
     }
 
     // Calculate totals from elements
-    const totals = project.elements.reduce(
-      (acc, element) => {
+    const totals = project.elements.reduce<ILCAIndicators>(
+      (acc: ILCAIndicators, element: IElementClient) => {
         if (!element?.materials?.length) return acc;
 
-        element.materials.forEach((mat) => {
-          const volume = mat.volume || 0;
-          const density = mat.material?.density || 0;
-          const kbob = mat.material?.kbobMatch;
+        element.materials.forEach((materialLayer: IMaterialLayerClient) => {
+          const volume = materialLayer.volume || 0;
+          const density = materialLayer.material?.density || 0;
+          const kbob = materialLayer.material?.kbobMatch;
 
-          acc.gwp += volume * density * (kbob?.GWP || 0);
-          acc.ubp += volume * density * (kbob?.UBP || 0);
-          acc.penre += volume * density * (kbob?.PENRE || 0);
+          acc.gwp += volume * density * (kbob?.gwp || 0);
+          acc.ubp += volume * density * (kbob?.ubp || 0);
+          acc.penre += volume * density * (kbob?.penre || 0);
         });
         return acc;
       },
@@ -93,7 +65,7 @@ export function useProjectEmissions(project?: Project): ProjectEmissions {
 
     // Format numbers consistently
     const formatted = Object.entries(totals).reduce(
-      (acc, [key, value]) => ({
+      (acc: ProjectEmissions["formatted"], [key, value]) => ({
         ...acc,
         [key]:
           value >= MILLION

@@ -28,13 +28,9 @@ import { toast } from "@/hooks/use-toast";
 import { Loader2, PlusCircle, ArrowLeft } from "lucide-react";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
-
-const formSchema = z.object({
-  name: z.string().min(2, {
-    message: "Project name must be at least 2 characters.",
-  }),
-  description: z.string().optional(),
-});
+import { fetchApi } from "@/lib/fetch";
+import IProjectClient from "@/interfaces/client/projects/IProjectClient";
+import { createProjectSchema } from "@/schemas/projects/createProjectSchema";
 
 export default function ProjectsNewPage() {
   const router = useRouter();
@@ -44,8 +40,7 @@ export default function ProjectsNewPage() {
   useEffect(() => {
     async function checkProjectCount() {
       try {
-        const response = await fetch("/api/projects");
-        const projects = await response.json();
+        const projects = await fetchApi<IProjectClient[]>("/api/projects");
         setProjectCount(projects.length);
       } catch (error) {
         console.error("Error checking project count:", error);
@@ -54,19 +49,19 @@ export default function ProjectsNewPage() {
     checkProjectCount();
   }, []);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<z.infer<typeof createProjectSchema>>({
+    resolver: zodResolver(createProjectSchema),
     defaultValues: {
       name: "",
       description: "",
     },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof createProjectSchema>) {
     try {
       setIsSubmitting(true);
 
-      const response = await fetch("/api/projects", {
+      const project = await fetchApi<IProjectClient>("/api/projects", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -75,29 +70,14 @@ export default function ProjectsNewPage() {
         credentials: "same-origin",
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 403 && data.message) {
-          toast({
-            title: "Project Limit Reached",
-            description: data.message,
-            variant: "destructive",
-          });
-          router.push('/projects');
-          return;
-        }
-        throw new Error(data.error || "Failed to create project");
-      }
-
       toast({
         title: "Success",
         description: "Project created successfully.",
       });
 
-      router.push(`/projects/${data._id}`);
+      router.push(`/projects/${project._id}`)
       router.refresh();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error creating project:", error);
       toast({
         title: "Error",

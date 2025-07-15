@@ -10,9 +10,9 @@ export type AuthHandler = (
   context?: unknown
 ) => Promise<NextResponse>;
 
-export type AuthHandlerWithParams = (
+export type AuthHandlerWithParams<T> = (
   request: AuthenticatedRequest,
-  context: { params: Promise<{ [key: string]: string }> }
+  context: { params: Promise<T> }
 ) => Promise<NextResponse>;
 
 /**
@@ -46,10 +46,10 @@ export function withAuth(handler: AuthHandler): AuthHandler {
 /**
  * Auth middleware for routes with dynamic parameters
  */
-export function withAuthParams(
-  handler: AuthHandlerWithParams
-): AuthHandlerWithParams {
-  return async (request: NextRequest, context: { params: Promise<{ [key: string]: string }> }) => {
+export function withAuthParams<T>(
+  handler: AuthHandlerWithParams<T>
+): AuthHandlerWithParams<T> {
+  return async (request: NextRequest, context: { params: Promise<T> }) => {
     try {
       // Authenticate user
       const { userId } = await auth();

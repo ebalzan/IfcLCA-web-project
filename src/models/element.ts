@@ -39,7 +39,6 @@ const elementSchema = new Schema<IElementDB, IElementModelType, {}, IElementVirt
       type: Schema.Types.ObjectId,
       ref: "Project",
       required: true,
-      index: true,
     },
     guid: {
       type: String,
@@ -105,7 +104,7 @@ elementSchema.virtual("emissions").get(function () {
 // Middleware to validate material fractions sum to 1
 elementSchema.pre("save", function (next) {
   const totalFraction = this.materials.reduce(
-    (sum, materialLayer) => sum + materialLayer.fraction,
+    (sum, materialLayer) => sum + (materialLayer?.fraction || 0),
     0
   )
   if (Math.abs(totalFraction - 1) > 0.0001) {

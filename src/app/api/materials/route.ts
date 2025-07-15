@@ -1,29 +1,28 @@
 import { NextResponse } from "next/server"
 import { Material, Project } from "@/models"
-import { IMaterialDBWithVirtuals } from "@/interfaces/materials/IMaterialDB"
-import { logger } from "@/lib/logger"
+import IMaterialDB, { IMaterialVirtuals } from "@/interfaces/materials/IMaterialDB"
 import { AuthenticatedRequest, getUserId } from "@/lib/auth-middleware"
 import IProjectDB from "@/interfaces/projects/IProjectDB"
 import { withAuthAndDB } from "@/lib/api-middleware"
+import IKBOBMaterial from "@/interfaces/materials/IKBOBMaterial"
 
 async function getMaterials(request: AuthenticatedRequest) {
   const userId = getUserId(request)
 
   // Get projects for the current user
   const userProjects = await Project.find({ userId })
-    .select("_id")
-    .lean<Pick<IProjectDB, "_id">[]>()
+    .select<Pick<IProjectDB, "_id">>("_id")
+    .lean()
 
-  const projectIds = userProjects.map((p) => p._id.toString())
+  const projectIds = userProjects.map((project) => project._id.toString())
 
   const materials = await Material.find({
     projectId: { $in: projectIds },
   })
-    .select("name category density kbobMatchId projectId")
-    .populate("kbobMatchId")
-    .lean<IMaterialDBWithVirtuals[]>({ virtuals: true })
+    .lean<(IMaterialDB & IMaterialVirtuals)[]>({ virtuals: true })
+    .populate<{ kbobMatchId: IKBOBMaterial }>("kbobMatchId")
 
-  const transformedMaterials: IMaterialDBWithVirtuals[] = materials.map((material) => ({
+  const transformedMaterials: IMaterialVirtuals[] = materials.map((material) => ({
     ...material,
     totalVolume: material.totalVolume,
     kbobMatchId: material.kbobMatchId,

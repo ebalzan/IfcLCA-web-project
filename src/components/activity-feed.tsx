@@ -1,6 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -14,10 +13,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { Activity } from "@/lib/types/activity";
-import { cn } from "@/lib/utils";
+import { ActivityType } from "@/interfaces/client/activities/IActivity";
+import { useActivities } from "@/hooks/activities/use-activities";
 
-const getActivityIcon = (type: Activity["type"]) => {
+const getActivityIcon = (type: ActivityType) => {
   switch (type) {
     case "project_created":
       return <PlusCircle className="h-4 w-4" />;
@@ -34,76 +33,59 @@ const getActivityIcon = (type: Activity["type"]) => {
   }
 };
 
-const formatActivityMessage = (activity: Activity) => {
-  return (
-    <span>
-      <span className="font-medium">{activity.user?.name}</span>
-      <span className="text-muted-foreground">
-        {` ${activity.action} `}
-        <Link
-          href={`/projects/${activity.projectId}`}
-          className="text-primary hover:underline"
-        >
-          {activity.project}
-        </Link>
-      </span>
-      {activity.details?.description && (
-        <p className="text-sm text-muted-foreground mt-0.5">
-          {activity.details.description}
-        </p>
-      )}
-      <span className="text-xs text-muted-foreground whitespace-nowrap">
-        {formatDistanceToNow(new Date(activity.timestamp), {
-          addSuffix: true,
-        })}
-      </span>
-    </span>
-  );
-};
+export function ActivityFeed() {
+  const {
+    activities,
+    isLoading,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
+  } = useActivities();
 
-interface ActivityFeedProps {
-  activities?: Activity[];
-}
-
-export function ActivityFeed({ activities = [] }: ActivityFeedProps) {
-  const recentActivities = activities.slice(0, 6);
+  if (isLoading || isFetchingNextPage) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <Loader2 className="animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <Card>
       <CardContent className="p-4 space-y-2">
-        {recentActivities.map((activity) => (
+        {activities.map((activity, index) => (
           <div
-            key={activity.id}
+            key={activity.id + index}
             className="flex items-center gap-4 py-2 border-b last:border-0"
           >
             <div className="flex-shrink-0 w-8 h-8 relative">
-              {activity.user?.imageUrl ? (
+              {activity.user.imageUrl ? (
                 <Image
-                  src={activity.user.imageUrl}
-                  alt={activity.user.name}
+                  src={activity.user?.imageUrl}
+                  alt={activity.user?.name}
                   fill
                   className="rounded-full object-cover"
                 />
               ) : (
                 <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                  {activity.user?.name?.[0] || "?"}
+                  {activity.user?.name[0] || "?"}
                 </div>
               )}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3">
                 <span className="font-medium text-sm">
-                  {activity.user?.name}
+                  {activity.user.name}
                 </span>
                 <div className="flex items-center gap-2 text-muted-foreground">
                   {getActivityIcon(activity.type)}
                   <span className="text-sm">{activity.action}</span>
                 </div>
                 <Link
-                  href={`/projects/${activity.projectId}`}
+                  href={`/projects/${activity.project.id}`}
                   className="text-primary hover:underline text-sm"
                 >
-                  {activity.project}
+                  {activity.project.name}
                 </Link>
               </div>
               {activity.details?.description && (

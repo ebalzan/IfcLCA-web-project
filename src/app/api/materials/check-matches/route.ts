@@ -3,10 +3,17 @@ import { MaterialService } from "@/lib/services/material-service";
 import { Project } from "@/models";
 import { withAuthAndDB } from "@/lib/api-middleware";
 import { AuthenticatedRequest, getUserId } from "@/lib/auth-middleware";
+import IMaterialDB, { IMaterialVirtuals } from "@/interfaces/materials/IMaterialDB";
 
 interface CheckMatchesRequest {
   materialNames: string[];
   projectId: string;
+}
+
+export interface CheckMatchesResponse {
+  unmatchedMaterials: string[];
+  matchedMaterials: (IMaterialDB & IMaterialVirtuals)[];
+  unmatchedCount: number;
 }
 
 async function processMaterialMatches(
@@ -38,7 +45,7 @@ async function processMaterialMatches(
   }
 
   const unmatchedMaterials = [];
-  const matchedMaterials = [];
+  const matchedMaterials: (IMaterialDB & IMaterialVirtuals)[] = [];
 
   for (const materialName of materialNames) {
     const existingMatch = await MaterialService.findExistingMaterial(
@@ -52,14 +59,14 @@ async function processMaterialMatches(
       const newMaterial = await MaterialService.createMaterialWithMatch(
         projectId,
         materialName,
-        existingMatch.kbobMatchId,
+        existingMatch.kbobMatchId!,
         existingMatch.density
       );
       matchedMaterials.push(newMaterial);
     }
   }
 
-  return NextResponse.json({
+  return NextResponse.json<CheckMatchesResponse>({
     unmatchedMaterials,
     matchedMaterials,
     unmatchedCount: unmatchedMaterials.length,

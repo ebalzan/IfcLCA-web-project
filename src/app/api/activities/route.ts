@@ -3,19 +3,17 @@ import { Project, Upload, MaterialDeletion } from "@/models"
 import { withAuthAndDB } from "@/lib/api-middleware"
 import { getUserId, AuthenticatedRequest } from "@/lib/auth-middleware"
 import IProjectDB from "@/interfaces/projects/IProjectDB"
-import IUploadDB from "@/interfaces/uploads/IUploadDB"
-import IMaterialDeletion from "@/interfaces/materials/IMaterialDeletion"
-import { logger } from "@/lib/logger"
-import { Types } from "mongoose"
+import IActivity from "@/interfaces/client/activities/IActivity"
+import sortByDate from "@/utils/sortByDate"
+import ActivityResponse from "@/interfaces/activities/ActivityResponse"
 
 async function getActivities(request: AuthenticatedRequest) {
   const userId = getUserId(request)
 
   const { searchParams } = new URL(request.url)
   const page = parseInt(searchParams.get("page") || "1")
-  const limit = 2 // Changed to 2 items per page (and it returns more but cant be bothered to fix it now, future me will be happy)
+  const limit = parseInt(searchParams.get("limit") || "10")
   const skip = (page - 1) * limit
-
 
   // Get total counts for pagination (even though no pagination UI exists yet)
   const [projectsCount, uploadsCount, materialDeletionsCount] =
@@ -27,7 +25,7 @@ async function getActivities(request: AuthenticatedRequest) {
 
   // Fetch paginated projects and uploads
   const [projects, uploads, materialDeletions] = await Promise.all([
-    Project.find<IProjectDB>({ userId })
+    Project.find({ userId })
       .sort({ createdAt: -1, })
       .skip(skip)
       .limit(limit)
@@ -45,73 +43,72 @@ async function getActivities(request: AuthenticatedRequest) {
       .populate<{ projectId: Pick<IProjectDB, "name" | "_id"> }>("projectId", "name")
       .lean(),
   ])
-  
+
   // Format activities
-  const activities = [
-    ...projects.map((project) => ({
-      id: project._id.toString(),
-      type: "project_created",
+  const activities: IActivity[] = [
+    ...projects.map(({ _id, name, createdAt }) => ({
+      id: _id.toString(),
+      type: 'project_created',
       user: {
         name: "You",
-        avatar: "/placeholder-avatar.jpg",
+        imageUrl: null,
       },
       action: "created a new project",
-      project: project.name,
-      projectId: project._id.toString(),
-      timestamp: project.createdAt,
-      details: {
-        description: project.description || "No description provided",
+      project: {
+        id: _id.toString(),
+        name,
       },
+      timestamp: createdAt,
+      details: null,
     })),
-    ...uploads.map((upload: any) => ({
-      id: upload._id.toString(),
-      type: "file_uploaded",
+    ...uploads.map(({ _id, filename, elementCount, createdAt, projectId }) => ({
+      id: _id.toString(),
+      type: 'file_uploaded',
       user: {
         name: "You",
-        avatar: "/placeholder-avatar.jpg",
+        imageUrl: null,
       },
       action: "uploaded a file to",
-      project: upload.projectId?.name || "Unknown Project",
-      projectId: upload.projectId?._id?.toString() || "",
-      timestamp: upload.createdAt,
+      project: {
+        id: projectId._id.toString(),
+        name: projectId.name,
+      },
+      timestamp: createdAt,
       details: {
-        fileName: upload.filename,
-        elementCount: upload.elementCount || 0,
+        filename,
+        elementCount,
       },
     })),
-    ...materialDeletions.map((deletion) => ({
-      id: deletion._id.toString(),
-      type: "material_deleted",
+    ...materialDeletions.map(({ _id, materialName, reason, createdAt, projectId }) => ({
+      id: _id.toString(),
+      type: 'material_deleted',
       user: {
         name: "You",
-        avatar: "/placeholder-avatar.jpg",
+        imageUrl: null,
       },
       action: "deleted a material from",
-      project: deletion.projectId?.name || "Unknown Project",
-      projectId: deletion.projectId?._id?.toString() || "",
-      timestamp: deletion.createdAt,
+      project: {
+        id: projectId._id.toString(),
+        name: projectId.name,
+      },
+      timestamp: createdAt,
       details: {
-        materialName: deletion.materialName,
-        reason: deletion.reason || "No reason provided",
+        materialName,
+        reason,
       },
     })),
-  ]
-
-  logger.info("ACTIVITIES", activities)
+  ] as IActivity[]
 
   // Sort by timestamp descending
-  const sortedActivities = activities.sort(
-    (a, b) =>
-      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  )
+  const sortedActivities = sortByDate(activities)
 
   const totalCount = projectsCount + uploadsCount + materialDeletionsCount
   const hasMore = skip + sortedActivities.length < totalCount
 
-  return NextResponse.json({
+  return NextResponse.json<ActivityResponse>({
     activities: sortedActivities,
     hasMore,
-    total: totalCount,
+    totalCount,
   })
 }
 

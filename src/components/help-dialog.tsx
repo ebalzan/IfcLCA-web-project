@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import {
   HelpCircle,
   Github,
-  Linkedin,
   Globe,
   Video,
   Users,

@@ -1,20 +1,23 @@
+import { Types } from "mongoose";
 import { Project } from "@/models";
 import { withAuthAndDB } from "@/lib/api-middleware";
 import { getUserId, AuthenticatedRequest } from "@/lib/auth-middleware";
 import { NextResponse } from "next/server";
 import ILCAIndicators from "@/interfaces/materials/ILCAIndicators";
 
+export type IProjectEmissionsResponse = IProjectEmissions[];
+
 export const runtime = "nodejs";
 
-interface IProjectEmissionsResult extends ILCAIndicators {
-  _id: null;
+interface IProjectEmissions extends ILCAIndicators {
+  _id: Types.ObjectId | null;
 }
 
-async function getEmissions(request: AuthenticatedRequest) {
+async function getEmissionsFromAllProjects(request: AuthenticatedRequest) {
   const userId = getUserId(request);
 
   // Aggregate emissions across all active projects for the user
-  const projects = await Project.aggregate<IProjectEmissionsResult>([
+  const projectsEmissions = await Project.aggregate<IProjectEmissions>([
     {
       $match: {
         userId,
@@ -103,14 +106,16 @@ async function getEmissions(request: AuthenticatedRequest) {
     },
   ]).exec();
 
-  // If no projects or materials found, return zeros
-  const totalEmissions = projects[0] || {
-    gwp: 0,
-    ubp: 0,
-    penre: 0,
-  };
 
-  return NextResponse.json(totalEmissions);
+  // // If no projects or materials found, return zeros
+  // const totalEmissions: IProjectEmissions = projectsEmissions[0] || {
+  //   _id: null,
+  //   gwp: 0,
+  //   ubp: 0,
+  //   penre: 0,
+  // };
+
+  return NextResponse.json<IProjectEmissionsResponse>(projectsEmissions);
 }
 
-export const GET = withAuthAndDB(getEmissions);
+export const GET = withAuthAndDB(getEmissionsFromAllProjects);

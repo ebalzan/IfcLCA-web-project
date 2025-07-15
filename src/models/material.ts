@@ -1,5 +1,7 @@
 import { Schema, model, models, Model } from "mongoose"
 import IMaterialDB, { IMaterialVirtuals } from "@/interfaces/materials/IMaterialDB"
+import mongooseLeanVirtuals from "mongoose-lean-virtuals"
+import mongooseLeanGetters from "mongoose-lean-getters"
 
 type IMaterialModelType = Model<IMaterialDB, {}, {}, IMaterialVirtuals>
 
@@ -9,7 +11,6 @@ const materialSchema = new Schema<IMaterialDB, IMaterialModelType, {}, IMaterial
       type: Schema.Types.ObjectId,
       ref: "Project",
       required: true,
-      index: true,
     },
     name: {
       type: String,
@@ -60,9 +61,13 @@ materialSchema.virtual("totalVolume").get(async function () {
     { $match: { "materials.material": this._id } },
     { $group: { _id: null, totalVolume: { $sum: "$materials.volume" } } },
   ])
-
+  
   return result[0]?.totalVolume || 0
 })
+
+// Plugins
+materialSchema.plugin(mongooseLeanVirtuals)
+materialSchema.plugin(mongooseLeanGetters)
 
 // Check if model already exists before creating
 export const Material: IMaterialModelType = models.Material || model("Material", materialSchema)

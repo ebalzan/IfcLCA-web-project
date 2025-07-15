@@ -1,34 +1,10 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown, Check, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { IElementWithMaterialRefsClient } from "@/interfaces/client/projects/IProjectWithStatsClient";
 
-interface Element {
-  _id: string;
-  name: string;
-  type: string;
-  totalVolume: number;
-  emissions: {
-    gwp: number;
-    ubp: number;
-    penre: number;
-  };
-  materials: Array<{
-    material: {
-      name: string;
-      kbobMatch?: {
-        Name: string;
-      };
-    };
-    volume: number;
-  }>;
-  isExternal: boolean;
-  loadBearing: boolean;
-}
-
-export const elementsColumns: ColumnDef<Element>[] = [
+export const elementsColumns: ColumnDef<IElementWithMaterialRefsClient>[] = [
   {
     accessorKey: "name",
     header: ({ column }) => <div className="flex items-center">Name</div>,
@@ -61,19 +37,19 @@ export const elementsColumns: ColumnDef<Element>[] = [
     accessorKey: "materials",
     header: "Materials",
     cell: ({ row }) => {
-      const materials = row.original.materials;
+      const materials = row.original.materials
       return (
         <div className="space-y-1 max-w-[250px] lg:max-w-[400px]">
-          {materials.map((mat, idx) => (
-            <div key={idx} className="flex items-center gap-2 text-sm">
+          {materials.map((materialLayer, index) => (
+            <div key={index} className="flex items-center gap-2 text-sm">
               <span className="truncate font-medium">
-                {mat.material?.kbobMatch?.Name ||
-                  mat.material?.name ||
+                {materialLayer.material.kbobMatch?.name ||
+                  materialLayer.material.name ||
                   "Unknown"}
               </span>
               <span className="text-muted-foreground whitespace-nowrap">
                 (
-                {mat.volume.toLocaleString("de-CH", {
+                {materialLayer.volume.toLocaleString("de-CH", {
                   minimumFractionDigits: 3,
                   maximumFractionDigits: 3,
                 })}{" "}

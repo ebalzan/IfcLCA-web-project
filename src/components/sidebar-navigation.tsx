@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -25,14 +25,13 @@ import {
 import { UploadIfcButton } from "@/components/upload-ifc-button";
 
 interface SidebarProps {
-  currentPage: string;
   projectId?: string;
   collapsed?: boolean;
 }
 
 interface SidebarItem {
   title: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   href: string;
   badge?: {
     text: string;
@@ -95,11 +94,7 @@ const projectItems: SidebarItem[] = [
   },
 ];
 
-export function SidebarNavigation({
-  currentPage,
-  projectId,
-  collapsed,
-}: SidebarProps) {
+export function SidebarNavigation({ projectId, collapsed }: SidebarProps) {
   const pathname = usePathname();
   const items = projectId ? [...primaryItems, ...projectItems] : primaryItems;
 

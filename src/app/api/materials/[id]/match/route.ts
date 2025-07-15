@@ -56,8 +56,9 @@ async function matchMaterialsWithKbob(
       },
     },
     { new: true }
-  ).populate<{ kbobMatchId: IKBOBMaterial }>("kbobMatchId", "name category gwp ubp penre")
-  .lean();
+  )
+  .populate<{ kbobMatchId: Pick<IKBOBMaterial, "_id" | "name" | "category" | "gwp" | "ubp" | "penre"> }>("kbobMatchId", "_id name category gwp ubp penre")
+  .lean()
 
   if (!updatedMaterial) {
     return NextResponse.json(

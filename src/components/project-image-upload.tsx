@@ -1,31 +1,29 @@
 "use client";
 
+import { ChangeEvent, useState } from "react";
 import { uploadProjectImage } from "@/app/actions/upload-image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { ImageIcon } from "lucide-react";
 import Image from "next/image";
-import { useState } from "react";
 
 interface ProjectImageUploadProps {
   projectId: string;
   imageUrl?: string;
-  className?: string;
 }
 
 export function ProjectImageUpload({
   projectId,
   imageUrl,
-  className,
 }: ProjectImageUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [currentImageUrl, setCurrentImageUrl] = useState(imageUrl);
   const { toast } = useToast();
 
-  const handleImageUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  async function handleImageUpload(
+    event: ChangeEvent<HTMLInputElement>
+  ) {
     const file = event.target.files?.[0];
     if (!file) return;
 

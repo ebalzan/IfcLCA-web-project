@@ -5,7 +5,7 @@ import { withAuthAndDBParams } from "@/lib/api-middleware";
 
 async function getUpload(
   request: AuthenticatedRequest,
-  context: { params: Promise<{ [key: string]: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
     const { id } = await context.params;
     const upload = await Upload.findById(id).populate("elements");

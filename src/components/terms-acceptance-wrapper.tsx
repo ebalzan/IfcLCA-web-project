@@ -1,32 +1,32 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, ReactNode } from "react";
 import { TermsAcceptanceModal } from "./terms-acceptance-modal";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useFetch } from "@/hooks/use-fetch";
 
 export function TermsAcceptanceWrapper({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   const [showModal, setShowModal] = useState(true);
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get("redirect");
+  const response = useFetch("/api/accept-terms", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  })
 
-  const handleAcceptTerms = async () => {
+  async function handleAcceptTerms() {
     try {
-      await fetch("/api/accept-terms", {
-        method: "POST",
-      });
+      await response.execute()
+      setShowModal(false)
 
-      setShowModal(false);
-
-      if (redirectUrl) {
-        router.push(redirectUrl);
-      } else {
-        router.refresh();
-      }
+      redirectUrl ? router.push(redirectUrl) : router.refresh()
     } catch (error) {
       console.error("Failed to accept terms:", error);
     }
@@ -37,7 +37,6 @@ export function TermsAcceptanceWrapper({
       <TermsAcceptanceModal
         open={showModal}
         onAccept={handleAcceptTerms}
-        redirectUrl={redirectUrl}
       />
       {children}
     </>
