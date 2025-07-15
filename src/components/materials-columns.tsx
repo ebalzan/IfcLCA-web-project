@@ -2,40 +2,20 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
+import IMaterialClient from "@/interfaces/client/materials/IMaterialClient";
 
-interface Material {
-  _id: string;
-  name: string;
-  material: {
-    name: string;
-    density: number;
-    kbobMatch?: {
-      Name: string;
-      GWP: number;
-      UBP: number;
-      PENRE: number;
-    };
-  };
-  volume: number;
-  emissions: {
-    gwp: number;
-    ubp: number;
-    penre: number;
-  };
-}
-
-export const materialsColumns: ColumnDef<Material>[] = [
+export const materialsColumns: ColumnDef<IMaterialClient>[] = [
   {
-    accessorKey: "material.name",
+    accessorKey: "name",
     header: ({ column }) => (
       <div className="flex items-center">Ifc Material</div>
     ),
   },
   {
-    accessorKey: "material.kbobMatch.Name",
+    accessorKey: "kbobMatch.name",
     header: "KBOB Material",
     cell: ({ row }) => {
-      const kbobName = row.original.material?.kbobMatch?.Name;
+      const kbobName = row.original.kbobMatch?.name;
       return kbobName ? (
         <div className="truncate max-w-[200px] lg:max-w-[300px]">
           {kbobName}
@@ -54,18 +34,19 @@ export const materialsColumns: ColumnDef<Material>[] = [
     accessorKey: "volume",
     header: "Volume (m³)",
     cell: ({ row }) => {
-      const volume = row.original.volume;
-      return volume.toLocaleString("de-CH", {
-        minimumFractionDigits: 3,
-        maximumFractionDigits: 3,
-      });
+      const volume = row.original.totalVolume;
+      return volume
+      // toLocaleString("de-CH", {
+      //   minimumFractionDigits: 3,
+      //   maximumFractionDigits: 3,
+      // });
     },
   },
   {
-    accessorKey: "material.density",
+    accessorKey: "density",
     header: "Density (kg/m³)",
     cell: ({ row }) => {
-      const density = row.original.material?.density;
+      const density = row.original.density;
       if (!density)
         return (
           <Badge
@@ -82,10 +63,10 @@ export const materialsColumns: ColumnDef<Material>[] = [
     },
   },
   {
-    accessorKey: "emissions.gwp",
+    accessorKey: "gwp",
     header: "GWP (kg CO₂ eq)",
     cell: ({ row }) => {
-      const gwp = row.original.emissions?.gwp || 0;
+      const gwp = row.original.gwp || 0;
       return gwp.toLocaleString("de-CH", {
         minimumFractionDigits: 0,
         maximumFractionDigits: 0,
@@ -93,10 +74,10 @@ export const materialsColumns: ColumnDef<Material>[] = [
     },
   },
   {
-    accessorKey: "emissions.ubp",
+    accessorKey: "ubp",
     header: "UBP",
     cell: ({ row }) => {
-      const ubp = row.original.emissions?.ubp || 0;
+      const ubp = row.original.ubp || 0;
       return ubp.toLocaleString("de-CH", {
         minimumFractionDigits: 0,
         maximumFractionDigits: 0,
@@ -104,10 +85,10 @@ export const materialsColumns: ColumnDef<Material>[] = [
     },
   },
   {
-    accessorKey: "emissions.penre",
+    accessorKey: "penre",
     header: "PENRE (kWh oil-eq)",
     cell: ({ row }) => {
-      const penre = row.original.emissions?.penre || 0;
+      const penre = row.original.penre || 0;
       return penre.toLocaleString("de-CH", {
         minimumFractionDigits: 0,
         maximumFractionDigits: 0,

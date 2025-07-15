@@ -1,8 +1,9 @@
-import { logger } from "@/lib/logger";
+import { withAuthAndDBParams } from "@/lib/api-middleware";
+import { AuthenticatedRequest } from "@/lib/auth-middleware";
 import { connectToDatabase } from "@/lib/mongodb";
 import { IFCProcessingService } from "@/lib/services/ifc-processing-service";
 import { Upload } from "@/models";
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
 import { NextResponse } from "next/server";
 
 interface IFCMaterial {
@@ -22,13 +23,10 @@ interface IFCElement {
   materials: IFCMaterial[];
 }
 
-export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+async function processUpload(request: AuthenticatedRequest, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params;
   const session = await mongoose.startSession();
 
-  try {
     const { uploadId, elements } = (await request.json()) as {
       uploadId: string;
       elements: IFCElement[];
@@ -74,18 +72,12 @@ export async function POST(
         { session }
       );
     });
+    await session.endSession();
 
     return NextResponse.json({
       success: true,
       shouldRedirectToLibrary: true,
     });
-  } catch (error) {
-    logger.error("Error processing upload:", error);
-    return NextResponse.json(
-      { error: "Failed to process upload" },
-      { status: 500 }
-    );
-  } finally {
-    await session.endSession();
-  }
 }
+
+export const POST = withAuthAndDBParams(processUpload)

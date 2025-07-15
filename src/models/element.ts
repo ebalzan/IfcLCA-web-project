@@ -1,25 +1,14 @@
-import mongoose from "mongoose";
+import { Model, Schema, model, models } from "mongoose"
+import IElementDB, { IElementVirtuals } from "@/interfaces/elements/IElementDB"
+import IMaterialLayer from "@/interfaces/elements/IMaterialLayer"
+import mongooseLeanGetters from "mongoose-lean-getters"
+import mongooseLeanVirtuals from "mongoose-lean-virtuals"
 
-interface IMaterialLayer {
-  material: mongoose.Types.ObjectId;
-  volume: number;
-  fraction: number;
-  thickness?: number;
-}
+type IElementModelType = Model<IElementDB, {}, {}, IElementVirtuals>
 
-interface IElement {
-  projectId: mongoose.Types.ObjectId;
-  guid: string;
-  name: string;
-  type: string;
-  loadBearing: boolean;
-  isExternal: boolean;
-  materials: IMaterialLayer[];
-}
-
-const materialLayerSchema = new mongoose.Schema<IMaterialLayer>({
+const materialLayerSchema = new Schema<IMaterialLayer>({
   material: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: Schema.Types.ObjectId,
     ref: "Material",
     required: true,
   },
@@ -42,15 +31,14 @@ const materialLayerSchema = new mongoose.Schema<IMaterialLayer>({
     type: Number,
     min: 0,
   },
-});
+})
 
-const elementSchema = new mongoose.Schema<IElement>(
+const elementSchema = new Schema<IElementDB, IElementModelType, {}, IElementVirtuals>(
   {
     projectId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "Project",
       required: true,
-      index: true,
     },
     guid: {
       type: String,
@@ -77,49 +65,52 @@ const elementSchema = new mongoose.Schema<IElement>(
   {
     timestamps: true,
   }
-);
+)
 
 // Indexes
-elementSchema.index({ projectId: 1, guid: 1 }, { unique: true });
-elementSchema.index({ "materials.material": 1 });
+elementSchema.index({ projectId: 1, guid: 1 }, { unique: true })
+elementSchema.index({ "materials.material": 1 })
+
+// Virtuals
+elementSchema.plugin(mongooseLeanVirtuals)
+elementSchema.plugin(mongooseLeanGetters)
 
 // Virtual for total volume
 elementSchema.virtual("totalVolume").get(function () {
-  return this.materials.reduce((sum, mat) => sum + (mat.volume || 0), 0);
-});
+  return this.materials.reduce((sum, materialLayer) => sum + (materialLayer.volume || 0), 0)
+})
 
 // Virtual for emissions (calculated on-the-fly)
 elementSchema.virtual("emissions").get(function () {
   return this.materials.reduce(
-    (acc, mat) => {
-      const material = mat.material as any; // Will be populated
-      if (!material?.kbobMatchId) return acc;
+    (acc, materialLayer) => {
+      const material = materialLayer.material as any // Will be populated
+      if (!material?.kbobMatchId) return acc
 
-      const volume = mat.volume || 0;
-      const density = material.density || 0;
-      const mass = volume * density;
+      const volume = materialLayer.volume || 0
+      const density = material.density || 0
+      const mass = volume * density
 
       return {
         gwp: acc.gwp + mass * (material.kbobMatchId.GWP || 0),
         ubp: acc.ubp + mass * (material.kbobMatchId.UBP || 0),
         penre: acc.penre + mass * (material.kbobMatchId.PENRE || 0),
-      };
+      }
     },
     { gwp: 0, ubp: 0, penre: 0 }
-  );
-});
+  )
+})
 
 // Middleware to validate material fractions sum to 1
 elementSchema.pre("save", function (next) {
   const totalFraction = this.materials.reduce(
-    (sum, mat) => sum + mat.fraction,
+    (sum, materialLayer) => sum + (materialLayer?.fraction || 0),
     0
-  );
+  )
   if (Math.abs(totalFraction - 1) > 0.0001) {
-    next(new Error("Material fractions must sum to 1"));
+    next(new Error("Material fractions must sum to 1"))
   }
-  next();
-});
+  next()
+})
 
-export const Element =
-  mongoose.models.Element || mongoose.model<IElement>("Element", elementSchema);
+export const Element: IElementModelType = models.Element || model("Element", elementSchema)

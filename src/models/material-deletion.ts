@@ -1,9 +1,12 @@
-import mongoose from "mongoose";
+import IMaterialDeletion from "@/interfaces/materials/IMaterialDeletion";
+import { Model, Schema, model, models } from "mongoose";
 
-const materialDeletionSchema = new mongoose.Schema(
+type IMaterialDeletionModelType = Model<IMaterialDeletion>
+
+const materialDeletionSchema = new Schema<IMaterialDeletion, IMaterialDeletionModelType>(
   {
     projectId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "Project",
       required: [true, "Project ID is required"],
     },
@@ -17,6 +20,7 @@ const materialDeletionSchema = new mongoose.Schema(
     },
     reason: {
       type: String,
+      required: [true, "Reason is required"],
     },
   },
   {
@@ -35,6 +39,6 @@ materialDeletionSchema.pre("save", function (next) {
   next();
 });
 
-export const MaterialDeletion =
-  mongoose.models.MaterialDeletion ||
-  mongoose.model("MaterialDeletion", materialDeletionSchema);
+export const MaterialDeletion: IMaterialDeletionModelType =
+  models.MaterialDeletion ||
+  model("MaterialDeletion", materialDeletionSchema);

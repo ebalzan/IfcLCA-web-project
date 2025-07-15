@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { logger } from "@/lib/logger";
-import { parseIFCFile } from "@/lib/services/ifc-parser-client";
+import { IFCParseResult, parseIFCFile } from "@/lib/services/ifc-parser-client";
 import { ReloadIcon } from "@radix-ui/react-icons";
 import { UploadCloud } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -20,7 +20,6 @@ interface UploadModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (upload: { id: string }) => void;
-  onProgress?: (progress: number) => void;
 }
 
 export function UploadModal({
@@ -28,7 +27,6 @@ export function UploadModal({
   open,
   onOpenChange,
   onSuccess,
-  onProgress,
 }: UploadModalProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string>("Processing IFC file...");
@@ -58,7 +56,7 @@ export function UploadModal({
         const results = (await Promise.race([
           uploadPromise,
           timeoutPromise,
-        ])) as any;
+        ])) as IFCParseResult;
 
         logger.debug("Upload results", {
           elementCount: results.elementCount,

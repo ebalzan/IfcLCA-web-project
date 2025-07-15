@@ -8,7 +8,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useProjectEmissions } from "@/hooks/use-project-emissions";
-import type { Project } from "@/hooks/use-project-emissions";
+import IProjectWithStatsClient from "@/interfaces/client/projects/IProjectWithStatsClient";
 import { useState } from "react";
 
 type MetricKey = "gwp" | "ubp" | "penre";
@@ -34,11 +34,11 @@ const metrics: Record<
   },
 };
 
-export function EmissionsSummaryCard({ project }: { project?: Project }) {
+export function EmissionsSummaryCard({ project }: { project?: IProjectWithStatsClient }) {
   const [metric, setMetric] = useState<MetricKey>("gwp");
   const { totals, formatted, units } = useProjectEmissions(project);
 
-  if (!project?.elements?.length) {
+  if (!project?.elements) {
     return (
       <div className="flex flex-col justify-center text-center py-4">
         <div className="text-sm text-muted-foreground">

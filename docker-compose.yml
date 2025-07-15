@@ -1,0 +1,27 @@
+services:
+  ifclca-development:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: development
+        PORT: 3000
+    container_name: ifclca-development
+    env_file:
+      - .env
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /opt/ifclca-development
+          ignore:
+            - node_modules/
+    tty: true
+    volumes:
+      - .:/opt/ifclca-development
+      - ifclca_development_node_modules:/opt/ifclca-development/node_modules
+    ports:
+      - "3000:3000"
+
+volumes:
+  ifclca_development_node_modules:

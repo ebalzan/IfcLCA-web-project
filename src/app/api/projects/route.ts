@@ -1,160 +1,309 @@
-import { connectToDatabase } from "@/lib/mongodb";
 import { Project } from "@/models";
-import { auth } from "@clerk/nextjs/server";
+import { withAuthAndDB } from "@/lib/api-middleware";
+import { getUserId, AuthenticatedRequest } from "@/lib/auth-middleware";
 import { NextResponse } from "next/server";
+import IProjectDB from "@/interfaces/projects/IProjectDB";
+import { ProjectsWithStatsResponse } from "@/interfaces/projects/ProjectsResponse";
+import IProjectWithStatsClient from "@/interfaces/client/projects/IProjectWithStatsClient";
 
 export const runtime = "nodejs";
 
-export async function GET() {
-  try {
-    const { userId } = await auth();
-
-    if (!userId) {
-      return new Response("Unauthorized", { status: 401 });
-    }
-
-    await connectToDatabase();
-
-    // Aggregate projects with their latest activity timestamps
-    const projects = await Project.aggregate([
-      { $match: { userId } },
-      {
-        $lookup: {
-          from: "uploads",
-          localField: "_id",
-          foreignField: "projectId",
-          as: "uploads",
-        },
+async function getProjectsWithStats(userId: string, limit: number, page: number) {
+  return Project.aggregate<IProjectWithStatsClient>([
+    {
+      $match: { userId },
+    },
+    {
+      $lookup: {
+        from: "uploads",
+        localField: "_id",
+        foreignField: "projectId",
+        as: "uploads",
       },
-      {
-        $lookup: {
-          from: "elements",
-          localField: "_id",
-          foreignField: "projectId",
-          as: "elements",
-        },
-      },
-      {
-        $lookup: {
-          from: "materials",
-          localField: "_id",
-          foreignField: "projectId",
-          as: "materials",
-        },
-      },
-      {
-        $addFields: {
-          lastActivityAt: {
-            $max: [
-              "$updatedAt",
-              { $max: "$uploads.createdAt" },
-              { $max: "$elements.createdAt" },
-              { $max: "$materials.createdAt" },
-            ],
+    },
+    {
+      $lookup: {
+        from: "elements",
+        localField: "_id",
+        foreignField: "projectId",
+        as: "elements",
+        pipeline: [
+          {
+            $lookup: {
+              from: "materials",
+              localField: "materials.material",
+              foreignField: "_id",
+              as: "materialRefs",
+              pipeline: [
+                {
+                  $lookup: {
+                    from: "indicatorsKBOB",
+                    localField: "kbobMatchId",
+                    foreignField: "_id",
+                    as: "kbobMatch",
+                  },
+                },
+                {
+                  $unwind: {
+                    path: "$kbobMatch",
+                    preserveNullAndEmptyArrays: true,
+                  },
+                },
+              ],
+            },
           },
-          _count: {
-            elements: { $size: "$elements" },
-            uploads: { $size: "$uploads" },
-            materials: { $size: "$materials" },
-          },
-          emissions: {
-            $ifNull: [
-              "$emissions",
-              {
-                gwp: 0,
-                ubp: 0,
-                penre: 0,
-                lastCalculated: new Date(),
-              },
-            ],
-          },
-          elements: {
-            $map: {
-              input: "$elements",
-              as: "element",
-              in: {
-                _id: "$$element._id",
-                name: "$$element.name",
-                type: "$$element.type",
-                volume: "$$element.volume",
-                materials: {
-                  $map: {
-                    input: "$$element.materials",
-                    as: "material",
-                    in: {
-                      volume: "$$material.volume",
-                      indicators: {
-                        gwp: "$$material.indicators.gwp",
-                        ubp: "$$material.indicators.ubp",
-                        penre: "$$material.indicators.penre",
+          {
+            $addFields: {
+              materials: {
+                $map: {
+                  input: "$materials",
+                  as: "mat",
+                  in: {
+                    $mergeObjects: [
+                      "$$mat",
+                      {
+                        material: {
+                          $arrayElemAt: [
+                            {
+                              $filter: {
+                                input: "$materialRefs",
+                                cond: {
+                                  $eq: ["$$this._id", "$$mat.material"],
+                                },
+                              },
+                            },
+                            0,
+                          ],
+                        },
                       },
+                    ],
+                  },
+                },
+              },
+              totalVolume: { $sum: "$materials.volume" },
+              emissions: {
+                $reduce: {
+                  input: "$materials",
+                  initialValue: { gwp: 0, ubp: 0, penre: 0 },
+                  in: {
+                    gwp: {
+                      $add: [
+                        "$$value.gwp",
+                        {
+                          $multiply: [
+                            "$$this.volume",
+                            { $ifNull: ["$$this.material.density", 0] },
+                            { $ifNull: ["$$this.material.kbobMatch.GWP", 0] },
+                          ],
+                        },
+                      ],
+                    },
+                    ubp: {
+                      $add: [
+                        "$$value.ubp",
+                        {
+                          $multiply: [
+                            "$$this.volume",
+                            { $ifNull: ["$$this.material.density", 0] },
+                            { $ifNull: ["$$this.material.kbobMatch.UBP", 0] },
+                          ],
+                        },
+                      ],
+                    },
+                    penre: {
+                      $add: [
+                        "$$value.penre",
+                        {
+                          $multiply: [
+                            "$$this.volume",
+                            { $ifNull: ["$$this.material.density", 0] },
+                            {
+                              $ifNull: ["$$this.material.kbobMatch.PENRE", 0],
+                            },
+                          ],
+                        },
+                      ],
                     },
                   },
                 },
               },
             },
           },
+        ],
+      },
+    },
+    {
+      $lookup: {
+        from: "materials",
+        localField: "_id",
+        foreignField: "projectId",
+        as: "materials",
+        pipeline: [
+          {
+            $lookup: {
+              from: "indicatorsKBOB",
+              localField: "kbobMatchId",
+              foreignField: "_id",
+              as: "kbobMatch",
+            },
+          },
+          {
+            $unwind: {
+              path: "$kbobMatch",
+              preserveNullAndEmptyArrays: true,
+            },
+          },
+          {
+            $lookup: {
+              from: "elements",
+              let: { materialId: "$_id" },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: {
+                      $in: ["$$materialId", "$materials.material"],
+                    },
+                  },
+                },
+                {
+                  $unwind: "$materials",
+                },
+                {
+                  $match: {
+                    $expr: {
+                      $eq: ["$materials.material", "$$materialId"],
+                    },
+                  },
+                },
+                {
+                  $group: {
+                    _id: null,
+                    totalVolume: { $sum: "$materials.volume" },
+                  },
+                },
+              ],
+              as: "volumeData",
+            },
+          },
+          {
+            $addFields: {
+              volume: {
+                $ifNull: [{ $arrayElemAt: ["$volumeData.totalVolume", 0] }, 0],
+              },
+              gwp: {
+                $multiply: [
+                  {
+                    $ifNull: [
+                      { $arrayElemAt: ["$volumeData.totalVolume", 0] },
+                      0,
+                    ],
+                  },
+                  { $ifNull: ["$density", 0] },
+                  { $ifNull: ["$kbobMatch.GWP", 0] },
+                ],
+              },
+              ubp: {
+                $multiply: [
+                  {
+                    $ifNull: [
+                      { $arrayElemAt: ["$volumeData.totalVolume", 0] },
+                      0,
+                    ],
+                  },
+                  { $ifNull: ["$density", 0] },
+                  { $ifNull: ["$kbobMatch.UBP", 0] },
+                ],
+              },
+              penre: {
+                $multiply: [
+                  {
+                    $ifNull: [
+                      { $arrayElemAt: ["$volumeData.totalVolume", 0] },
+                      0,
+                    ],
+                  },
+                  { $ifNull: ["$density", 0] },
+                  { $ifNull: ["$kbobMatch.PENRE", 0] },
+                ],
+              },
+            },
+          },
+          {
+            $project: {
+              volumeData: 0,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $addFields: {
+        lastActivityAt: {
+          $max: [
+            "$updatedAt",
+            { $max: "$uploads.createdAt" },
+            { $max: "$elements.createdAt" },
+            { $max: "$materials.createdAt" },
+          ],
+        },
+        _count: {
+          elements: { $size: "$elements" },
+          uploads: { $size: "$uploads" },
+          materials: { $size: "$materials" },
+        },
+        totalEmissions: {
+          $reduce: {
+            input: "$elements",
+            initialValue: { gwp: 0, ubp: 0, penre: 0 },
+            in: {
+              gwp: { $add: ["$$value.gwp", "$$this.emissions.gwp"] },
+              ubp: { $add: ["$$value.ubp", "$$this.emissions.ubp"] },
+              penre: { $add: ["$$value.penre", "$$this.emissions.penre"] },
+            },
+          },
         },
       },
-      { $sort: { lastActivityAt: -1 } },
-    ]);
-
-    const transformedProjects = projects.map((project) => ({
-      id: project._id.toString(),
-      name: project.name,
-      description: project.description,
-      imageUrl: project.imageUrl,
-      updatedAt: project.lastActivityAt || project.updatedAt,
-      _count: project._count,
-      elements: project.elements.map((element) => ({
-        ...element,
-        _id: element._id.toString(),
-        materials: element.materials || [],
-      })),
-    }));
-
-    return NextResponse.json(transformedProjects);
-  } catch (error) {
-    console.error("API - Error fetching projects:", error);
-    return new NextResponse("Internal Server Error", { status: 500 });
-  }
+    },
+  ]).limit(limit).skip((page - 1) * limit)
 }
 
-export async function POST(req: Request) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+async function getProjects(request: AuthenticatedRequest) {
+  const userId = getUserId(request);
 
-    const body = await req.json();
-    await connectToDatabase();
+  const { searchParams } = new URL(request.url);
+  const limit = parseInt(searchParams.get("limit") || "10");
+  const page = parseInt(searchParams.get("page") || "1");
 
-    const project = await Project.create({
-      ...body,
-      userId,
-      emissions: {
-        gwp: 0,
-        ubp: 0,
-        penre: 0,
-        lastCalculated: new Date(),
-      },
-    });
+  const projects = await getProjectsWithStats(userId, limit, page)
 
-    return NextResponse.json(project);
-  } catch (error) {
-    console.error("Failed to create project:", error);
+  const totalCount = await Project.countDocuments({ userId })
+  const hasMore = page * limit < totalCount
 
-    // Track the error with PostHog
-    const { captureServerError } = await import("@/lib/posthog-client");
-    captureServerError(error as Error, userId, {
-      action: "create_project",
-      body: body,
-    });
-
-    return NextResponse.json(
-      { error: "Failed to create project" },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json<ProjectsWithStatsResponse>({
+    projects,
+    hasMore,
+    totalCount,
+  });
 }
+
+async function createProject(request: AuthenticatedRequest) {
+  const userId = getUserId(request);
+  const body: Pick<IProjectDB, "name" | "description" | "imageUrl"> =
+    await request.json();
+
+  const project: IProjectDB = await Project.create({
+    ...body,
+    userId,
+    emissions: {
+      gwp: 0,
+      ubp: 0,
+      penre: 0,
+      lastCalculated: new Date(),
+    },
+  });
+
+  return NextResponse.json(project);
+}
+
+export const GET = withAuthAndDB(getProjects);
+export const POST = withAuthAndDB(createProject);

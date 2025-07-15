@@ -4,6 +4,9 @@ import {
   IFCParseResult as WASMParseResult,
   APIElement,
 } from "./ifc-wasm-parser";
+import { fetchApi } from "../fetch";
+import { UploadResponse } from "@/interfaces/client/uploads/UploadResponse";
+import { CheckMatchesResponse } from "@/app/api/materials/check-matches/route";
 
 export interface IFCParseResult {
   uploadId: string;
@@ -17,7 +20,6 @@ export async function parseIFCFile(
   file: File,
   projectId: string
 ): Promise<IFCParseResult> {
-  let responseData;
   try {
     logger.debug("Starting Ifc parsing process", {
       filename: file.name,
@@ -28,18 +30,16 @@ export async function parseIFCFile(
 
     // Create upload record
     logger.debug("Creating upload record...");
-    const uploadResponse = await fetch(`/api/projects/${projectId}/upload`, {
+    const uploadResponse = await fetchApi<UploadResponse>(`/api/projects/${projectId}/upload`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ filename: file.name }),
     });
 
     logger.debug("Upload response status:", uploadResponse.status);
-    responseData = await uploadResponse.json();
-    logger.debug("Upload response data:", responseData);
+    logger.debug("Upload response data:", uploadResponse);
 
-    if (!uploadResponse.ok || !responseData.uploadId) {
-      throw new Error(responseData.error || "Failed to create upload record");
+    if (!uploadResponse.uploadId) {
+      throw new Error("Failed to create upload record");
     }
 
     // Parse the Ifc file locally using IfcOpenShell WASM
@@ -135,18 +135,13 @@ export async function parseIFCFile(
 
     // Process materials
     const materialNames = Array.from(materials);
-    const checkMatchesResponse = await fetch("/api/materials/check-matches", {
+    const checkMatchesResponse = await fetchApi<CheckMatchesResponse>("/api/materials/check-matches", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ materialNames, projectId }),
     });
 
-    if (!checkMatchesResponse.ok) {
-      throw new Error("Failed to check material matches");
-    }
-
-    const matchesData = await checkMatchesResponse.json();
-    const unmatchedMaterialCount = matchesData.unmatchedMaterials.length;
+    const unmatchedMaterialCount = checkMatchesResponse.unmatchedCount;
 
     // Log initial file info
     console.debug("📁 Starting Ifc parse for file:", {
@@ -184,13 +179,13 @@ export async function parseIFCFile(
     });
 
     // Process elements
-    const processResponse = await fetch(
+    const processResponse = await fetchApi(
       `/api/projects/${projectId}/upload/process`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          uploadId: responseData.uploadId,
+          uploadId: uploadResponse.uploadId,
           elements: elements.map((element: APIElement) => ({
             globalId: element.id,
             type: element.type,
@@ -231,19 +226,19 @@ export async function parseIFCFile(
       }
     );
 
-    if (!processResponse.ok) {
-      throw new Error("Failed to process elements");
-    }
-
     return {
-      uploadId: responseData.uploadId,
+      uploadId: uploadResponse.uploadId,
       elementCount: elements.length,
       materialCount: materials.size,
       unmatchedMaterialCount,
       shouldRedirectToLibrary: unmatchedMaterialCount > 0,
     };
-  } catch (error) {
-    logger.error("Error in parseIFCFile", { error });
-    throw error;
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      logger.error("Error in parseIFCFile", { error: error.message });
+    } else {
+      logger.error("Error in parseIFCFile", { error: String(error) });
+    }
+    throw error
   }
 }

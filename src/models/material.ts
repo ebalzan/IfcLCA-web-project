@@ -1,21 +1,16 @@
-import mongoose from "mongoose";
+import { Schema, model, models, Model } from "mongoose"
+import IMaterialDB, { IMaterialVirtuals } from "@/interfaces/materials/IMaterialDB"
+import mongooseLeanVirtuals from "mongoose-lean-virtuals"
+import mongooseLeanGetters from "mongoose-lean-getters"
 
-interface IMaterial {
-  projectId: mongoose.Types.ObjectId;
-  name: string;
-  category?: string;
-  density?: number;
-  kbobMatchId?: mongoose.Types.ObjectId;
-  lastCalculated?: Date;
-}
+type IMaterialModelType = Model<IMaterialDB, {}, {}, IMaterialVirtuals>
 
-const materialSchema = new mongoose.Schema<IMaterial>(
+const materialSchema = new Schema<IMaterialDB, IMaterialModelType, {}, IMaterialVirtuals>(
   {
     projectId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "Project",
       required: true,
-      index: true,
     },
     name: {
       type: String,
@@ -33,7 +28,7 @@ const materialSchema = new mongoose.Schema<IMaterial>(
       },
     },
     kbobMatchId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "KBOBMaterial",
     },
     lastCalculated: {
@@ -45,60 +40,34 @@ const materialSchema = new mongoose.Schema<IMaterial>(
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   }
-);
+)
 
 // Indexes
-materialSchema.index({ projectId: 1, name: 1 }, { unique: true });
-materialSchema.index({ kbobMatchId: 1 });
+materialSchema.index({ projectId: 1, name: 1 }, { unique: true })
+materialSchema.index({ kbobMatchId: 1 })
 
 // Virtual for elements using this material
 materialSchema.virtual("elements", {
   ref: "Element",
   localField: "_id",
   foreignField: "materials.material",
-});
+})
 
 // Virtual for total volume across all elements
 materialSchema.virtual("totalVolume").get(async function () {
-  const result = await mongoose.model("Element").aggregate([
-    {
-      $match: {
-        "materials.material": this._id,
-      },
-    },
-    {
-      $unwind: "$materials",
-    },
-    {
-      $match: {
-        "materials.material": this._id,
-      },
-    },
-    {
-      $group: {
-        _id: null,
-        totalVolume: { $sum: "$materials.volume" },
-      },
-    },
-  ]);
+  const result = await model("Element").aggregate<Pick<IMaterialVirtuals, "totalVolume">>([
+    { $match: { "materials.material": this._id } },
+    { $unwind: "$materials" },
+    { $match: { "materials.material": this._id } },
+    { $group: { _id: null, totalVolume: { $sum: "$materials.volume" } } },
+  ])
+  
+  return result[0]?.totalVolume || 0
+})
 
-  return result[0]?.totalVolume || 0;
-});
+// Plugins
+materialSchema.plugin(mongooseLeanVirtuals)
+materialSchema.plugin(mongooseLeanGetters)
 
-// Virtual for emissions factors from KBOB match
-materialSchema.virtual("emissionFactors").get(function () {
-  if (!this.populated("kbobMatchId")) return null;
-
-  const kbob = this.kbobMatchId as any;
-  if (!kbob) return null;
-
-  return {
-    gwp: kbob.GWP || 0,
-    ubp: kbob.UBP || 0,
-    penre: kbob.PENRE || 0,
-  };
-});
-
-export const Material =
-  mongoose.models.Material ||
-  mongoose.model<IMaterial>("Material", materialSchema);
+// Check if model already exists before creating
+export const Material: IMaterialModelType = models.Material || model("Material", materialSchema)
