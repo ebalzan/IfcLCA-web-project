@@ -3,7 +3,6 @@ import { MaterialService } from "@/lib/services/material-service";
 import { Project } from "@/models";
 import { withAuthAndDB } from "@/lib/api-middleware";
 import { AuthenticatedRequest, getUserId } from "@/lib/auth-middleware";
-import IMaterialDB, { IMaterialVirtuals } from "@/interfaces/materials/IMaterialDB";
 
 interface CheckMatchesRequest {
   materialNames: string[];
@@ -12,13 +11,11 @@ interface CheckMatchesRequest {
 
 export interface CheckMatchesResponse {
   unmatchedMaterials: string[];
-  matchedMaterials: (IMaterialDB & IMaterialVirtuals)[];
+  matchedMaterials: string[];
   unmatchedCount: number;
 }
 
-async function processMaterialMatches(
-  request: AuthenticatedRequest,
-) {
+async function checkAndCreateMaterialMatches(request: AuthenticatedRequest) {
   const userId = getUserId(request);
 
   const body: CheckMatchesRequest = await request.json();
@@ -44,25 +41,27 @@ async function processMaterialMatches(
     );
   }
 
-  const unmatchedMaterials = [];
-  const matchedMaterials: (IMaterialDB & IMaterialVirtuals)[] = [];
+  const unmatchedMaterials: string[] = [];
+  const matchedMaterials: string[] = [];
 
   for (const materialName of materialNames) {
-    const existingMatch = await MaterialService.findExistingMaterial(
+    // Check if the material, already matched to KBOB, exists in the user's projects
+    const existingMatch = await MaterialService.findMaterialInUserProjects(
       materialName,
       userId
     );
+    // If the material, already matched to KBOB, does not exist in the user's projects, add it to the unmatched materials
     if (!existingMatch) {
       unmatchedMaterials.push(materialName);
     } else {
-      // Create a new material in the current project with the same match
-      const newMaterial = await MaterialService.createMaterialWithMatch(
+      // If the material, already matched to KBOB, exists in the user's projects, create a new material in the current project with the same match
+      const newMaterial = await MaterialService.createOrUpdateMaterialWithKbobMatch(
         projectId,
         materialName,
-        existingMatch.kbobMatchId!,
+        existingMatch.kbobMatchId._id,
         existingMatch.density
       );
-      matchedMaterials.push(newMaterial);
+      matchedMaterials.push(newMaterial.name);
     }
   }
 
@@ -73,4 +72,4 @@ async function processMaterialMatches(
   });
 }
 
-export const POST = withAuthAndDB(processMaterialMatches);
+export const POST = withAuthAndDB(checkAndCreateMaterialMatches);

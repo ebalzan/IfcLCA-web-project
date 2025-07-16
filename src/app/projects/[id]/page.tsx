@@ -29,6 +29,7 @@ import IMaterialLayerClient from "@/interfaces/client/elements/IMaterialLayerCli
 import IMaterialClient from "@/interfaces/client/materials/IMaterialClient";
 import { useProjectWithStatsById } from "@/hooks/projects/use-project-by-id";
 import { Skeleton } from "@/components/ui/skeleton";
+import { logger } from "@/lib/logger";
 
 export default function ProjectPage() {
   const router = useRouter();
@@ -346,18 +347,24 @@ const MaterialsTab = ({ project }: { project: IProjectWithStatsClient }) => {
       element.materials.forEach((materialLayer: IMaterialLayerClient) => {
         const key = materialLayer.material._id;
         if (!acc[key]) {
-          acc[key] = materialLayer.material;
+          acc[key] = {
+            ...materialLayer.material,
+            totalVolume: 0,
+            gwp: 0,
+            ubp: 0,
+            penre: 0,
+          };
         }
-        // acc[key].totalVolume += materialLayer.volume;
-        // acc[key].emissions.gwp +=
+        acc[key].totalVolume += materialLayer.volume;
+        // acc[key].gwp +=
         //   materialLayer.volume *
         //   (materialLayer.material.density || 0) *
         //   (materialLayer.material.kbobMatch?.gwp || 0);
-        // acc[key].emissions.ubp +=
+        // acc[key].ubp +=
         //   materialLayer.volume *
         //   (materialLayer.material.density || 0) *
         //   (materialLayer.material.kbobMatch?.ubp || 0);
-        // acc[key].emissions.penre +=
+        // acc[key].penre +=
         //   materialLayer.volume *
         //   (materialLayer.material.density || 0) *
         //   (materialLayer.material.kbobMatch?.penre || 0);

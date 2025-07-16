@@ -35,11 +35,10 @@ export const materialsColumns: ColumnDef<IMaterialClient>[] = [
     header: "Volume (m³)",
     cell: ({ row }) => {
       const volume = row.original.totalVolume;
-      return volume
-      // toLocaleString("de-CH", {
-      //   minimumFractionDigits: 3,
-      //   maximumFractionDigits: 3,
-      // });
+      return volume.toLocaleString("de-CH", {
+        minimumFractionDigits: 3,
+        maximumFractionDigits: 3,
+      });
     },
   },
   {

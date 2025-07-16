@@ -7,7 +7,7 @@ interface IKBOBMaterialModel extends Model<IKBOBMaterial> {
 
 const kbobSchema = new Schema<IKBOBMaterial, IKBOBMaterialModel>(
   {
-    name: { type: String, required: true, index: true },
+    name: { type: String, required: true },
     category: { type: String },
     gwp: { type: Number, required: true },
     ubp: { type: Number, required: true },
@@ -60,5 +60,4 @@ kbobSchema.static("findValidMaterials", function (this: IKBOBMaterialModel) {
 
 // Create or update the model
 export const KBOBMaterial: IKBOBMaterialModel =
-  models.KBOBMaterial ||
-  model("KBOBMaterial", kbobSchema, "indicatorsKBOB")
+  models.KBOBMaterial || model("KBOBMaterial", kbobSchema, "indicatorsKBOB");

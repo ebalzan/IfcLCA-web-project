@@ -30,14 +30,15 @@ export async function parseIFCFile(
 
     // Create upload record
     logger.debug("Creating upload record...");
-    const uploadResponse = await fetchApi<UploadResponse>(`/api/projects/${projectId}/upload`, {
-      method: "POST",
-      body: JSON.stringify({ filename: file.name }),
-    });
-
+    const uploadResponse = await fetchApi<UploadResponse>(
+      `/api/projects/${projectId}/upload`,
+      {
+        method: "POST",
+        body: JSON.stringify({ filename: file.name }),
+      }
+    );
     logger.debug("Upload response status:", uploadResponse.status);
     logger.debug("Upload response data:", uploadResponse);
-
     if (!uploadResponse.uploadId) {
       throw new Error("Failed to create upload record");
     }
@@ -46,7 +47,6 @@ export async function parseIFCFile(
     logger.debug("Parsing Ifc file locally using IfcOpenShell WASM");
     const parseResult: WASMParseResult = await parseIfcWithWasm(file);
     const elements = parseResult.elements;
-
     // Debug: Log the parse result structure
     logger.debug("WASM Parse Result", {
       totalElements: parseResult.total_elements,
@@ -54,7 +54,6 @@ export async function parseIFCFile(
       totalMaterialVolumesFound: parseResult.total_material_volumes_found,
       debugInfo: parseResult.debug,
     });
-
     // Debug: Log the structure of the first few elements
     logger.debug("Parsed elements structure", {
       elementCount: elements.length,
@@ -95,8 +94,8 @@ export async function parseIFCFile(
     elements.forEach((element: APIElement, index: number) => {
       // Extract materials from direct materials array
       if (element.materials) {
-        element.materials.forEach((m: string) => {
-          materials.add(m);
+        element.materials.forEach((materialLayer: string) => {
+          materials.add(materialLayer);
           directMaterialCount++;
         });
       }
@@ -125,7 +124,6 @@ export async function parseIFCFile(
         });
       }
     });
-
     logger.debug("Material extraction summary", {
       totalUniqueMaterials: materials.size,
       directMaterialReferences: directMaterialCount,
@@ -135,36 +133,39 @@ export async function parseIFCFile(
 
     // Process materials
     const materialNames = Array.from(materials);
-    const checkMatchesResponse = await fetchApi<CheckMatchesResponse>("/api/materials/check-matches", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ materialNames, projectId }),
-    });
+    const checkMatchesResponse = await fetchApi<CheckMatchesResponse>(
+      "/api/materials/check-matches",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ materialNames, projectId }),
+      }
+    );
 
     const unmatchedMaterialCount = checkMatchesResponse.unmatchedCount;
 
     // Log initial file info
-    console.debug("📁 Starting Ifc parse for file:", {
+    logger.debug("📁 Starting Ifc parse for file:", {
       name: file.name,
       size: file.size,
       type: file.type,
     });
 
     // After parsing elements from stream
-    console.debug("📊 Parsed elements from Ifc:", {
+    logger.debug("📊 Parsed elements from Ifc:", {
       count: elements.length,
       firstElement: elements[0],
       lastElement: elements[elements.length - 1],
     });
 
     // After processing materials
-    console.debug("🧱 Extracted materials:", {
+    logger.debug("🧱 Extracted materials:", {
       count: materials.size,
       materialsList: Array.from(materials),
     });
 
     // Before sending to process endpoint
-    console.debug("📤 Element with properties:", {
+    logger.debug("📤 Element with properties:", {
       element: elements[0],
       mappedElement: {
         globalId: elements[0].id,
@@ -239,6 +240,6 @@ export async function parseIFCFile(
     } else {
       logger.error("Error in parseIFCFile", { error: String(error) });
     }
-    throw error
+    throw error;
   }
 }
