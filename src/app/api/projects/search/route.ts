@@ -1,37 +1,30 @@
-import { NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/mongodb";
-import { Project } from "@/models";
-import { auth } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server"
+import { Project } from "@/models"
+import { AuthenticatedRequest, getUserId } from "@/lib/auth-middleware"
+import { withAuthAndDB } from "@/lib/api-middleware"
+import IProjectDB from "@/interfaces/projects/IProjectDB"
 
-export async function GET(request: Request) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+export type SearchResult = Pick<IProjectDB, "name" | "description" | "_id">
 
-    const { searchParams } = new URL(request.url);
-    const query = searchParams.get("q") || "";
-    const all = searchParams.get("all") === "true";
+async function getProjectsBySearch(request: AuthenticatedRequest) {
+  const userId = getUserId(request)
 
-    await connectToDatabase();
+  const { searchParams } = new URL(request.url)
+  const query = searchParams.get("q") || ""
+  const all = searchParams.get("all") === "true"
 
-    const queryConditions = {
-      userId,
-      ...(all ? {} : { name: { $regex: query, $options: "i" } }),
-    };
-
-    const projects = await Project.find(queryConditions)
-      .select("name description _id")
-      .sort({ name: 1 })
-      .limit(all ? 10 : 5)
-      .lean();
-
-    return NextResponse.json(projects);
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to search projects" },
-      { status: 500 }
-    );
+  const queryConditions = {
+    userId,
+    ...(all ? {} : { name: { $regex: query, $options: "i" } }),
   }
+
+  const projects = await Project.find(queryConditions)
+    .select<SearchResult>("name description _id")
+    .sort({ name: 1 })
+    .limit(all ? 10 : 5)
+    .lean()
+
+  return NextResponse.json<SearchResult[]>(projects)
 }
+
+export const GET = withAuthAndDB(getProjectsBySearch)

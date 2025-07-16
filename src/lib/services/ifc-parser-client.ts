@@ -4,6 +4,9 @@ import {
   IFCParseResult as WASMParseResult,
   APIElement,
 } from "./ifc-wasm-parser";
+import { fetchApi } from "../fetch";
+import { UploadResponse } from "@/interfaces/client/uploads/UploadResponse";
+import { CheckMatchesResponse } from "@/app/api/materials/check-matches/route";
 
 export interface IFCParseResult {
   uploadId: string;
@@ -17,7 +20,6 @@ export async function parseIFCFile(
   file: File,
   projectId: string
 ): Promise<IFCParseResult> {
-  let responseData;
   try {
     logger.debug("Starting Ifc parsing process", {
       filename: file.name,
@@ -28,25 +30,23 @@ export async function parseIFCFile(
 
     // Create upload record
     logger.debug("Creating upload record...");
-    const uploadResponse = await fetch(`/api/projects/${projectId}/upload`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ filename: file.name }),
-    });
-
+    const uploadResponse = await fetchApi<UploadResponse>(
+      `/api/projects/${projectId}/upload`,
+      {
+        method: "POST",
+        body: JSON.stringify({ filename: file.name }),
+      }
+    );
     logger.debug("Upload response status:", uploadResponse.status);
-    responseData = await uploadResponse.json();
-    logger.debug("Upload response data:", responseData);
-
-    if (!uploadResponse.ok || !responseData.uploadId) {
-      throw new Error(responseData.error || "Failed to create upload record");
+    logger.debug("Upload response data:", uploadResponse);
+    if (!uploadResponse.uploadId) {
+      throw new Error("Failed to create upload record");
     }
 
     // Parse the Ifc file locally using IfcOpenShell WASM
     logger.debug("Parsing Ifc file locally using IfcOpenShell WASM");
     const parseResult: WASMParseResult = await parseIfcWithWasm(file);
     const elements = parseResult.elements;
-
     // Debug: Log the parse result structure
     logger.debug("WASM Parse Result", {
       totalElements: parseResult.total_elements,
@@ -54,7 +54,6 @@ export async function parseIFCFile(
       totalMaterialVolumesFound: parseResult.total_material_volumes_found,
       debugInfo: parseResult.debug,
     });
-
     // Debug: Log the structure of the first few elements
     logger.debug("Parsed elements structure", {
       elementCount: elements.length,
@@ -95,8 +94,8 @@ export async function parseIFCFile(
     elements.forEach((element: APIElement, index: number) => {
       // Extract materials from direct materials array
       if (element.materials) {
-        element.materials.forEach((m: string) => {
-          materials.add(m);
+        element.materials.forEach((materialLayer: string) => {
+          materials.add(materialLayer);
           directMaterialCount++;
         });
       }
@@ -125,7 +124,6 @@ export async function parseIFCFile(
         });
       }
     });
-
     logger.debug("Material extraction summary", {
       totalUniqueMaterials: materials.size,
       directMaterialReferences: directMaterialCount,
@@ -135,41 +133,39 @@ export async function parseIFCFile(
 
     // Process materials
     const materialNames = Array.from(materials);
-    const checkMatchesResponse = await fetch("/api/materials/check-matches", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ materialNames, projectId }),
-    });
+    const checkMatchesResponse = await fetchApi<CheckMatchesResponse>(
+      "/api/materials/check-matches",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ materialNames, projectId }),
+      }
+    );
 
-    if (!checkMatchesResponse.ok) {
-      throw new Error("Failed to check material matches");
-    }
-
-    const matchesData = await checkMatchesResponse.json();
-    const unmatchedMaterialCount = matchesData.unmatchedMaterials.length;
+    const unmatchedMaterialCount = checkMatchesResponse.unmatchedCount;
 
     // Log initial file info
-    console.debug("📁 Starting Ifc parse for file:", {
+    logger.debug("📁 Starting Ifc parse for file:", {
       name: file.name,
       size: file.size,
       type: file.type,
     });
 
     // After parsing elements from stream
-    console.debug("📊 Parsed elements from Ifc:", {
+    logger.debug("📊 Parsed elements from Ifc:", {
       count: elements.length,
       firstElement: elements[0],
       lastElement: elements[elements.length - 1],
     });
 
     // After processing materials
-    console.debug("🧱 Extracted materials:", {
+    logger.debug("🧱 Extracted materials:", {
       count: materials.size,
       materialsList: Array.from(materials),
     });
 
     // Before sending to process endpoint
-    console.debug("📤 Element with properties:", {
+    logger.debug("📤 Element with properties:", {
       element: elements[0],
       mappedElement: {
         globalId: elements[0].id,
@@ -184,13 +180,13 @@ export async function parseIFCFile(
     });
 
     // Process elements
-    const processResponse = await fetch(
+    const processResponse = await fetchApi(
       `/api/projects/${projectId}/upload/process`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          uploadId: responseData.uploadId,
+          uploadId: uploadResponse.uploadId,
           elements: elements.map((element: APIElement) => ({
             globalId: element.id,
             type: element.type,
@@ -231,19 +227,19 @@ export async function parseIFCFile(
       }
     );
 
-    if (!processResponse.ok) {
-      throw new Error("Failed to process elements");
-    }
-
     return {
-      uploadId: responseData.uploadId,
+      uploadId: uploadResponse.uploadId,
       elementCount: elements.length,
       materialCount: materials.size,
       unmatchedMaterialCount,
       shouldRedirectToLibrary: unmatchedMaterialCount > 0,
     };
-  } catch (error) {
-    logger.error("Error in parseIFCFile", { error });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      logger.error("Error in parseIFCFile", { error: error.message });
+    } else {
+      logger.error("Error in parseIFCFile", { error: String(error) });
+    }
     throw error;
   }
 }

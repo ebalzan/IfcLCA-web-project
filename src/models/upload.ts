@@ -1,9 +1,12 @@
-import mongoose from "mongoose";
+import IUploadDB from "@/interfaces/uploads/IUploadDB";
+import { Model, Schema, model, models } from "mongoose";
 
-const uploadSchema = new mongoose.Schema(
+type IUploadModelType = Model<IUploadDB>
+
+const uploadSchema = new Schema<IUploadDB, IUploadModelType>(
   {
     projectId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "Project",
       required: [true, "Project ID is required"],
     },
@@ -50,5 +53,4 @@ uploadSchema.pre("save", function (next) {
 });
 
 // Export as a named constant to ensure consistent usage
-export const Upload =
-  mongoose.models.Upload || mongoose.model("Upload", uploadSchema);
+export const Upload: IUploadModelType = models.Upload || model("Upload", uploadSchema);

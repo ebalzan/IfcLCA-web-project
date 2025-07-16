@@ -47,11 +47,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
-interface Project {
-  id: string;
-  name: string;
-}
+import { fetchApi } from "@/lib/fetch";
+import IProjectClient from "@/interfaces/client/projects/IProjectClient";
+import { SearchResult } from "@/app/api/projects/search/route";
+import { useProjectsWithStats } from "@/hooks/projects/use-projects-with-stats";
 
 interface Notification {
   id: string;
@@ -61,14 +60,8 @@ interface Notification {
 }
 
 interface NavBarProps {
-  currentProject?: Project;
+  currentProject?: IProjectClient;
   notifications: Notification[];
-}
-
-interface SearchResult {
-  _id: string;
-  name: string;
-  description?: string;
 }
 
 interface SearchResultsProps {
@@ -95,7 +88,7 @@ function SearchResults({
     <div className="space-y-1">
       {displayResults.map((result, index) => (
         <Button
-          key={result._id}
+          key={result._id.toString()}
           variant="ghost"
           className={cn(
             "w-full justify-start text-left",
@@ -136,13 +129,13 @@ function SearchResults({
 }
 
 export function NavigationBar({ currentProject, notifications }: NavBarProps) {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+  const router = useRouter();
   const pathname = usePathname();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const debouncedSearch = useDebounce(searchQuery, 300);
-  const router = useRouter();
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [isFocused, setIsFocused] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -151,15 +144,13 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     null
   );
-  const [projects, setProjects] = useState<Project[]>([]);
-
+  const { projectsWithStats } = useProjectsWithStats();
   useEffect(() => {
     const searchProjects = async () => {
       if (isFocused && !debouncedSearch) {
         setIsSearching(true);
         try {
-          const response = await fetch("/api/projects/search?all=true");
-          const data = await response.json();
+          const data = await fetchApi<SearchResult[]>("/api/projects/search?all=true");
           setSearchResults(data);
         } catch (error) {
           console.error("Failed to fetch projects:", error);
@@ -176,10 +167,9 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
 
       setIsSearching(true);
       try {
-        const response = await fetch(
+        const data = await fetchApi<SearchResult[]>(
           `/api/projects/search?q=${debouncedSearch}`
         );
-        const data = await response.json();
         setSearchResults(data);
       } catch (error) {
         console.error("Failed to search projects:", error);
@@ -240,20 +230,19 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
     setIsExpanded(true);
   };
 
-  const handleAnalyseClick = async () => {
-    try {
-      const response = await fetch("/api/projects");
-      const projects = await response.json();
+  // const handleAnalyseClick = async () => {
+  //   try {
+  //     const projects = await fetchApi("/api/projects");
 
-      if (!projects?.length) {
-        return;
-      }
-      setProjects(projects);
-      setShowProjectSelect(true);
-    } catch (error) {
-      console.error("Failed to check projects:", error);
-    }
-  };
+  //     if (!projects?.length) {
+  //       return;
+  //     }
+  //     setProjects(projects);
+  //     setShowProjectSelect(true);
+  //   } catch (error) {
+  //     console.error("Failed to check projects:", error);
+  //   }
+  // };
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -332,7 +321,7 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
                     <li>
                       <NavigationMenuLink asChild>
                         <button
-                          onClick={handleAnalyseClick}
+                          // onClick={handleAnalyseClick}
                           className="w-full block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
                         >
                           <div className="text-sm font-medium leading-none flex items-center gap-2">
@@ -543,13 +532,13 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
-            {projects.map((project) => (
+            {projectsWithStats?.map((project) => (
               <Button
-                key={project.id}
+                key={project._id}
                 variant="outline"
                 className="w-full justify-start"
                 onClick={() => {
-                  setSelectedProjectId(project.id);
+                  setSelectedProjectId(project._id);
                   setShowProjectSelect(false);
                 }}
               >

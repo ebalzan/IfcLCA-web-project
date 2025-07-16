@@ -1,6 +1,9 @@
-import mongoose from "mongoose";
+import { Schema, model, models, Model } from "mongoose";
+import IProjectDB from "@/interfaces/projects/IProjectDB";
 
-const projectSchema = new mongoose.Schema(
+type IProjectModelType = Model<IProjectDB>
+
+const projectSchema = new Schema<IProjectDB, IProjectModelType>(
   {
     name: {
       type: String,
@@ -8,7 +11,6 @@ const projectSchema = new mongoose.Schema(
     },
     description: {
       type: String,
-      required: false,
     },
     userId: {
       type: String,
@@ -33,5 +35,4 @@ const projectSchema = new mongoose.Schema(
 // Add index for better query performance
 projectSchema.index({ "emissions.lastCalculated": -1 });
 
-export const Project =
-  mongoose.models.Project || mongoose.model("Project", projectSchema);
+export const Project: IProjectModelType = models.Project || model("Project", projectSchema);

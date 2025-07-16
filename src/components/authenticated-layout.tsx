@@ -3,15 +3,15 @@
 import { useAuth } from "@clerk/nextjs";
 import { NavigationBar } from "@/components/navigation-bar";
 import { SidebarNavigation } from "@/components/sidebar-navigation";
-import { useEffect, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Footer } from "@/components/footer";
 
 export default function AuthenticatedLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
-  const { isLoaded, userId } = useAuth();
+  const { isLoaded, isSignedIn } = useAuth();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -28,12 +28,12 @@ export default function AuthenticatedLayout({
 
   return (
     <div className="relative flex min-h-screen flex-col">
-      {userId ? (
+      {isSignedIn ? (
         <>
           <NavigationBar notifications={[]} />
           <div className="flex flex-1">
             <aside className="w-12 flex-shrink-0">
-              <SidebarNavigation currentPage="" />
+              <SidebarNavigation />
             </aside>
             <div className="flex-1 flex flex-col min-w-0">
               <main className="flex-1 w-full">

@@ -1,8 +1,8 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-export async function POST() {
-  const cookieStore = cookies();
+async function acceptTerms() {
+  const cookieStore = await cookies();
 
   // Set a cookie that expires in 10 years
   cookieStore.set("terms_accepted", "true", {
@@ -14,3 +14,5 @@ export async function POST() {
 
   return NextResponse.json({ success: true });
 }
+
+export const POST = acceptTerms()

@@ -5,6 +5,7 @@ import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { FileDown, Trash2 } from "lucide-react";
 import { UploadModal } from "@/components/upload-modal";
+import { fetchApi } from "@/lib/fetch";
 
 const columns = [
   {
@@ -43,8 +44,7 @@ export function UploadHistoryClient({ projectId }: { projectId: string }) {
 
   const refreshData = async () => {
     try {
-      const response = await fetch(`/api/projects/${projectId}/uploads`);
-      const data = await response.json();
+      const data = await fetchApi(`/api/projects/${projectId}/uploads`);
       setUploadHistory(data);
     } catch (error) {
       console.error("Failed to fetch upload history:", error);
@@ -67,6 +67,8 @@ export function UploadHistoryClient({ projectId }: { projectId: string }) {
         <UploadModal
           projectId={projectId}
           onUploadComplete={handleUploadComplete}
+          open={false}
+          onOpenChange={() => {}}
         />
       </div>
       <DataTable columns={columns} data={uploadHistory} />

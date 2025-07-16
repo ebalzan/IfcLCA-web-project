@@ -1,9 +1,9 @@
-import mongoose from "mongoose";
+import mongoose, { Mongoose } from "mongoose";
 
 declare global {
   var mongoose: {
-    conn: typeof mongoose | null;
-    promise: Promise<typeof mongoose> | null;
+    conn: Mongoose | null;
+    promise: Promise<Mongoose> | null;
   };
 }
 
@@ -50,30 +50,4 @@ export async function connectToDatabase() {
     cached.promise = null;
     throw e;
   }
-}
-
-// Helper function to ensure database connection
-export async function withDatabase<T>(operation: () => Promise<T>): Promise<T> {
-  try {
-    await connectToDatabase();
-    return await operation();
-  } catch (error) {
-    console.error("Database operation failed:", error);
-    throw error;
-  }
-}
-
-// Helper function to format MongoDB documents
-export function formatDocument(doc: any) {
-  const formatted = doc.toObject ? doc.toObject() : doc;
-  return {
-    ...formatted,
-    id: formatted._id.toString(),
-    _id: undefined,
-  };
-}
-
-// Helper function to format multiple documents
-export function formatDocuments(docs: any[]) {
-  return docs.map(formatDocument);
 }

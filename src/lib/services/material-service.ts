@@ -1,41 +1,29 @@
-import mongoose from "mongoose";
 import { Material, KBOBMaterial, Element, Project } from "@/models";
 import { logger } from "@/lib/logger";
-import { ClientSession, Types } from "mongoose";
+import { ClientSession, startSession, Types } from "mongoose";
+import ILCAIndicators from "@/interfaces/materials/ILCAIndicators";
+import IElementDB from "@/interfaces/elements/IElementDB";
+import IMaterialDB from "@/interfaces/materials/IMaterialDB";
+import IKBOBMaterial from "@/interfaces/materials/IKBOBMaterial";
+import IMaterialChange from "@/interfaces/materials/IMaterialChange";
+import IMaterialPreview from "@/interfaces/materials/IMaterialPreview";
+import IProjectDB from "@/interfaces/projects/IProjectDB";
 
-// Update interfaces with proper types
-interface ILCAIndicators {
-  gwp: number;
-  ubp: number;
-  penre: number;
-}
-
-interface IKBOBMaterial {
-  _id: Types.ObjectId;
-  Name: string;
-  Category?: string;
-  GWP: number;
-  UBP: number;
-  PENRE: number;
-  "kg/unit"?: number;
-  "min density"?: number;
-  "max density"?: number;
-  KBOB_ID: number;
-}
-
-interface IMaterialChange {
-  materialId: string;
-  materialName: string;
-  oldKbobMatch?: string;
-  newKbobMatch: string;
-  oldDensity?: number;
-  newDensity: number;
-  affectedElements: number;
-  projects: string[];
-}
-
-interface IMaterialPreview {
-  changes: IMaterialChange[];
+// updateProjectEmissions && calculateProjectTotals && recalculateElementsForMaterials
+interface IPopulatedElementMaterials {
+  materials: {
+    material: {
+      density: number;
+      kbobMatchId: {
+        gwp: number;
+        ubp: number;
+        penre: number;
+      };
+    };
+    volume: number;
+    fraction: number;
+    thickness?: number;
+  }[];
 }
 
 export class MaterialService {
@@ -48,7 +36,7 @@ export class MaterialService {
     callback: (session: ClientSession) => Promise<T>,
     existingSession?: ClientSession
   ): Promise<T> {
-    const session = existingSession || (await mongoose.startSession());
+    const session = existingSession || (await startSession());
     if (!existingSession) {
       session.startTransaction();
     }
@@ -123,7 +111,7 @@ export class MaterialService {
       const referenceMaterial = await Material.findById(materialId)
         .select("name projectId")
         .session(useSession)
-        .lean();
+        .lean<Pick<IMaterialDB, "name" | "projectId">>();
 
       if (!referenceMaterial?.name || !referenceMaterial.projectId) {
         console.error(
@@ -170,8 +158,8 @@ export class MaterialService {
 
     try {
       // Try exact match first
-      const exactMatch = await KBOBMaterial.findOne<IKBOBMaterial>({
-        Name: cleanedName,
+      const exactMatch = await KBOBMaterial.findOne({
+        name: cleanedName,
       }).lean();
 
       if (exactMatch) {
@@ -179,8 +167,8 @@ export class MaterialService {
       }
 
       // Try case-insensitive match
-      const caseInsensitiveMatch = await KBOBMaterial.findOne<IKBOBMaterial>({
-        Name: { $regex: `^${cleanedName}$`, $options: "i" },
+      const caseInsensitiveMatch = await KBOBMaterial.findOne({
+        name: { $regex: `^${cleanedName}$`, $options: "i" },
       }).lean();
 
       if (caseInsensitiveMatch) {
@@ -208,21 +196,16 @@ export class MaterialService {
     }
 
     try {
-      const objectIds = materialIds.map(
-        (id) => new mongoose.Types.ObjectId(id)
-      );
-      const kbobObjectId = new mongoose.Types.ObjectId(kbobMatchId);
+      const objectIds = materialIds.map((id) => new Types.ObjectId(id));
+      const kbobObjectId = new Types.ObjectId(kbobMatchId);
 
       const [materials, newKBOBMaterial, elements] = await Promise.all([
         Material.find({ _id: { $in: objectIds } })
-          .populate<{ kbobMatchId: IKBOBMaterial }>("kbobMatchId")
+          .populate("kbobMatchId")
           .lean(),
-        KBOBMaterial.findById<IKBOBMaterial>(kbobObjectId).lean(),
+        KBOBMaterial.findById(kbobObjectId).lean(),
         Element.find({ "materials.material": { $in: objectIds } })
-          .populate<{ projectId: { _id: Types.ObjectId; name: string } }>(
-            "projectId",
-            "name"
-          )
+          .populate<{ projectId: { name: string } }>("projectId", "name")
           .lean(),
       ]);
 
@@ -235,14 +218,14 @@ export class MaterialService {
       const projectMap = new Map<string, Set<string>>();
 
       elements.forEach((element) => {
-        const projectName = element.projectId?.name;
+        const projectName = element.projectId.name;
         if (!projectName) return;
 
-        element.materials.forEach((mat) => {
-          const materialId = mat.material.toString();
+        element.materials.forEach((materialLayer) => {
+          const materialId = materialLayer.material._id.toString();
           elementCounts.set(
             materialId,
-            (elementCounts.get(materialId) || 0) + 1
+            (elementCounts.get(materialId) || 0) + materialLayer.volume
           );
 
           if (!projectMap.has(materialId)) {
@@ -255,8 +238,8 @@ export class MaterialService {
       const changes: IMaterialChange[] = materials.map((material) => ({
         materialId: material._id.toString(),
         materialName: material.name,
-        oldKbobMatch: material.kbobMatchId?.Name,
-        newKbobMatch: newKBOBMaterial.Name,
+        oldKbobMatchId: material.kbobMatchId?._id.toString(),
+        newKbobMatchId: newKBOBMaterial._id.toString(),
         oldDensity: material.density,
         newDensity: Number(
           density || this.calculateDensityFromKBOB(newKBOBMaterial)
@@ -286,36 +269,36 @@ export class MaterialService {
   /**
    * Finds KBOB material match
    */
-  static async findBestKBOBMatch(
-    materialName: string
-  ): Promise<{ kbobMaterial: IKBOBMaterial; score: number } | null> {
-    const cleanedName = materialName.trim();
+  // static async findBestKBOBMatch(
+  //   materialName: string
+  // ): Promise<{ kbobMaterial: IKBOBMaterial score: number } | null> {
+  //   const cleanedName = materialName.trim()
 
-    try {
-      // Try exact match first
-      const exactMatch = await KBOBMaterial.findOne<IKBOBMaterial>({
-        Name: cleanedName,
-      }).lean();
+  //   try {
+  //     // Try exact match first
+  //     const exactMatch = await KBOBMaterial.findOne<IKBOBMaterial>({
+  //       Name: cleanedName,
+  //     }).lean()
 
-      if (exactMatch) {
-        return { kbobMaterial: exactMatch, score: 1.0 };
-      }
+  //     if (exactMatch) {
+  //       return { kbobMaterial: exactMatch, score: 1.0 }
+  //     }
 
-      // Try case-insensitive match
-      const caseInsensitiveMatch = await KBOBMaterial.findOne<IKBOBMaterial>({
-        Name: { $regex: `^${cleanedName}$`, $options: "i" },
-      }).lean();
+  //     // Try case-insensitive match
+  //     const caseInsensitiveMatch = await KBOBMaterial.findOne<IKBOBMaterial>({
+  //       Name: { $regex: `^${cleanedName}$`, $options: "i" },
+  //     }).lean()
 
-      if (caseInsensitiveMatch) {
-        return { kbobMaterial: caseInsensitiveMatch, score: 0.99 };
-      }
+  //     if (caseInsensitiveMatch) {
+  //       return { kbobMaterial: caseInsensitiveMatch, score: 0.99 }
+  //     }
 
-      return null;
-    } catch (error) {
-      console.error("❌ [Material Service] Error in findBestKBOBMatch:", error);
-      throw error;
-    }
-  }
+  //     return null
+  //   } catch (error) {
+  //     console.error("❌ [Material Service] Error in findBestKBOBMatch:", error)
+  //     throw error
+  //   }
+  // }
 
   /**
    * Calculates density from KBOB material with validation
@@ -357,18 +340,18 @@ export class MaterialService {
     }
 
     if (
-      typeof kbobMaterial.GWP !== "number" ||
-      typeof kbobMaterial.UBP !== "number" ||
-      typeof kbobMaterial.PENRE !== "number"
+      typeof kbobMaterial.gwp !== "number" ||
+      typeof kbobMaterial.ubp !== "number" ||
+      typeof kbobMaterial.penre !== "number"
     ) {
       return undefined;
     }
 
     const mass = volume * density;
     return {
-      gwp: mass * kbobMaterial.GWP,
-      ubp: mass * kbobMaterial.UBP,
-      penre: mass * kbobMaterial.PENRE,
+      gwp: mass * kbobMaterial.gwp,
+      ubp: mass * kbobMaterial.ubp,
+      penre: mass * kbobMaterial.penre,
     };
   }
 
@@ -377,15 +360,17 @@ export class MaterialService {
    */
   static async getProjectsWithMaterials(userId: string) {
     // Get all projects for the user
-    const projects = await Project.find({ userId }).select("_id name").lean();
+    const projects = await Project.find({ userId })
+      .select("_id name")
+      .lean<Pick<IProjectDB, "_id" | "name">[]>();
 
     // Get all materials for these projects
-    const projectIds = projects.map((p) => p._id);
+    const projectIds = projects.map((project) => project._id);
     const materials = await Material.find({
       projectId: { $in: projectIds },
     })
       .select("name projectId")
-      .lean();
+      .lean<Pick<IMaterialDB, "name" | "projectId" | "_id">[]>();
 
     // Group materials by project
     const materialsByProject = materials.reduce((acc, material) => {
@@ -395,14 +380,14 @@ export class MaterialService {
       }
       acc[projectId].push(material);
       return acc;
-    }, {} as Record<string, any[]>);
+    }, {} as Record<string, Pick<IMaterialDB, "name" | "projectId" | "_id">[]>);
 
     // Combine project info with their materials
     return projects.map((project) => ({
       id: project._id.toString(),
       name: project.name,
-      materialIds: (materialsByProject[project._id.toString()] || []).map((m) =>
-        m._id.toString()
+      materialIds: (materialsByProject[project._id.toString()] || []).map(
+        (material) => material._id.toString()
       ),
     }));
   }
@@ -410,26 +395,27 @@ export class MaterialService {
   /**
    * Finds existing material match across all projects
    */
-  static async findExistingMaterial(
+  static async findMaterialInUserProjects(
     materialName: string,
     userId: string
-  ): Promise<(mongoose.Document & IMaterial) | null> {
+  ) {
     const cleanedName = materialName.trim().toLowerCase();
 
     try {
       // Get projects belonging to the user
       const userProjects = await Project.find({ userId })
-        .select("_id")
+        .select<Pick<IProjectDB, "_id">>("_id")
         .lean();
-      const projectIds = userProjects.map((p) => p._id);
+      const projectIds = userProjects.map((project) => project._id);
 
+      // DO I HAVE THIS MATERIAL IN THE PROJECT?
       // Try exact match first within user's projects
       const exactMatch = await Material.findOne({
         name: materialName,
         projectId: { $in: projectIds },
         kbobMatchId: { $exists: true },
       })
-        .populate("kbobMatchId")
+        .populate<{ kbobMatchId: IKBOBMaterial }>("kbobMatchId")
         .lean();
 
       if (exactMatch) {
@@ -442,7 +428,7 @@ export class MaterialService {
         projectId: { $in: projectIds },
         kbobMatchId: { $exists: true },
       })
-        .populate("kbobMatchId")
+        .populate<{ kbobMatchId: IKBOBMaterial }>("kbobMatchId")
         .lean();
 
       if (caseInsensitiveMatch) {
@@ -450,11 +436,8 @@ export class MaterialService {
       }
 
       return null;
-    } catch (error) {
-      console.error(
-        "[Material Service] Error finding existing material:",
-        error
-      );
+    } catch (error: unknown) {
+      logger.error("Error finding existing material:", { error });
       return null;
     }
   }
@@ -483,7 +466,7 @@ export class MaterialService {
       };
     }>,
     uploadId: string,
-    session: mongoose.ClientSession
+    session: ClientSession
   ) {
     try {
       const materialVolumes = new Map<string, number>();
@@ -610,23 +593,21 @@ export class MaterialService {
   /**
    * Creates or updates a material with an existing match
    */
-  static async createMaterialWithMatch(
+  static async createOrUpdateMaterialWithKbobMatch(
     projectId: string,
     materialName: string,
     kbobMatchId: Types.ObjectId,
     density?: number
-  ): Promise<typeof Material | null> {
+  ) {
     try {
-      // Check if material already exists in the project
+      // Check if material already exists in the current project
       const existingMaterial = await Material.findOne({
         name: materialName,
         projectId,
       });
 
       // Fetch KBOB material data
-      const kbobMaterial = await KBOBMaterial.findById<IKBOBMaterial>(
-        kbobMatchId
-      ).lean();
+      const kbobMaterial = await KBOBMaterial.findById(kbobMatchId).lean();
       if (!kbobMaterial) {
         throw new Error(`KBOB material not found for id: ${kbobMatchId}`);
       }
@@ -651,17 +632,18 @@ export class MaterialService {
         );
       }
 
+      // If the material already exists in the current project, update it
       if (existingMaterial) {
-        // Update existing material
         existingMaterial.kbobMatchId = kbobMatchId;
         existingMaterial.density = finalDensity;
         existingMaterial.gwp = indicators.gwp;
         existingMaterial.ubp = indicators.ubp;
         existingMaterial.penre = indicators.penre;
         await existingMaterial.save();
+
         return existingMaterial;
       } else {
-        // Create new material
+        // If the material does not exist in the current project (it can exist in other projects), create a new material
         const newMaterial = await Material.create({
           name: materialName,
           projectId,
@@ -671,6 +653,7 @@ export class MaterialService {
           ubp: indicators.ubp,
           penre: indicators.penre,
         });
+
         return newMaterial;
       }
     } catch (error) {
@@ -691,15 +674,15 @@ export class MaterialService {
   ) {
     try {
       const elements = await Element.find({
-        projectId: new mongoose.Types.ObjectId(projectId.toString()),
+        projectId: new Types.ObjectId(projectId.toString()),
       })
-        .select("materials.volume materials.material")
-        .populate({
+        .select("materials")
+        .populate<IPopulatedElementMaterials>({
           path: "materials.material",
           select: "density kbobMatchId",
           populate: {
             path: "kbobMatchId",
-            select: "GWP UBP PENRE",
+            select: "gwp ubp penre",
           },
         })
         .lean();
@@ -707,16 +690,18 @@ export class MaterialService {
       logger.debug("Project elements for emission calculation:", {
         projectId: projectId.toString(),
         elementCount: elements.length,
-        sampleElement: elements[0]?.materials.map((m) => ({
-          volume: m.volume,
-          density: m.material?.density,
-          gwp: m.material?.kbobMatchId?.GWP,
+        sampleElement: elements[0]?.materials.map((materialLayer) => ({
+          volume: materialLayer.volume,
+          density: materialLayer.material.density,
+          gwp: materialLayer.material.kbobMatchId?.gwp,
+          ubp: materialLayer.material.kbobMatchId?.ubp,
+          penre: materialLayer.material.kbobMatchId?.penre,
         })),
       });
 
       const totals = elements.reduce(
         (acc, element) => {
-          const elementTotals = element.materials.reduce(
+          const elementTotals: ILCAIndicators = element.materials.reduce(
             (matAcc, material) => {
               const volume = material.volume || 0;
               const density = material.material?.density || 0;
@@ -725,9 +710,9 @@ export class MaterialService {
               // Calculate mass-based emissions
               const mass = volume * density;
               return {
-                gwp: matAcc.gwp + mass * (kbobMatch?.GWP || 0),
-                ubp: matAcc.ubp + mass * (kbobMatch?.UBP || 0),
-                penre: matAcc.penre + mass * (kbobMatch?.PENRE || 0),
+                gwp: matAcc.gwp + mass * (kbobMatch?.gwp || 0),
+                ubp: matAcc.ubp + mass * (kbobMatch?.ubp || 0),
+                penre: matAcc.penre + mass * (kbobMatch?.penre || 0),
               };
             },
             { gwp: 0, ubp: 0, penre: 0 }
@@ -778,10 +763,14 @@ export class MaterialService {
         "materials.material": new Types.ObjectId(materialId),
       }).session(useSession);
 
+      logger.debug("Affected projects:", {
+        affectedProjects,
+      });
+
       // Update emissions for all affected projects
       await Promise.all(
         affectedProjects.map((projectId) =>
-          this.updateProjectEmissions(projectId, useSession)
+          this.updateProjectEmissions(projectId.toString(), useSession)
         )
       );
 
@@ -799,14 +788,14 @@ export class MaterialService {
   }> {
     try {
       const elements = await Element.find({
-        projectId: new mongoose.Types.ObjectId(projectId),
+        projectId: new Types.ObjectId(projectId),
       })
-        .populate({
+        .populate<IPopulatedElementMaterials>({
           path: "materials.material",
           select: "density kbobMatchId",
           populate: {
             path: "kbobMatchId",
-            select: "GWP UBP PENRE",
+            select: "gwp ubp penre",
           },
         })
         .lean();
@@ -822,9 +811,9 @@ export class MaterialService {
               // Calculate mass-based emissions
               const mass = volume * density;
               return {
-                gwp: matAcc.gwp + mass * (kbobMatch?.GWP || 0),
-                ubp: matAcc.ubp + mass * (kbobMatch?.UBP || 0),
-                penre: matAcc.penre + mass * (kbobMatch?.PENRE || 0),
+                gwp: matAcc.gwp + mass * (kbobMatch?.gwp || 0),
+                ubp: matAcc.ubp + mass * (kbobMatch?.ubp || 0),
+                penre: matAcc.penre + mass * (kbobMatch?.penre || 0),
               };
             },
             { gwp: 0, ubp: 0, penre: 0 }
@@ -858,14 +847,14 @@ export class MaterialService {
   /**
    * Calculates emissions for a project using aggregation
    */
-  private static async calculateProjectEmissions(
+  static async calculateProjectEmissions(
     projectId: Types.ObjectId | string,
     session?: ClientSession
   ) {
     const [totals] = await Element.aggregate([
       {
         $match: {
-          projectId: new mongoose.Types.ObjectId(projectId.toString()),
+          projectId: new Types.ObjectId(projectId.toString()),
         },
       },
       {
@@ -876,7 +865,7 @@ export class MaterialService {
           penre: { $sum: "$totalIndicators.penre" },
         },
       },
-    ]).session(session);
+    ]).session(session || null);
 
     return {
       gwp: totals?.gwp || 0,
@@ -896,7 +885,9 @@ export class MaterialService {
       // Get all materials with their KBOB matches
       const materials = await Material.find({ _id: { $in: materialIds } })
         .select("_id density kbobMatchId name")
-        .populate("kbobMatchId", "GWP UBP PENRE")
+        .populate<{
+          kbobMatchId: Pick<IKBOBMaterial, "gwp" | "ubp" | "penre">;
+        }>("kbobMatchId", "gwp ubp penre")
         .session(session)
         .lean();
 
@@ -949,7 +940,7 @@ export class MaterialService {
                                     "$$material.density",
                                   ],
                                 },
-                                { $ifNull: ["$$material.kbobMatchId.GWP", 0] },
+                                { $ifNull: ["$$material.kbobMatchId.gwp", 0] },
                               ],
                             },
                             ubp: {
@@ -960,7 +951,7 @@ export class MaterialService {
                                     "$$material.density",
                                   ],
                                 },
-                                { $ifNull: ["$$material.kbobMatchId.UBP", 0] },
+                                { $ifNull: ["$$material.kbobMatchId.ubp", 0] },
                               ],
                             },
                             penre: {
@@ -972,7 +963,7 @@ export class MaterialService {
                                   ],
                                 },
                                 {
-                                  $ifNull: ["$$material.kbobMatchId.PENRE", 0],
+                                  $ifNull: ["$$material.kbobMatchId.penre", 0],
                                 },
                               ],
                             },

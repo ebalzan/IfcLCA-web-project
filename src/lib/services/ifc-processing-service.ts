@@ -1,8 +1,9 @@
 import { logger } from "@/lib/logger";
-import { Element, Material } from "@/models";
+import { Element, Material, Project } from "@/models";
 import type { ClientSession } from "mongoose";
 import mongoose from "mongoose";
 import { MaterialService } from "./material-service";
+import IKBOBMaterial from "@/interfaces/materials/IKBOBMaterial";
 
 interface IFCMaterial {
   name: string;
@@ -281,7 +282,7 @@ export class IFCProcessingService {
           }
 
           logger.debug(`Found match for material: ${name}`, {
-            kbobMaterial: bestMatch.kbobMaterial.Name,
+            kbobMaterial: bestMatch.kbobMaterial.name,
             score: bestMatch.score,
           });
 

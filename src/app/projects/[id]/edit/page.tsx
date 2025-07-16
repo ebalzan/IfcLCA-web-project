@@ -12,117 +12,83 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { toast } from "@/hooks/use-toast";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { LoaderIcon, Pencil, ArrowLeft, Trash2 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DeleteProjectDialog } from "@/components/delete-project-dialog";
+import { useDeleteProject } from "@/hooks/projects/use-delete-project";
+import { useProjectById } from "@/hooks/projects/use-project-by-id";
+import { useForm } from "react-hook-form";
+import {
+  UpdateProjectSchema,
+  updateProjectSchema,
+} from "@/schemas/projects/updateProjectSchema";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useUpdateProject } from "@/hooks/projects/use-update-project";
+import { Queries } from "@/queries";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function EditProjectPage() {
-  const router = useRouter();
-  const params = useParams();
-  const projectId = params.id as string;
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+
+  const router = useRouter();
+  const params = useParams<{ id: string }>();
+  const projectId = params.id;
+  const { mutateAsync: deleteProject } = useDeleteProject();
+  const { data: project, isLoading: isLoadingProject } =
+    useProjectById(projectId);
+  const { mutate: updateProject, isPending: isSaving } = useUpdateProject();
+  const queryClient = useQueryClient();
+
+  const form = useForm<UpdateProjectSchema>({
+    resolver: zodResolver(updateProjectSchema),
+    defaultValues: {
+      name: project?.name || "",
+      description: project?.description || "",
+    },
+  });
+  const { register, getValues, handleSubmit, reset } = form;
 
   useEffect(() => {
-    async function fetchProject() {
-      try {
-        const response = await fetch(`/api/projects/${projectId}`);
-        const data = await response.json();
-        setName(data.name);
-        setDescription(data.description || "");
-        setIsLoading(false);
-      } catch (error) {
-        console.error("Failed to fetch project:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load project details",
-          variant: "destructive",
-        });
-        router.push("/projects");
-      }
+    if (project) {
+      reset({
+        name: project.name || "",
+        description: project.description || "",
+      });
     }
-    fetchProject();
-  }, [projectId, router]);
+  }, [project, reset]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
+  async function handleDeleteProject() {
+    await deleteProject(projectId);
+    router.replace("/projects");
+  }
 
-    try {
-      const response = await fetch(`/api/projects/${projectId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
+  function handleUpdateProject() {
+    updateProject(
+      { ...getValues() },
+      {
+        onSuccess: async () => {
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: [Queries.GET_PROJECTS] }),
+            queryClient.invalidateQueries({ queryKey: [Queries.GET_PROJECT_BY_ID, projectId] }),
+          ]);
+          router.back()
         },
-        body: JSON.stringify({ name, description }),
-      });
-
-      if (!response.ok) throw new Error("Failed to update project");
-
-      toast({
-        title: "Success",
-        description: "Project updated successfully",
-      });
-      router.push(`/projects/${projectId}`);
-    } catch (error) {
-      console.error("Failed to update project:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update project",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDeleteProject = async () => {
-    try {
-      const response = await fetch(`/api/projects/${projectId}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) throw new Error("Failed to delete project");
-
-      toast({
-        title: "Project deleted",
-        description: "The project has been successfully deleted.",
-      });
-      router.push("/projects");
-    } catch (error) {
-      console.error("Failed to delete project:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete the project. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDeleteDialogOpen(false);
-    }
-  };
+      }
+    );
+  }
 
   const breadcrumbItems = [
     { label: "Projects", href: "/projects" },
-    { label: name || "Loading...", href: `/projects/${projectId}` },
+    {
+      label: project?.name || "Loading...",
+      href: `/projects/${projectId}`,
+    },
     { label: "Edit", href: undefined },
   ];
 
-  if (isLoading) {
+  if (!project || isLoadingProject) {
     return (
       <div className="container mx-auto p-6 space-y-8">
         <Breadcrumbs items={breadcrumbItems} />
@@ -159,7 +125,9 @@ export default function EditProjectPage() {
                 <Pencil className="h-6 w-6 text-muted-foreground" />
                 Edit Project
               </CardTitle>
-              <CardDescription>Update your project details below</CardDescription>
+              <CardDescription>
+                Update your project details below
+              </CardDescription>
             </div>
             <Button
               type="button"
@@ -174,15 +142,17 @@ export default function EditProjectPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form
+            onSubmit={handleSubmit(handleUpdateProject)}
+            className="space-y-6"
+          >
             <div className="space-y-2">
               <Label htmlFor="name" className="text-sm font-medium">
                 Project Name
               </Label>
               <Input
+                {...register("name")}
                 id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
                 required
                 disabled={isSaving}
                 className="w-full"
@@ -195,8 +165,7 @@ export default function EditProjectPage() {
               </Label>
               <Textarea
                 id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                {...register("description")}
                 disabled={isSaving}
                 rows={4}
                 className="w-full resize-none"
@@ -207,14 +176,13 @@ export default function EditProjectPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => router.back()}
+                onClick={() => router.push(`/projects/${projectId}`)}
                 disabled={isSaving}
-                className="w-32"
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSaving} className="w-32">
+              <Button type="submit" disabled={isSaving}>
                 {isSaving ? (
                   <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
@@ -227,26 +195,11 @@ export default function EditProjectPage() {
         </CardContent>
       </Card>
 
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you really sure you don't need it anymore?</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <p>We can get it back but it involves us digging into our database, which we would rather avoid. So better be sure you don't need it anymore...</p>
-              <p>This action cannot be undone. This will permanently delete the project and all associated data.</p>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={handleDeleteProject}
-            >
-              Delete Project
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteProjectDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onDelete={handleDeleteProject}
+      />
     </div>
   );
 }

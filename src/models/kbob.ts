@@ -1,30 +1,18 @@
-import mongoose from "mongoose";
+import IKBOBMaterial from "@/interfaces/materials/IKBOBMaterial";
+import { Model, Schema, models, model } from "mongoose";
 
-interface IKBOBMaterial {
-  KBOB_ID: number;
-  Name: string;
-  Category?: string;
-  GWP: number;
-  UBP: number;
-  PENRE: number;
-  "kg/unit"?: number | string;
-  "min density"?: number;
-  "max density"?: number;
-}
-
-interface KBOBMaterialModel extends mongoose.Model<IKBOBMaterial> {
+interface IKBOBMaterialModel extends Model<IKBOBMaterial> {
   findValidMaterials(): Promise<IKBOBMaterial[]>;
 }
 
-const kbobSchema = new mongoose.Schema<IKBOBMaterial, KBOBMaterialModel>(
+const kbobSchema = new Schema<IKBOBMaterial, IKBOBMaterialModel>(
   {
-    KBOB_ID: { type: Number, required: true, index: true },
-    Name: { type: String, required: true, index: true },
-    Category: { type: String },
-    GWP: { type: Number, required: true },
-    UBP: { type: Number, required: true },
-    PENRE: { type: Number, required: true },
-    "kg/unit": mongoose.Schema.Types.Mixed,
+    name: { type: String, required: true },
+    category: { type: String },
+    gwp: { type: Number, required: true },
+    ubp: { type: Number, required: true },
+    penre: { type: Number, required: true },
+    "kg/unit": Schema.Types.Mixed,
     "min density": Number,
     "max density": Number,
   },
@@ -35,17 +23,17 @@ const kbobSchema = new mongoose.Schema<IKBOBMaterial, KBOBMaterialModel>(
 );
 
 // Add indexes for better query performance
-kbobSchema.index({ Name: 1 });
-kbobSchema.index({ Category: 1 });
+kbobSchema.index({ name: 1 });
+kbobSchema.index({ category: 1 });
 
 // Add a static method to find valid materials
-kbobSchema.static("findValidMaterials", function () {
+kbobSchema.static("findValidMaterials", function (this: IKBOBMaterialModel) {
   return this.find({
     $and: [
       // Must have all required indicators
-      { GWP: { $exists: true, $ne: null } },
-      { UBP: { $exists: true, $ne: null } },
-      { PENRE: { $exists: true, $ne: null } },
+      { gwp: { $exists: true, $ne: null } },
+      { ubp: { $exists: true, $ne: null } },
+      { penre: { $exists: true, $ne: null } },
       // Must have either valid kg/unit or both min/max density
       {
         $or: [
@@ -53,8 +41,9 @@ kbobSchema.static("findValidMaterials", function () {
             "kg/unit": {
               $exists: true,
               $ne: null,
-              $ne: "-",
+              // $ne: "-",
               $type: "number",
+              $nin: [0, -1],
             },
           },
           {
@@ -66,10 +55,9 @@ kbobSchema.static("findValidMaterials", function () {
         ],
       },
     ],
-  }).sort({ Name: 1 });
+  }).sort({ name: 1 });
 });
 
 // Create or update the model
-export const KBOBMaterial =
-  (mongoose.models.KBOBMaterial as KBOBMaterialModel) ||
-  mongoose.model<IKBOBMaterial, KBOBMaterialModel>("KBOBMaterial", kbobSchema, "indicatorsKBOB");
+export const KBOBMaterial: IKBOBMaterialModel =
+  models.KBOBMaterial || model("KBOBMaterial", kbobSchema, "indicatorsKBOB");
