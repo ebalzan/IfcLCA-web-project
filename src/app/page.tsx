@@ -15,13 +15,13 @@ export default async function HomePage() {
   }
 
   // If user is authenticated but hasn't accepted terms, show terms acceptance
-  // if (!hasAcceptedTerms) {
-  //   return (
-  //     <TermsAcceptanceWrapper>
-  //       <Dashboard />
-  //     </TermsAcceptanceWrapper>
-  //   );
-  // }
+  if (!hasAcceptedTerms) {
+    return (
+      <TermsAcceptanceWrapper>
+        <DashboardPage />
+      </TermsAcceptanceWrapper>
+    );
+  }
 
   // If user is authenticated and has accepted terms, show dashboard
   return <DashboardPage />;

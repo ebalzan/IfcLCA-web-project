@@ -15,4 +15,4 @@ async function acceptTerms() {
   return NextResponse.json({ success: true });
 }
 
-export const POST = acceptTerms()
+export const POST = acceptTerms
