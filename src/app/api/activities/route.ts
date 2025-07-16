@@ -1,46 +1,45 @@
-import { NextResponse } from "next/server"
-import { Project, Upload, MaterialDeletion } from "@/models"
-import { withAuthAndDB } from "@/lib/api-middleware"
-import { getUserId, AuthenticatedRequest } from "@/lib/auth-middleware"
-import IProjectDB from "@/interfaces/projects/IProjectDB"
-import IActivity from "@/interfaces/client/activities/IActivity"
-import sortByDate from "@/utils/sortByDate"
-import ActivityResponse from "@/interfaces/activities/ActivityResponse"
+import { NextResponse } from 'next/server'
+import ActivityResponse from '@/interfaces/activities/ActivityResponse'
+import IActivity from '@/interfaces/client/activities/IActivity'
+import IProjectDB from '@/interfaces/projects/IProjectDB'
+import { withAuthAndDB } from '@/lib/api-middleware'
+import { getUserId, AuthenticatedRequest } from '@/lib/auth-middleware'
+import { Project, Upload, MaterialDeletion } from '@/models'
+import sortByDate from '@/utils/sortByDate'
 
 async function getActivities(request: AuthenticatedRequest) {
   const userId = getUserId(request)
 
   const { searchParams } = new URL(request.url)
-  const page = parseInt(searchParams.get("page") || "1")
-  const limit = parseInt(searchParams.get("limit") || "10")
+  const page = parseInt(searchParams.get('page') || '1')
+  const limit = parseInt(searchParams.get('limit') || '10')
   const skip = (page - 1) * limit
 
   // Get total counts for pagination (even though no pagination UI exists yet)
-  const [projectsCount, uploadsCount, materialDeletionsCount] =
-    await Promise.all([
-      Project.countDocuments({ userId }),
-      Upload.countDocuments({ userId }),
-      MaterialDeletion.countDocuments({ userId }),
-    ])
+  const [projectsCount, uploadsCount, materialDeletionsCount] = await Promise.all([
+    Project.countDocuments({ userId }),
+    Upload.countDocuments({ userId }),
+    MaterialDeletion.countDocuments({ userId }),
+  ])
 
   // Fetch paginated projects and uploads
   const [projects, uploads, materialDeletions] = await Promise.all([
-    Project.find({ userId })
-      .sort({ createdAt: -1, })
-      .skip(skip)
-      .limit(limit)
-      .lean(),
+    Project.find({ userId }).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
     Upload.find({ userId })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate<{ projectId: Pick<IProjectDB, "name" | "_id"> }>("projectId", "name")
+      .populate<{
+        projectId: Pick<IProjectDB, 'name' | '_id'>
+      }>('projectId', 'name')
       .lean(),
     MaterialDeletion.find({ userId })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate<{ projectId: Pick<IProjectDB, "name" | "_id"> }>("projectId", "name")
+      .populate<{
+        projectId: Pick<IProjectDB, 'name' | '_id'>
+      }>('projectId', 'name')
       .lean(),
   ])
 
@@ -50,10 +49,10 @@ async function getActivities(request: AuthenticatedRequest) {
       id: _id.toString(),
       type: 'project_created',
       user: {
-        name: "You",
+        name: 'You',
         imageUrl: null,
       },
-      action: "created a new project",
+      action: 'created a new project',
       project: {
         id: _id.toString(),
         name,
@@ -65,10 +64,10 @@ async function getActivities(request: AuthenticatedRequest) {
       id: _id.toString(),
       type: 'file_uploaded',
       user: {
-        name: "You",
+        name: 'You',
         imageUrl: null,
       },
-      action: "uploaded a file to",
+      action: 'uploaded a file to',
       project: {
         id: projectId._id.toString(),
         name: projectId.name,
@@ -83,10 +82,10 @@ async function getActivities(request: AuthenticatedRequest) {
       id: _id.toString(),
       type: 'material_deleted',
       user: {
-        name: "You",
+        name: 'You',
         imageUrl: null,
       },
-      action: "deleted a material from",
+      action: 'deleted a material from',
       project: {
         id: projectId._id.toString(),
         name: projectId.name,

@@ -1,18 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
-import { connectToDatabase } from "./mongodb";
-import { withAuth, withAuthParams, AuthenticatedRequest, AuthHandler, AuthHandlerWithParams } from "./auth-middleware";
+import { NextRequest, NextResponse } from 'next/server'
+import {
+  withAuth,
+  withAuthParams,
+  AuthenticatedRequest,
+  AuthHandler,
+  AuthHandlerWithParams,
+} from './auth-middleware'
+import { connectToDatabase } from './mongodb'
 
-export type ApiHandler = AuthHandler;
-export type ApiHandlerWithParams<T> = AuthHandlerWithParams<T>;
-export type PublicApiHandler = (
-  request: NextRequest,
-  context?: unknown
-) => Promise<NextResponse>;
+export type ApiHandler = AuthHandler
+export type ApiHandlerWithParams<T> = AuthHandlerWithParams<T>
+export type PublicApiHandler = (request: NextRequest, context?: unknown) => Promise<NextResponse>
 
 export type PublicApiHandlerWithParams<T> = (
   request: NextRequest,
   context: { params: Promise<T> }
-) => Promise<NextResponse>;
+) => Promise<NextResponse>
 
 /**
  * API middleware that uses auth middleware and adds database connection
@@ -22,46 +25,40 @@ export function withAuthAndDB(handler: ApiHandler): ApiHandler {
   const authHandler = withAuth(async (request: AuthenticatedRequest, context?: unknown) => {
     try {
       // Connect to database
-      await connectToDatabase();
+      await connectToDatabase()
 
       // Call the original handler
-      return await handler(request, context);
+      return await handler(request, context)
     } catch (error: unknown) {
-      console.error("API middleware error:", error);
-      return NextResponse.json(
-        { error: "ERROR: " + error },
-        { status: 500 }
-      );
+      console.error('API middleware error:', error)
+      return NextResponse.json({ error: 'ERROR: ' + error }, { status: 500 })
     }
-  });
+  })
 
-  return authHandler;
+  return authHandler
 }
 
 /**
  * API middleware for routes with dynamic parameters
  */
-export function withAuthAndDBParams<T>(
-  handler: ApiHandlerWithParams<T>
-): ApiHandlerWithParams<T> {
+export function withAuthAndDBParams<T>(handler: ApiHandlerWithParams<T>): ApiHandlerWithParams<T> {
   // First apply auth middleware, then add database connection
-  const authHandler = withAuthParams(async (request: AuthenticatedRequest, context: { params: Promise<T> }) => {
-    try {
-      // Connect to database
-      await connectToDatabase();
+  const authHandler = withAuthParams(
+    async (request: AuthenticatedRequest, context: { params: Promise<T> }) => {
+      try {
+        // Connect to database
+        await connectToDatabase()
 
-      // Call the original handler
-      return await handler(request, context);
-    } catch (error) {
-      console.error("API middleware error:", error);
-      return NextResponse.json(
-        { error: "Internal server error" },
-        { status: 500 }
-      );
+        // Call the original handler
+        return await handler(request, context)
+      } catch (error) {
+        console.error('API middleware error:', error)
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+      }
     }
-  });
+  )
 
-  return authHandler;
+  return authHandler
 }
 
 /**
@@ -71,18 +68,15 @@ export function withDB(handler: PublicApiHandler): PublicApiHandler {
   return async (request: NextRequest, context?: unknown) => {
     try {
       // Connect to database
-      await connectToDatabase();
+      await connectToDatabase()
 
       // Call the original handler
-      return await handler(request, context);
+      return await handler(request, context)
     } catch (error) {
-      console.error("API middleware error:", error);
-      return NextResponse.json(
-        { error: "ERROR: " + error },
-        { status: 500 }
-      );
+      console.error('API middleware error:', error)
+      return NextResponse.json({ error: 'ERROR: ' + error }, { status: 500 })
     }
-  };
+  }
 }
 
 /**
@@ -94,38 +88,32 @@ export function withDBParams<T>(
   return async (request: NextRequest, context: { params: Promise<T> }) => {
     try {
       // Connect to database
-      await connectToDatabase();
+      await connectToDatabase()
 
       // Call the original handler
-      return await handler(request, context);
+      return await handler(request, context)
     } catch (error) {
-      console.error("API middleware error:", error);
-      return NextResponse.json(
-        { error: "ERROR: " + error },
-        { status: 500 }
-      );
+      console.error('API middleware error:', error)
+      return NextResponse.json({ error: 'ERROR: ' + error }, { status: 500 })
     }
-  };
+  }
 }
 
 /**
  * Helper function to handle common API errors
  */
 export function handleApiError(error: unknown, context?: string): NextResponse {
-  console.error(`API Error${context ? ` in ${context}` : ""}:`, error);
-  
+  console.error(`API Error${context ? ` in ${context}` : ''}:`, error)
+
   if (error instanceof Error) {
     // Handle specific error types
-    if (error.message.includes("not found")) {
-      return NextResponse.json({ error: "Resource not found" }, { status: 404 });
+    if (error.message.includes('not found')) {
+      return NextResponse.json({ error: 'Resource not found' }, { status: 404 })
     }
-    if (error.message.includes("unauthorized") || error.message.includes("forbidden")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (error.message.includes('unauthorized') || error.message.includes('forbidden')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
   }
-  
-  return NextResponse.json(
-    { error: "ERROR: " + error },
-    { status: 500 }
-  );
-} 
+
+  return NextResponse.json({ error: 'ERROR: ' + error }, { status: 500 })
+}

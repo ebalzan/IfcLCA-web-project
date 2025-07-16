@@ -1,11 +1,14 @@
-"use client";
+'use client'
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Loader2, PlusCircle, ArrowLeft } from 'lucide-react'
+import { useForm } from 'react-hook-form'
+import * as z from 'zod'
+import { Breadcrumbs } from '@/components/breadcrumbs'
+import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -13,9 +16,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+} from '@/components/ui/card'
 import {
   Form,
   FormControl,
@@ -23,79 +24,76 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { toast } from "@/hooks/use-toast";
-import { Loader2, PlusCircle, ArrowLeft } from "lucide-react";
-import { Breadcrumbs } from "@/components/breadcrumbs";
-import Link from "next/link";
-import { fetchApi } from "@/lib/fetch";
-import IProjectClient from "@/interfaces/client/projects/IProjectClient";
-import { createProjectSchema } from "@/schemas/projects/createProjectSchema";
+} from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { toast } from '@/hooks/use-toast'
+import IProjectClient from '@/interfaces/client/projects/IProjectClient'
+import { fetchApi } from '@/lib/fetch'
+import { createProjectSchema } from '@/schemas/projects/createProjectSchema'
 
 export default function ProjectsNewPage() {
-  const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [projectCount, setProjectCount] = useState<number | null>(null);
+  const router = useRouter()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [projectCount, setProjectCount] = useState<number | null>(null)
 
   useEffect(() => {
     async function checkProjectCount() {
       try {
-        const projects = await fetchApi<IProjectClient[]>("/api/projects");
-        setProjectCount(projects.length);
+        const projects = await fetchApi<IProjectClient[]>('/api/projects')
+        setProjectCount(projects.length)
       } catch (error) {
-        console.error("Error checking project count:", error);
+        console.error('Error checking project count:', error)
       }
     }
-    checkProjectCount();
-  }, []);
+    checkProjectCount()
+  }, [])
 
   const form = useForm<z.infer<typeof createProjectSchema>>({
     resolver: zodResolver(createProjectSchema),
     defaultValues: {
-      name: "",
-      description: "",
+      name: '',
+      description: '',
     },
-  });
+  })
 
   async function onSubmit(values: z.infer<typeof createProjectSchema>) {
     try {
-      setIsSubmitting(true);
+      setIsSubmitting(true)
 
-      const project = await fetchApi<IProjectClient>("/api/projects", {
-        method: "POST",
+      const project = await fetchApi<IProjectClient>('/api/projects', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify(values),
-        credentials: "same-origin",
-      });
+        credentials: 'same-origin',
+      })
 
       toast({
-        title: "Success",
-        description: "Project created successfully.",
-      });
+        title: 'Success',
+        description: 'Project created successfully.',
+      })
 
       router.push(`/projects/${project._id}`)
-      router.refresh();
+      router.refresh()
     } catch (error: unknown) {
-      console.error("Error creating project:", error);
+      console.error('Error creating project:', error)
       toast({
-        title: "Error",
+        title: 'Error',
         description:
-          error instanceof Error
-            ? error.message
-            : "Failed to create project. Please try again.",
-        variant: "destructive",
-      });
+          error instanceof Error ? error.message : 'Failed to create project. Please try again.',
+        variant: 'destructive',
+      })
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
   }
 
   const breadcrumbItems = [
-    { label: "Projects", href: "/projects" },
-    { label: "New Project", href: undefined },
-  ];
+    { label: 'Projects', href: '/projects' },
+    { label: 'New Project', href: undefined },
+  ]
 
   if (projectCount === null) {
     return (
@@ -107,7 +105,7 @@ export default function ProjectsNewPage() {
           </CardHeader>
         </Card>
       </div>
-    );
+    )
   }
 
   if (projectCount >= 3) {
@@ -117,20 +115,18 @@ export default function ProjectsNewPage() {
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
             <CardTitle>Project Limit Reached</CardTitle>
-            <CardDescription>
-              You currently have {projectCount} projects
-            </CardDescription>
+            <CardDescription>You currently have {projectCount} projects</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="text-muted-foreground space-y-4">
               <p>
-                Databases cost real money 💸 and while we would like to offer the most to all users in an effort to push sustainable construction, IfcLCA is still fully bootstrapped.
+                Databases cost real money 💸 and while we would like to offer the most to all users
+                in an effort to push sustainable construction, IfcLCA is still fully bootstrapped.
               </p>
+              <p>We have plans for many more powerful features once we&apos;re out of BETA! 🚀</p>
               <p>
-                We have plans for many more powerful features once we're out of BETA! 🚀
-              </p>
-              <p>
-                Stay tuned and get in touch if you really need more projects today (or let's maybe say tomorrow 😉)
+                Stay tuned and get in touch if you really need more projects today (or let&apos;s
+                maybe say tomorrow 😉)
               </p>
             </div>
           </CardContent>
@@ -144,7 +140,7 @@ export default function ProjectsNewPage() {
           </CardFooter>
         </Card>
       </div>
-    );
+    )
   }
 
   return (
@@ -158,9 +154,7 @@ export default function ProjectsNewPage() {
                 <PlusCircle className="h-6 w-6 text-muted-foreground" />
                 New Project
               </CardTitle>
-              <CardDescription>
-                Create a new project to start your LCA analysis
-              </CardDescription>
+              <CardDescription>Create a new project to start your LCA analysis</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <FormField
@@ -183,10 +177,7 @@ export default function ProjectsNewPage() {
                   <FormItem>
                     <FormLabel>Description (optional)</FormLabel>
                     <FormControl>
-                      <Textarea
-                        placeholder="Enter project description (optional)"
-                        {...field}
-                      />
+                      <Textarea placeholder="Enter project description (optional)" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -198,8 +189,7 @@ export default function ProjectsNewPage() {
                 type="button"
                 variant="outline"
                 onClick={() => router.back()}
-                disabled={isSubmitting}
-              >
+                disabled={isSubmitting}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Cancel
               </Button>
@@ -221,5 +211,5 @@ export default function ProjectsNewPage() {
         </Form>
       </Card>
     </div>
-  );
+  )
 }

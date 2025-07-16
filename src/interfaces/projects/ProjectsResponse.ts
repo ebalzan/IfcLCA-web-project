@@ -1,4 +1,4 @@
-import IProjectWithStatsClient from "../client/projects/IProjectWithStatsClient";
+import IProjectWithStatsClient from '../client/projects/IProjectWithStatsClient'
 
 export interface ProjectsWithStatsResponse {
   projects: IProjectWithStatsClient[]

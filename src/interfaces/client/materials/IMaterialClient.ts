@@ -1,6 +1,6 @@
-import ILCAIndicators from "@/interfaces/materials/ILCAIndicators"
-import IKBOBMaterial from "@/interfaces/materials/IKBOBMaterial"
-import IElementClient from "../elements/IElementClient"
+import IKBOBMaterial from '@/interfaces/materials/IKBOBMaterial'
+import ILCAIndicators from '@/interfaces/materials/ILCAIndicators'
+import IElementClient from '../elements/IElementClient'
 
 interface IMaterialNewAttributesFromKBOB extends Partial<ILCAIndicators> {
   category?: string

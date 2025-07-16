@@ -1,4 +1,4 @@
-import { Types } from "mongoose"
+import { Types } from 'mongoose'
 
 interface IKBOBMaterial {
   _id: Types.ObjectId
@@ -7,9 +7,9 @@ interface IKBOBMaterial {
   gwp: number
   ubp: number
   penre: number
-  "kg/unit"?: number
-  "min density"?: number
-  "max density"?: number
+  'kg/unit'?: number
+  'min density'?: number
+  'max density'?: number
 }
 
 export default IKBOBMaterial

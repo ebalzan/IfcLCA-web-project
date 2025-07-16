@@ -1,105 +1,103 @@
-import { logger } from "../logger";
+import { logger } from '../logger'
 
 export interface APIElement {
-  id: string;
-  type: string;
-  object_type: string;
+  id: string
+  type: string
+  object_type: string
   properties: {
-    name?: string;
-    level?: string;
-    loadBearing?: boolean;
-    isExternal?: boolean;
-  };
-  volume?: number;
-  area?: number;
-  materials?: string[];
+    name?: string
+    level?: string
+    loadBearing?: boolean
+    isExternal?: boolean
+  }
+  volume?: number
+  area?: number
+  materials?: string[]
   material_volumes?: {
     [key: string]: {
-      volume: number;
-      fraction: number;
-    };
-  };
+      volume: number
+      fraction: number
+    }
+  }
 }
 
 export interface IFCParseResult {
-  elements: APIElement[];
+  elements: APIElement[]
   debug: Array<{
-    id: string;
-    type: string;
-    has_associations: boolean;
-    materials_found: number;
-    material_volumes_found: number;
-    materials: string[];
-    material_volumes: { [key: string]: { volume: number; fraction: number } };
-    material_type?: string;
-    constituent_count?: number;
-    layer_count?: number;
-    layer_set_type?: string;
-  }>;
-  total_elements: number;
-  total_materials_found: number;
-  total_material_volumes_found: number;
+    id: string
+    type: string
+    has_associations: boolean
+    materials_found: number
+    material_volumes_found: number
+    materials: string[]
+    material_volumes: { [key: string]: { volume: number; fraction: number } }
+    material_type?: string
+    constituent_count?: number
+    layer_count?: number
+    layer_set_type?: string
+  }>
+  total_elements: number
+  total_materials_found: number
+  total_material_volumes_found: number
 }
 
 interface PyodideInterface {
-  loadPackage: (packages: string[]) => Promise<void>;
-  pyimport: (name: string) => any;
-  globals: { set: (name: string, value: unknown) => void };
-  runPythonAsync: (code: string) => Promise<string>;
+  loadPackage: (packages: string[]) => Promise<void>
+  pyimport: (name: string) => any
+  globals: { set: (name: string, value: unknown) => void }
+  runPythonAsync: (code: string) => Promise<string>
 }
 
-let pyodideLoading: Promise<PyodideInterface> | null = null;
+let pyodideLoading: Promise<PyodideInterface> | null = null
 
 async function loadPyodideAndIfcOpenShell(): Promise<PyodideInterface> {
-  if (pyodideLoading) return pyodideLoading;
+  if (pyodideLoading) return pyodideLoading
   pyodideLoading = new Promise(async (resolve, reject) => {
     try {
       if (!(window as any).loadPyodide) {
-        const script = document.createElement("script");
-        script.src = "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js";
-        script.async = true;
+        const script = document.createElement('script')
+        script.src = 'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js'
+        script.async = true
         script.onload = async () => {
           try {
-            const pyodide: PyodideInterface = await (window as any).loadPyodide(
-              {
-                indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/",
-              }
-            );
-            await pyodide.loadPackage(["micropip", "numpy"]);
-            const micropip = pyodide.pyimport("micropip");
+            const pyodide: PyodideInterface = await (window as any).loadPyodide({
+              indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/',
+            })
+            await pyodide.loadPackage(['micropip', 'numpy'])
+            const micropip = pyodide.pyimport('micropip')
             await micropip.install(
-              "https://cdn.jsdelivr.net/gh/IfcOpenShell/wasm-wheels@main/ifcopenshell-0.8.2+d50e806-cp312-cp312-emscripten_3_1_58_wasm32.whl"
-            );
-            resolve(pyodide);
+              'https://cdn.jsdelivr.net/gh/IfcOpenShell/wasm-wheels@main/ifcopenshell-0.8.2+d50e806-cp312-cp312-emscripten_3_1_58_wasm32.whl'
+            )
+            resolve(pyodide)
           } catch (e) {
-            reject(e);
+            reject(e)
           }
-        };
-        script.onerror = reject;
-        document.head.appendChild(script);
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
       } else {
         const pyodide: PyodideInterface = await (window as any).loadPyodide({
-          indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/",
-        });
-        await pyodide.loadPackage(["micropip", "numpy"]);
-        const micropip = pyodide.pyimport("micropip");
+          indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/',
+        })
+        await pyodide.loadPackage(['micropip', 'numpy'])
+        const micropip = pyodide.pyimport('micropip')
         await micropip.install(
-          "https://cdn.jsdelivr.net/gh/IfcOpenShell/wasm-wheels@main/ifcopenshell-0.8.2+d50e806-cp312-cp312-emscripten_3_1_58_wasm32.whl"
-        );
-        resolve(pyodide);
+          'https://cdn.jsdelivr.net/gh/IfcOpenShell/wasm-wheels@main/ifcopenshell-0.8.2+d50e806-cp312-cp312-emscripten_3_1_58_wasm32.whl'
+        )
+        resolve(pyodide)
       }
     } catch (err) {
-      reject(err);
+      reject(err)
     }
-  });
-  return pyodideLoading;
+  })
+  return pyodideLoading
 }
 
 export async function parseIfcWithWasm(file: File): Promise<IFCParseResult> {
   try {
-    const pyodide = await loadPyodideAndIfcOpenShell();
-    const buffer = new Uint8Array(await file.arrayBuffer());
-    pyodide.globals.set("ifc_data", buffer);
+    const pyodide = await loadPyodideAndIfcOpenShell()
+    const buffer = new Uint8Array(await file.arrayBuffer())
+    pyodide.globals.set('ifc_data', buffer)
 
     const pythonCode = `
 import ifcopenshell
@@ -349,17 +347,19 @@ except Exception:
     pass
 
 json.dumps(result)
-`;
+`
 
-    const result = await pyodide.runPythonAsync(pythonCode);
-    return JSON.parse(result);
+    const result = await pyodide.runPythonAsync(pythonCode)
+    return JSON.parse(result)
   } catch (error) {
-    logger.error("Error in parseIfcWithWasm", {
+    logger.error('Error in parseIfcWithWasm', {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
       filename: file.name,
       size: file.size,
-    });
-    throw new Error(`Failed to parse IFC file: ${error instanceof Error ? error.message : String(error)}`);
+    })
+    throw new Error(
+      `Failed to parse IFC file: ${error instanceof Error ? error.message : String(error)}`
+    )
   }
 }

@@ -1,11 +1,12 @@
-"use client";
+'use client'
 
-import * as React from "react";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useDebounce } from "@/hooks/use-debounce";
-import { Card, CardContent } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import * as React from 'react'
+import { useState, useEffect } from 'react'
+import Image from 'next/image'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { useRouter } from 'next/navigation'
+import { UserButton, SignedIn, SignedOut, SignInButton } from '@clerk/nextjs'
 import {
   Bell,
   HelpCircle,
@@ -19,12 +20,22 @@ import {
   Sun,
   ExternalLink,
   Construction,
-} from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { UserButton, SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+} from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import { useTheme } from 'next-themes'
+import { SearchResult } from '@/app/api/projects/search/route'
+import { HelpDialog } from '@/components/help-dialog'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -32,45 +43,34 @@ import {
   NavigationMenuLink,
   NavigationMenuList,
   NavigationMenuTrigger,
-} from "@/components/ui/navigation-menu";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import Image from "next/image";
-import { cn } from "@/lib/utils";
-import { HelpDialog } from "@/components/help-dialog";
-import { Badge } from "@/components/ui/badge";
-import { useTheme } from "next-themes";
-import { UploadModal } from "@/components/upload-modal";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { fetchApi } from "@/lib/fetch";
-import IProjectClient from "@/interfaces/client/projects/IProjectClient";
-import { SearchResult } from "@/app/api/projects/search/route";
-import { useProjectsWithStats } from "@/hooks/projects/use-projects-with-stats";
+} from '@/components/ui/navigation-menu'
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { UploadModal } from '@/components/upload-modal'
+import { useProjectsWithStats } from '@/hooks/projects/use-projects-with-stats'
+import { useDebounce } from '@/hooks/use-debounce'
+import IProjectClient from '@/interfaces/client/projects/IProjectClient'
+import { fetchApi } from '@/lib/fetch'
+import { cn } from '@/lib/utils'
 
 interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  read: boolean;
+  id: string
+  title: string
+  message: string
+  read: boolean
 }
 
 interface NavBarProps {
-  currentProject?: IProjectClient;
-  notifications: Notification[];
+  currentProject?: IProjectClient
+  notifications: Notification[]
 }
 
 interface SearchResultsProps {
-  results: SearchResult[];
-  isExpanded: boolean;
-  selectedIndex: number;
-  onSelect: (result: SearchResult) => void;
-  onMouseEnter: (index: number) => void;
-  onShowMore: () => void;
+  results: SearchResult[]
+  isExpanded: boolean
+  selectedIndex: number
+  onSelect: (result: SearchResult) => void
+  onMouseEnter: (index: number) => void
+  onShowMore: () => void
 }
 
 function SearchResults({
@@ -81,8 +81,8 @@ function SearchResults({
   onMouseEnter,
   onShowMore,
 }: SearchResultsProps) {
-  const displayResults = isExpanded ? results : results.slice(0, 5);
-  const hasMore = !isExpanded && results.length > 5;
+  const displayResults = isExpanded ? results : results.slice(0, 5)
+  const hasMore = !isExpanded && results.length > 5
 
   return (
     <div className="space-y-1">
@@ -90,19 +90,13 @@ function SearchResults({
         <Button
           key={result._id.toString()}
           variant="ghost"
-          className={cn(
-            "w-full justify-start text-left",
-            index === selectedIndex && "bg-accent"
-          )}
+          className={cn('w-full justify-start text-left', index === selectedIndex && 'bg-accent')}
           onClick={() => onSelect(result)}
-          onMouseEnter={() => onMouseEnter(index)}
-        >
+          onMouseEnter={() => onMouseEnter(index)}>
           <div>
             <div className="font-medium">{result.name}</div>
             {result.description && (
-              <div className="text-xs text-muted-foreground line-clamp-1">
-                {result.description}
-              </div>
+              <div className="text-xs text-muted-foreground line-clamp-1">{result.description}</div>
             )}
           </div>
         </Button>
@@ -111,124 +105,117 @@ function SearchResults({
         <Button
           variant="ghost"
           className="w-full justify-center text-sm text-muted-foreground hover:text-foreground"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onShowMore();
+          onClick={e => {
+            e.preventDefault()
+            e.stopPropagation()
+            onShowMore()
           }}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-        >
+          onMouseDown={e => {
+            e.preventDefault()
+            e.stopPropagation()
+          }}>
           Show all {results.length} results
         </Button>
       )}
     </div>
-  );
+  )
 }
 
 export function NavigationBar({ currentProject, notifications }: NavBarProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const debouncedSearch = useDebounce(searchQuery, 300);
-  const [selectedIndex, setSelectedIndex] = useState(-1);
-  const [isFocused, setIsFocused] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const { theme, setTheme } = useTheme();
-  const [showProjectSelect, setShowProjectSelect] = useState(false);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
-    null
-  );
-  const { projectsWithStats } = useProjectsWithStats();
+  const router = useRouter()
+  const pathname = usePathname()
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const debouncedSearch = useDebounce(searchQuery, 300)
+  const [selectedIndex, setSelectedIndex] = useState(-1)
+  const [isFocused, setIsFocused] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
+  const { theme, setTheme } = useTheme()
+  const [showProjectSelect, setShowProjectSelect] = useState(false)
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const { projectsWithStats } = useProjectsWithStats()
   useEffect(() => {
     const searchProjects = async () => {
       if (isFocused && !debouncedSearch) {
-        setIsSearching(true);
+        setIsSearching(true)
         try {
-          const data = await fetchApi<SearchResult[]>("/api/projects/search?all=true");
-          setSearchResults(data);
+          const data = await fetchApi<SearchResult[]>('/api/projects/search?all=true')
+          setSearchResults(data)
         } catch (error) {
-          console.error("Failed to fetch projects:", error);
+          console.error('Failed to fetch projects:', error)
         } finally {
-          setIsSearching(false);
+          setIsSearching(false)
         }
-        return;
+        return
       }
 
       if (!debouncedSearch) {
-        setSearchResults([]);
-        return;
+        setSearchResults([])
+        return
       }
 
-      setIsSearching(true);
+      setIsSearching(true)
       try {
-        const data = await fetchApi<SearchResult[]>(
-          `/api/projects/search?q=${debouncedSearch}`
-        );
-        setSearchResults(data);
+        const data = await fetchApi<SearchResult[]>(`/api/projects/search?q=${debouncedSearch}`)
+        setSearchResults(data)
       } catch (error) {
-        console.error("Failed to search projects:", error);
+        console.error('Failed to search projects:', error)
       } finally {
-        setIsSearching(false);
+        setIsSearching(false)
       }
-    };
+    }
 
-    searchProjects();
-  }, [debouncedSearch, isFocused]);
+    searchProjects()
+  }, [debouncedSearch, isFocused])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!searchResults.length) return;
+    if (!searchResults.length) return
 
     switch (e.key) {
-      case "ArrowDown":
-        e.preventDefault();
-        setSelectedIndex((prev) =>
-          prev < searchResults.length - 1 ? prev + 1 : prev
-        );
-        break;
-      case "ArrowUp":
-        e.preventDefault();
-        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : -1));
-        break;
-      case "Enter":
-        e.preventDefault();
+      case 'ArrowDown':
+        e.preventDefault()
+        setSelectedIndex(prev => (prev < searchResults.length - 1 ? prev + 1 : prev))
+        break
+      case 'ArrowUp':
+        e.preventDefault()
+        setSelectedIndex(prev => (prev > 0 ? prev - 1 : -1))
+        break
+      case 'Enter':
+        e.preventDefault()
         if (selectedIndex >= 0) {
-          const selected = searchResults[selectedIndex];
-          router.push(`/projects/${selected._id}`);
-          setSearchQuery("");
-          setSearchResults([]);
-          setSelectedIndex(-1);
+          const selected = searchResults[selectedIndex]
+          router.push(`/projects/${selected._id}`)
+          setSearchQuery('')
+          setSearchResults([])
+          setSelectedIndex(-1)
         }
-        break;
-      case "Escape":
-        setSearchQuery("");
-        setSearchResults([]);
-        setSelectedIndex(-1);
-        break;
+        break
+      case 'Escape':
+        setSearchQuery('')
+        setSearchResults([])
+        setSelectedIndex(-1)
+        break
     }
-  };
+  }
 
   useEffect(() => {
-    setSelectedIndex(-1);
-  }, [searchResults]);
+    setSelectedIndex(-1)
+  }, [searchResults])
 
   const handleSelect = (result: SearchResult) => {
-    router.push(`/projects/${result._id}`);
-    setSearchQuery("");
-    setSearchResults([]);
-    setSelectedIndex(-1);
-    setIsExpanded(false);
-  };
+    router.push(`/projects/${result._id}`)
+    setSearchQuery('')
+    setSearchResults([])
+    setSelectedIndex(-1)
+    setIsExpanded(false)
+  }
 
   const handleShowMore = (e?: React.MouseEvent) => {
-    e?.preventDefault();
-    setIsExpanded(true);
-  };
+    e?.preventDefault()
+    setIsExpanded(true)
+  }
 
   // const handleAnalyseClick = async () => {
   //   try {
@@ -263,8 +250,7 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
                 IfcLCA
                 <Badge
                   variant="secondary"
-                  className="absolute -top-2 -right-8 text-[10px] px-1 py-0 h-4"
-                >
+                  className="absolute -top-2 -right-8 text-[10px] px-1 py-0 h-4">
                   BETA
                 </Badge>
               </span>
@@ -277,8 +263,7 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
                   <NavigationMenuLink asChild>
                     <Link
                       href="/projects"
-                      className="inline-flex h-9 items-center justify-center rounded-l-md bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                    >
+                      className="inline-flex h-9 items-center justify-center rounded-l-md bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
                       Projects
                     </Link>
                   </NavigationMenuLink>
@@ -290,12 +275,9 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
                       <NavigationMenuLink asChild>
                         <Link
                           href="/projects/new"
-                          className="flex h-full w-full select-none flex-col justify-end rounded-md bg-gradient-to-b from-muted/50 to-muted p-6 no-underline outline-none focus:shadow-md"
-                        >
+                          className="flex h-full w-full select-none flex-col justify-end rounded-md bg-gradient-to-b from-muted/50 to-muted p-6 no-underline outline-none focus:shadow-md">
                           <PlusCircle className="h-6 w-6 mb-2" />
-                          <div className="mb-2 text-lg font-medium">
-                            Create New Project
-                          </div>
+                          <div className="mb-2 text-lg font-medium">Create New Project</div>
                           <p className="text-sm leading-tight text-muted-foreground">
                             Start a new LCA analysis for your building project.
                           </p>
@@ -306,8 +288,7 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
                       <NavigationMenuLink asChild>
                         <Link
                           href="/projects"
-                          className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                        >
+                          className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
                           <div className="text-sm font-medium leading-none flex items-center gap-2">
                             All Projects
                             <Construction className="h-3 w-3" />
@@ -322,15 +303,13 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
                       <NavigationMenuLink asChild>
                         <button
                           // onClick={handleAnalyseClick}
-                          className="w-full block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                        >
+                          className="w-full block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
                           <div className="text-sm font-medium leading-none flex items-center gap-2">
                             New Ifc
                             <FileText className="h-3 w-3" />
                           </div>
                           <p className="line-clamp-2 text-sm leading-snug text-muted-foreground text-left">
-                            Add construction elements from Ifc to an existing
-                            project
+                            Add construction elements from Ifc to an existing project
                           </p>
                         </button>
                       </NavigationMenuLink>
@@ -343,8 +322,7 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
                   <NavigationMenuLink asChild>
                     <Link
                       href="/materials-library"
-                      className="inline-flex h-9 items-center justify-center rounded-l-md bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                    >
+                      className="inline-flex h-9 items-center justify-center rounded-l-md bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
                       Materials
                     </Link>
                   </NavigationMenuLink>
@@ -356,15 +334,11 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
                       <NavigationMenuLink asChild>
                         <Link
                           href="/materials-library"
-                          className="flex h-full w-full select-none flex-col justify-end rounded-md bg-gradient-to-b from-muted/50 to-muted p-6 no-underline outline-none focus:shadow-md"
-                        >
+                          className="flex h-full w-full select-none flex-col justify-end rounded-md bg-gradient-to-b from-muted/50 to-muted p-6 no-underline outline-none focus:shadow-md">
                           <Database className="h-6 w-6 mb-2" />
-                          <div className="mb-2 text-lg font-medium">
-                            Match Materials
-                          </div>
+                          <div className="mb-2 text-lg font-medium">Match Materials</div>
                           <p className="text-sm leading-tight text-muted-foreground">
-                            Match your project materials with KBOB environmental
-                            indicators.
+                            Match your project materials with KBOB environmental indicators.
                           </p>
                         </Link>
                       </NavigationMenuLink>
@@ -375,15 +349,13 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
                           href="https://www.lcadata.ch"
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                        >
+                          className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
                           <div className="text-sm font-medium leading-none flex items-center gap-2">
                             KBOB Data
                             <ExternalLink className="h-3 w-3" />
                           </div>
                           <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                            Access KBOB environmental data through our API
-                            interface
+                            Access KBOB environmental data through our API interface
                           </p>
                         </a>
                       </NavigationMenuLink>
@@ -394,8 +366,7 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
                           href="https://www.kbob.admin.ch/de/oekobilanzdaten-im-baubereich"
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                        >
+                          className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
                           <div className="text-sm font-medium leading-none flex items-center gap-2">
                             Official KBOB Website
                             <ExternalLink className="h-3 w-3" />
@@ -412,7 +383,9 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
               <NavigationMenuItem>
                 <div className="flex items-center gap-2 px-4 py-2 text-sm">
                   Reports
-                  <Badge variant="secondary" className="text-[10px]">Coming Soon</Badge>
+                  <Badge variant="secondary" className="text-[10px]">
+                    Coming Soon
+                  </Badge>
                 </div>
               </NavigationMenuItem>
             </NavigationMenuList>
@@ -424,8 +397,7 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
             <Button
               variant="outline"
               size="icon"
-              className="mr-2 px-0 text-base hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 md:hidden"
-            >
+              className="mr-2 px-0 text-base hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 md:hidden">
               <Menu className="h-5 w-5" />
               <span className="sr-only">Toggle Menu</span>
             </Button>
@@ -447,51 +419,49 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
               placeholder="Search projects..."
               type="search"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={e => setSearchQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               onFocus={() => setIsFocused(true)}
-              onBlur={(e) => {
-                const isShowMoreButton = (
-                  e.relatedTarget as HTMLElement
-                )?.classList.contains("show-more-button");
+              onBlur={e => {
+                const isShowMoreButton = (e.relatedTarget as HTMLElement)?.classList.contains(
+                  'show-more-button'
+                )
                 if (!isShowMoreButton) {
                   setTimeout(() => {
-                    setIsFocused(false);
-                    setSelectedIndex(-1);
-                  }, 200);
+                    setIsFocused(false)
+                    setSelectedIndex(-1)
+                  }, 200)
                 }
               }}
             />
 
-            {(searchResults.length > 0 || isSearching) &&
-              (isFocused || searchQuery) && (
-                <Card className="absolute top-full mt-2 w-full z-50">
-                  <CardContent className="p-2">
-                    {isSearching ? (
-                      <div className="flex items-center justify-center p-4">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      </div>
-                    ) : (
-                      <SearchResults
-                        results={searchResults}
-                        isExpanded={isExpanded}
-                        selectedIndex={selectedIndex}
-                        onSelect={handleSelect}
-                        onMouseEnter={setSelectedIndex}
-                        onShowMore={handleShowMore}
-                      />
-                    )}
-                  </CardContent>
-                </Card>
-              )}
+            {(searchResults.length > 0 || isSearching) && (isFocused || searchQuery) && (
+              <Card className="absolute top-full mt-2 w-full z-50">
+                <CardContent className="p-2">
+                  {isSearching ? (
+                    <div className="flex items-center justify-center p-4">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    </div>
+                  ) : (
+                    <SearchResults
+                      results={searchResults}
+                      isExpanded={isExpanded}
+                      selectedIndex={selectedIndex}
+                      onSelect={handleSelect}
+                      onMouseEnter={setSelectedIndex}
+                      onShowMore={handleShowMore}
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
           <nav className="flex items-center space-x-2">
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-              className="h-8 w-8"
-            >
+              onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+              className="h-8 w-8">
               <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
               <span className="sr-only">Toggle theme</span>
@@ -504,8 +474,8 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
                 afterSignOutUrl="/"
                 appearance={{
                   elements: {
-                    avatarBox: "h-8 w-8",
-                    userButtonPopover: "w-48",
+                    avatarBox: 'h-8 w-8',
+                    userButtonPopover: 'w-48',
                   },
                   layout: {
                     shimmer: true,
@@ -527,21 +497,18 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Select Project</DialogTitle>
-            <DialogDescription>
-              Choose a project to upload the Ifc file to
-            </DialogDescription>
+            <DialogDescription>Choose a project to upload the Ifc file to</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
-            {projectsWithStats?.map((project) => (
+            {projectsWithStats?.map(project => (
               <Button
                 key={project._id}
                 variant="outline"
                 className="w-full justify-start"
                 onClick={() => {
-                  setSelectedProjectId(project._id);
-                  setShowProjectSelect(false);
-                }}
-              >
+                  setSelectedProjectId(project._id)
+                  setShowProjectSelect(false)
+                }}>
                 {project.name}
               </Button>
             ))}
@@ -555,16 +522,16 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
           open={true}
           onOpenChange={(open: boolean) => {
             if (!open) {
-              setSelectedProjectId(null);
+              setSelectedProjectId(null)
             }
           }}
           onSuccess={(upload: { id: string }) => {
-            setSelectedProjectId(null);
-            router.push(`/projects/${selectedProjectId}`);
+            setSelectedProjectId(null)
+            router.push(`/projects/${selectedProjectId}`)
           }}
           onProgress={(progress: number) => {}}
         />
       )}
     </nav>
-  );
+  )
 }

@@ -1,64 +1,60 @@
-"use client";
+'use client'
 
-import { Button } from "./ui/button";
-import { Card, CardContent } from "./ui/card";
+import Image from 'next/image'
+import { useRouter } from 'next/navigation'
+import { MoreVertical, Pencil, Trash2, Upload, Box } from 'lucide-react'
+import IProjectWithStatsClient from '@/interfaces/client/projects/IProjectWithStatsClient'
+import { Badge } from './ui/badge'
+import { Button } from './ui/button'
+import { Card, CardContent } from './ui/card'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "./ui/dropdown-menu";
-import { MoreVertical, Pencil, Trash2, Upload, Box } from "lucide-react";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-import IProjectWithStatsClient from "@/interfaces/client/projects/IProjectWithStatsClient";
-import { Badge } from "./ui/badge";
+} from './ui/dropdown-menu'
 
 interface ProjectCardProps {
-  project: IProjectWithStatsClient;
-  onEdit: () => void;
-  onDelete: () => void;
+  project: IProjectWithStatsClient
+  onEdit: () => void
+  onDelete: () => void
 }
 
 function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
-  const router = useRouter();
+  const router = useRouter()
 
   return (
     <Card
       key={project._id}
-      className="group relative transition-all hover:shadow-lg border-2 border-muted overflow-hidden"
-    >
+      className="group relative transition-all hover:shadow-lg border-2 border-muted overflow-hidden">
       <div className="absolute top-2 right-2 z-10">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
               className="h-8 w-8 p-0 hover:bg-background/80"
-              onClick={(e) => e.stopPropagation()}
-            >
+              onClick={e => e.stopPropagation()}>
               <MoreVertical className="h-4 w-4" />
               <span className="sr-only">Open menu</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit();
-              }}
-            >
+              onClick={e => {
+                e.stopPropagation()
+                onEdit()
+              }}>
               <Pencil className="mr-2 h-4 w-4" />
               Edit
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-destructive"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-            >
+              onClick={e => {
+                e.stopPropagation()
+                onDelete()
+              }}>
               <Trash2 className="mr-2 h-4 w-4" />
               Delete
             </DropdownMenuItem>
@@ -67,8 +63,7 @@ function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
       </div>
       <div
         onClick={() => router.push(`/projects/${project._id}`)}
-        className="aspect-video relative bg-muted cursor-pointer"
-      >
+        className="aspect-video relative bg-muted cursor-pointer">
         {project.imageUrl ? (
           <>
             <Image
@@ -87,13 +82,9 @@ function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
         )}
       </div>
       <CardContent className="space-y-2 p-4">
-        <h3 className="text-lg font-semibold leading-none tracking-tight">
-          {project.name}
-        </h3>
+        <h3 className="text-lg font-semibold leading-none tracking-tight">{project.name}</h3>
         {project.description && (
-          <p className="text-sm text-muted-foreground line-clamp-2">
-            {project.description}
-          </p>
+          <p className="text-sm text-muted-foreground line-clamp-2">{project.description}</p>
         )}
         <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
           <Badge variant="secondary" className="flex items-center gap-1">
@@ -107,7 +98,7 @@ function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
         </div>
       </CardContent>
     </Card>
-  );
+  )
 }
 
-export default ProjectCard;
+export default ProjectCard

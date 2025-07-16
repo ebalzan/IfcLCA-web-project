@@ -1,5 +1,7 @@
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { useState } from 'react'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -7,21 +9,16 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import Link from "next/link";
-import { useState } from "react";
+} from '@/components/ui/dialog'
+import { ScrollArea } from '@/components/ui/scroll-area'
 
 interface TermsAcceptanceModalProps {
-  open: boolean;
-  onAccept: () => void;
+  open: boolean
+  onAccept: () => void
 }
 
-export function TermsAcceptanceModal({
-  open,
-  onAccept,
-}: TermsAcceptanceModalProps) {
-  const [accepted, setAccepted] = useState(false);
+export function TermsAcceptanceModal({ open, onAccept }: TermsAcceptanceModalProps) {
+  const [accepted, setAccepted] = useState(false)
 
   return (
     <Dialog open={open}>
@@ -38,9 +35,9 @@ export function TermsAcceptanceModal({
             <div>
               <h3 className="text-lg font-semibold mb-2">What is IfcLCA?</h3>
               <p className="text-muted-foreground">
-                IfcLCA lets you analyze the environmental impact
-                of your construction projects using Ifc (Industry Foundation Classes) files.
-                It automates the process of material analysis, environmental impact calculations, and report generation.
+                IfcLCA lets you analyze the environmental impact of your construction projects using
+                Ifc (Industry Foundation Classes) files. It automates the process of material
+                analysis, environmental impact calculations, and report generation.
               </p>
             </div>
 
@@ -81,10 +78,12 @@ export function TermsAcceptanceModal({
                   Automatic material detection from Ifc files
                 </li>
                 <li className="text-muted-foreground">
-                  Environmental impact calculations using data from swiss KBOB list through lcadata.ch
+                  Environmental impact calculations using data from swiss KBOB list through
+                  lcadata.ch
                 </li>
                 <li className="text-muted-foreground">
-                  Multiple environmental indicators (GWP, PENRE, UBP), for now without amortization or project area
+                  Multiple environmental indicators (GWP, PENRE, UBP), for now without amortization
+                  or project area
                 </li>
                 <li className="text-muted-foreground">
                   Detailed reports and visualizations of absolute emissions
@@ -94,11 +93,11 @@ export function TermsAcceptanceModal({
 
             <div className="pt-4">
               <p className="text-sm text-muted-foreground">
-                By using IfcLCA, you agree to our{" "}
+                By using IfcLCA, you agree to our{' '}
                 <Link href="/terms" className="text-primary hover:underline">
                   Terms of Service
-                </Link>{" "}
-                and{" "}
+                </Link>{' '}
+                and{' '}
                 <Link href="/privacy" className="text-primary hover:underline">
                   Privacy Policy
                 </Link>
@@ -112,12 +111,11 @@ export function TermsAcceptanceModal({
           <Checkbox
             id="terms"
             checked={accepted}
-            onCheckedChange={(checked) => setAccepted(checked as boolean)}
+            onCheckedChange={checked => setAccepted(checked as boolean)}
           />
           <label
             htmlFor="terms"
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-          >
+            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
             I accept the Terms of Service and Privacy Policy
           </label>
         </div>
@@ -129,5 +127,5 @@ export function TermsAcceptanceModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

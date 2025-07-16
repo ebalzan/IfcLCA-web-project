@@ -1,6 +1,6 @@
-import { auth } from "@clerk/nextjs/server";
-import Dashboard from "@/components/dashboard";
-import { redirect } from "next/navigation";
+import { redirect } from 'next/navigation'
+import { auth } from '@clerk/nextjs/server'
+import Dashboard from '@/components/dashboard'
 // import { unstable_cache } from "next/cache";
 // import { fetchApi } from "@/lib/fetch";
 // import IProjectWithStatsClient from "@/interfaces/client/projects/IProjectWithStatsClient";
@@ -59,10 +59,10 @@ import { redirect } from "next/navigation";
 // export const revalidate = 300; // Revalidate page every 5 minutes
 
 export default async function DashboardPage() {
-  const { userId } = await auth();
+  const { userId } = await auth()
 
   if (!userId) {
-    return redirect("/");
+    return redirect('/')
   }
 
   // const initialData = await getInitialData();

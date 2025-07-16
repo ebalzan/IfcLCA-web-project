@@ -1,12 +1,12 @@
-import { Project } from "@/models";
-import { withAuthAndDB } from "@/lib/api-middleware";
-import { getUserId, AuthenticatedRequest } from "@/lib/auth-middleware";
-import { NextResponse } from "next/server";
-import IProjectDB from "@/interfaces/projects/IProjectDB";
-import { ProjectsWithStatsResponse } from "@/interfaces/projects/ProjectsResponse";
-import IProjectWithStatsClient from "@/interfaces/client/projects/IProjectWithStatsClient";
+import { NextResponse } from 'next/server'
+import IProjectWithStatsClient from '@/interfaces/client/projects/IProjectWithStatsClient'
+import IProjectDB from '@/interfaces/projects/IProjectDB'
+import { ProjectsWithStatsResponse } from '@/interfaces/projects/ProjectsResponse'
+import { withAuthAndDB } from '@/lib/api-middleware'
+import { getUserId, AuthenticatedRequest } from '@/lib/auth-middleware'
+import { Project } from '@/models'
 
-export const runtime = "nodejs";
+export const runtime = 'nodejs'
 
 async function getProjectsWithStats(userId: string, limit: number, page: number) {
   return Project.aggregate<IProjectWithStatsClient>([
@@ -15,37 +15,37 @@ async function getProjectsWithStats(userId: string, limit: number, page: number)
     },
     {
       $lookup: {
-        from: "uploads",
-        localField: "_id",
-        foreignField: "projectId",
-        as: "uploads",
+        from: 'uploads',
+        localField: '_id',
+        foreignField: 'projectId',
+        as: 'uploads',
       },
     },
     {
       $lookup: {
-        from: "elements",
-        localField: "_id",
-        foreignField: "projectId",
-        as: "elements",
+        from: 'elements',
+        localField: '_id',
+        foreignField: 'projectId',
+        as: 'elements',
         pipeline: [
           {
             $lookup: {
-              from: "materials",
-              localField: "materials.material",
-              foreignField: "_id",
-              as: "materialRefs",
+              from: 'materials',
+              localField: 'materials.material',
+              foreignField: '_id',
+              as: 'materialRefs',
               pipeline: [
                 {
                   $lookup: {
-                    from: "indicatorsKBOB",
-                    localField: "kbobMatchId",
-                    foreignField: "_id",
-                    as: "kbobMatch",
+                    from: 'indicatorsKBOB',
+                    localField: 'kbobMatchId',
+                    foreignField: '_id',
+                    as: 'kbobMatch',
                   },
                 },
                 {
                   $unwind: {
-                    path: "$kbobMatch",
+                    path: '$kbobMatch',
                     preserveNullAndEmptyArrays: true,
                   },
                 },
@@ -56,19 +56,19 @@ async function getProjectsWithStats(userId: string, limit: number, page: number)
             $addFields: {
               materials: {
                 $map: {
-                  input: "$materials",
-                  as: "mat",
+                  input: '$materials',
+                  as: 'mat',
                   in: {
                     $mergeObjects: [
-                      "$$mat",
+                      '$$mat',
                       {
                         material: {
                           $arrayElemAt: [
                             {
                               $filter: {
-                                input: "$materialRefs",
+                                input: '$materialRefs',
                                 cond: {
-                                  $eq: ["$$this._id", "$$mat.material"],
+                                  $eq: ['$$this._id', '$$mat.material'],
                                 },
                               },
                             },
@@ -80,45 +80,45 @@ async function getProjectsWithStats(userId: string, limit: number, page: number)
                   },
                 },
               },
-              totalVolume: { $sum: "$materials.volume" },
+              totalVolume: { $sum: '$materials.volume' },
               emissions: {
                 $reduce: {
-                  input: "$materials",
+                  input: '$materials',
                   initialValue: { gwp: 0, ubp: 0, penre: 0 },
                   in: {
                     gwp: {
                       $add: [
-                        "$$value.gwp",
+                        '$$value.gwp',
                         {
                           $multiply: [
-                            "$$this.volume",
-                            { $ifNull: ["$$this.material.density", 0] },
-                            { $ifNull: ["$$this.material.kbobMatch.GWP", 0] },
+                            '$$this.volume',
+                            { $ifNull: ['$$this.material.density', 0] },
+                            { $ifNull: ['$$this.material.kbobMatch.GWP', 0] },
                           ],
                         },
                       ],
                     },
                     ubp: {
                       $add: [
-                        "$$value.ubp",
+                        '$$value.ubp',
                         {
                           $multiply: [
-                            "$$this.volume",
-                            { $ifNull: ["$$this.material.density", 0] },
-                            { $ifNull: ["$$this.material.kbobMatch.UBP", 0] },
+                            '$$this.volume',
+                            { $ifNull: ['$$this.material.density', 0] },
+                            { $ifNull: ['$$this.material.kbobMatch.UBP', 0] },
                           ],
                         },
                       ],
                     },
                     penre: {
                       $add: [
-                        "$$value.penre",
+                        '$$value.penre',
                         {
                           $multiply: [
-                            "$$this.volume",
-                            { $ifNull: ["$$this.material.density", 0] },
+                            '$$this.volume',
+                            { $ifNull: ['$$this.material.density', 0] },
                             {
-                              $ifNull: ["$$this.material.kbobMatch.PENRE", 0],
+                              $ifNull: ['$$this.material.kbobMatch.PENRE', 0],
                             },
                           ],
                         },
@@ -134,96 +134,87 @@ async function getProjectsWithStats(userId: string, limit: number, page: number)
     },
     {
       $lookup: {
-        from: "materials",
-        localField: "_id",
-        foreignField: "projectId",
-        as: "materials",
+        from: 'materials',
+        localField: '_id',
+        foreignField: 'projectId',
+        as: 'materials',
         pipeline: [
           {
             $lookup: {
-              from: "indicatorsKBOB",
-              localField: "kbobMatchId",
-              foreignField: "_id",
-              as: "kbobMatch",
+              from: 'indicatorsKBOB',
+              localField: 'kbobMatchId',
+              foreignField: '_id',
+              as: 'kbobMatch',
             },
           },
           {
             $unwind: {
-              path: "$kbobMatch",
+              path: '$kbobMatch',
               preserveNullAndEmptyArrays: true,
             },
           },
           {
             $lookup: {
-              from: "elements",
-              let: { materialId: "$_id" },
+              from: 'elements',
+              let: { materialId: '$_id' },
               pipeline: [
                 {
                   $match: {
                     $expr: {
-                      $in: ["$$materialId", "$materials.material"],
+                      $in: ['$$materialId', '$materials.material'],
                     },
                   },
                 },
                 {
-                  $unwind: "$materials",
+                  $unwind: '$materials',
                 },
                 {
                   $match: {
                     $expr: {
-                      $eq: ["$materials.material", "$$materialId"],
+                      $eq: ['$materials.material', '$$materialId'],
                     },
                   },
                 },
                 {
                   $group: {
                     _id: null,
-                    totalVolume: { $sum: "$materials.volume" },
+                    totalVolume: { $sum: '$materials.volume' },
                   },
                 },
               ],
-              as: "volumeData",
+              as: 'volumeData',
             },
           },
           {
             $addFields: {
               volume: {
-                $ifNull: [{ $arrayElemAt: ["$volumeData.totalVolume", 0] }, 0],
+                $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
               },
               gwp: {
                 $multiply: [
                   {
-                    $ifNull: [
-                      { $arrayElemAt: ["$volumeData.totalVolume", 0] },
-                      0,
-                    ],
+                    $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
                   },
-                  { $ifNull: ["$density", 0] },
-                  { $ifNull: ["$kbobMatch.GWP", 0] },
+                  { $ifNull: ['$density', 0] },
+                  { $ifNull: ['$kbobMatch.GWP', 0] },
                 ],
               },
               ubp: {
                 $multiply: [
                   {
-                    $ifNull: [
-                      { $arrayElemAt: ["$volumeData.totalVolume", 0] },
-                      0,
-                    ],
+                    $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
                   },
-                  { $ifNull: ["$density", 0] },
-                  { $ifNull: ["$kbobMatch.UBP", 0] },
+                  { $ifNull: ['$density', 0] },
+                  { $ifNull: ['$kbobMatch.UBP', 0] },
                 ],
               },
               penre: {
                 $multiply: [
                   {
-                    $ifNull: [
-                      { $arrayElemAt: ["$volumeData.totalVolume", 0] },
-                      0,
-                    ],
+                    $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
                   },
-                  { $ifNull: ["$density", 0] },
-                  { $ifNull: ["$kbobMatch.PENRE", 0] },
+                  { $ifNull: ['$density', 0] },
+                  { $ifNull: ['$kbobMatch.PENRE', 0] },
                 ],
               },
             },
@@ -240,39 +231,41 @@ async function getProjectsWithStats(userId: string, limit: number, page: number)
       $addFields: {
         lastActivityAt: {
           $max: [
-            "$updatedAt",
-            { $max: "$uploads.createdAt" },
-            { $max: "$elements.createdAt" },
-            { $max: "$materials.createdAt" },
+            '$updatedAt',
+            { $max: '$uploads.createdAt' },
+            { $max: '$elements.createdAt' },
+            { $max: '$materials.createdAt' },
           ],
         },
         _count: {
-          elements: { $size: "$elements" },
-          uploads: { $size: "$uploads" },
-          materials: { $size: "$materials" },
+          elements: { $size: '$elements' },
+          uploads: { $size: '$uploads' },
+          materials: { $size: '$materials' },
         },
         totalEmissions: {
           $reduce: {
-            input: "$elements",
+            input: '$elements',
             initialValue: { gwp: 0, ubp: 0, penre: 0 },
             in: {
-              gwp: { $add: ["$$value.gwp", "$$this.emissions.gwp"] },
-              ubp: { $add: ["$$value.ubp", "$$this.emissions.ubp"] },
-              penre: { $add: ["$$value.penre", "$$this.emissions.penre"] },
+              gwp: { $add: ['$$value.gwp', '$$this.emissions.gwp'] },
+              ubp: { $add: ['$$value.ubp', '$$this.emissions.ubp'] },
+              penre: { $add: ['$$value.penre', '$$this.emissions.penre'] },
             },
           },
         },
       },
     },
-  ]).limit(limit).skip((page - 1) * limit)
+  ])
+    .limit(limit)
+    .skip((page - 1) * limit)
 }
 
 async function getProjects(request: AuthenticatedRequest) {
-  const userId = getUserId(request);
+  const userId = getUserId(request)
 
-  const { searchParams } = new URL(request.url);
-  const limit = parseInt(searchParams.get("limit") || "10");
-  const page = parseInt(searchParams.get("page") || "1");
+  const { searchParams } = new URL(request.url)
+  const limit = parseInt(searchParams.get('limit') || '10')
+  const page = parseInt(searchParams.get('page') || '1')
 
   const projects = await getProjectsWithStats(userId, limit, page)
 
@@ -283,13 +276,12 @@ async function getProjects(request: AuthenticatedRequest) {
     projects,
     hasMore,
     totalCount,
-  });
+  })
 }
 
 async function createProject(request: AuthenticatedRequest) {
-  const userId = getUserId(request);
-  const body: Pick<IProjectDB, "name" | "description" | "imageUrl"> =
-    await request.json();
+  const userId = getUserId(request)
+  const body: Pick<IProjectDB, 'name' | 'description' | 'imageUrl'> = await request.json()
 
   const project: IProjectDB = await Project.create({
     ...body,
@@ -300,10 +292,10 @@ async function createProject(request: AuthenticatedRequest) {
       penre: 0,
       lastCalculated: new Date(),
     },
-  });
+  })
 
-  return NextResponse.json(project);
+  return NextResponse.json(project)
 }
 
-export const GET = withAuthAndDB(getProjects);
-export const POST = withAuthAndDB(createProject);
+export const GET = withAuthAndDB(getProjects)
+export const POST = withAuthAndDB(createProject)

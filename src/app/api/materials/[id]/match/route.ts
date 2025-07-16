@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
-import { Material, Project } from "@/models";
-import IMaterialDB from "@/interfaces/materials/IMaterialDB";
-import { withAuthAndDBParams } from "@/lib/api-middleware";
-import { AuthenticatedRequest, getUserId } from "@/lib/auth-middleware";
-import { Types } from "mongoose";
-import IKBOBMaterial from "@/interfaces/materials/IKBOBMaterial";
+import { NextResponse } from 'next/server'
+import { Types } from 'mongoose'
+import IKBOBMaterial from '@/interfaces/materials/IKBOBMaterial'
+import IMaterialDB from '@/interfaces/materials/IMaterialDB'
+import { withAuthAndDBParams } from '@/lib/api-middleware'
+import { AuthenticatedRequest, getUserId } from '@/lib/auth-middleware'
+import { Material, Project } from '@/models'
 
 interface MatchMaterialRequest {
   kbobMatchId: Types.ObjectId
@@ -19,32 +19,29 @@ async function matchMaterialsWithKbob(
   request: AuthenticatedRequest,
   context: { params: Promise<{ [key: string]: string }> }
 ) {
-  const userId = getUserId(request);
-  const params = await context.params;
+  const userId = getUserId(request)
+  const params = await context.params
 
-  const body: MatchMaterialRequest = await request.json();
-  const { kbobMatchId } = body;
+  const body: MatchMaterialRequest = await request.json()
+  const { kbobMatchId } = body
 
   // Get the material first to check project ownership
   const material = await Material.findById(params.id)
-    .select("projectId")
-    .lean<Pick<IMaterialDB, "projectId">>();
+    .select('projectId')
+    .lean<Pick<IMaterialDB, 'projectId'>>()
 
   if (!material) {
-    return NextResponse.json({ error: "Material not found" }, { status: 404 });
+    return NextResponse.json({ error: 'Material not found' }, { status: 404 })
   }
 
   // Verify user has access to this project
   const project = await Project.findOne({
     _id: material.projectId,
     userId,
-  }).lean();
+  }).lean()
 
   if (!project) {
-    return NextResponse.json(
-      { error: "Not authorized to modify this material" },
-      { status: 403 }
-    );
+    return NextResponse.json({ error: 'Not authorized to modify this material' }, { status: 403 })
   }
 
   // Update the material with KBOB match
@@ -57,14 +54,13 @@ async function matchMaterialsWithKbob(
     },
     { new: true }
   )
-  .populate<{ kbobMatchId: Pick<IKBOBMaterial, "_id" | "name" | "category" | "gwp" | "ubp" | "penre"> }>("kbobMatchId", "_id name category gwp ubp penre")
-  .lean()
+    .populate<{
+      kbobMatchId: Pick<IKBOBMaterial, '_id' | 'name' | 'category' | 'gwp' | 'ubp' | 'penre'>
+    }>('kbobMatchId', '_id name category gwp ubp penre')
+    .lean()
 
   if (!updatedMaterial) {
-    return NextResponse.json(
-      { error: "Failed to update material" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to update material' }, { status: 500 })
   }
 
   return NextResponse.json<MatchMaterialResponse>({
@@ -73,8 +69,8 @@ async function matchMaterialsWithKbob(
     kbobMatchId: {
       ...updatedMaterial.kbobMatchId,
       _id: updatedMaterial.kbobMatchId._id.toString(),
-    }
-  });
+    },
+  })
 }
 
-export const POST = withAuthAndDBParams(matchMaterialsWithKbob);
+export const POST = withAuthAndDBParams(matchMaterialsWithKbob)

@@ -1,4 +1,4 @@
-import ILCAIndicators from "@/interfaces/materials/ILCAIndicators"
+import ILCAIndicators from '@/interfaces/materials/ILCAIndicators'
 
 interface IProjectClient {
   _id: string

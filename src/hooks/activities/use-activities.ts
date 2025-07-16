@@ -1,26 +1,25 @@
-import { useEffect } from "react";
-import { Queries } from "@/queries";
-import { useInfiniteQuery } from "@tanstack/react-query";
-import { toast } from "@/hooks/use-toast";
-import { logger } from "@/lib/logger";
-import { ActivityService } from "@/lib/services/activities/activity-service";
+import { useEffect } from 'react'
+import { useInfiniteQuery } from '@tanstack/react-query'
+import { toast } from '@/hooks/use-toast'
+import { logger } from '@/lib/logger'
+import { ActivityService } from '@/lib/services/activities/activity-service'
+import { Queries } from '@/queries'
 
 export function useActivities() {
   const limit = 6
 
-  const { 
-    data: activities, 
-    isLoading, 
-    isError, 
+  const {
+    data: activities,
+    isLoading,
+    isError,
     error,
     hasNextPage,
     fetchNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
     queryKey: [Queries.GET_ACTIVITIES, limit],
-    queryFn: ({ pageParam = 1 }) => 
-      ActivityService.getActivities({ page: pageParam, limit }),
-    select: (data) => {
+    queryFn: ({ pageParam = 1 }) => ActivityService.getActivities({ page: pageParam, limit }),
+    select: data => {
       return data.pages.flatMap(page => page.activities)
     },
     getNextPageParam: (lastPage, allPages, lastPageParam) => {
@@ -33,23 +32,23 @@ export function useActivities() {
   useEffect(() => {
     if (isError && error) {
       toast({
-        title: "Error",
+        title: 'Error',
         description: error.message,
-        variant: "destructive",
-      });
+        variant: 'destructive',
+      })
     }
   }, [isError, error])
 
   useEffect(() => {
-    logger.debug("ACTIVITIES", activities)
+    logger.debug('ACTIVITIES', activities)
   }, [activities])
 
-  return { 
-    activities: activities || [], 
-    isLoading, 
-    error, 
+  return {
+    activities: activities || [],
+    isLoading,
+    error,
     hasNextPage,
     fetchNextPage,
-    isFetchingNextPage
-  };
+    isFetchingNextPage,
+  }
 }

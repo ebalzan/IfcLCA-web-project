@@ -1,24 +1,21 @@
-import { NextResponse } from "next/server";
-import { Material, MaterialDeletion } from "@/models";
-import { withAuthAndDBParams } from "@/lib/api-middleware";
-import { getUserId, AuthenticatedRequest } from "@/lib/auth-middleware";
+import { NextResponse } from 'next/server'
+import { withAuthAndDBParams } from '@/lib/api-middleware'
+import { getUserId, AuthenticatedRequest } from '@/lib/auth-middleware'
+import { Material, MaterialDeletion } from '@/models'
 
 async function deleteMaterial(
   request: AuthenticatedRequest,
   context: { params: Promise<{ [key: string]: string }> }
 ) {
-  const userId = getUserId(request);
+  const userId = getUserId(request)
 
-  const params = await context.params;
-  const materialId = params.id;
+  const params = await context.params
+  const materialId = params.id
 
   // Find the material to get its name and project ID before deletion
   const material = await Material.findById(materialId).lean()
   if (!material) {
-    return NextResponse.json(
-      { error: "Material not found" },
-      { status: 404 }
-    );
+    return NextResponse.json({ error: 'Material not found' }, { status: 404 })
   }
 
   // Delete the material
@@ -29,13 +26,10 @@ async function deleteMaterial(
     projectId: material.projectId,
     userId,
     materialName: material.name,
-    reason: "Material deleted by user",
+    reason: 'Material deleted by user',
   })
 
-  return NextResponse.json(
-    { message: "Material deleted successfully" },
-    { status: 200 }
-  );
+  return NextResponse.json({ message: 'Material deleted successfully' }, { status: 200 })
 }
 
-export const DELETE = withAuthAndDBParams(deleteMaterial);
+export const DELETE = withAuthAndDBParams(deleteMaterial)

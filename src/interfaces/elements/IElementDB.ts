@@ -1,6 +1,6 @@
-import { Types } from "mongoose"
-import IMaterialLayer from "./IMaterialLayer"
-import ILCAIndicators from "../materials/ILCAIndicators"
+import { Types } from 'mongoose'
+import IMaterialLayer from './IMaterialLayer'
+import ILCAIndicators from '../materials/ILCAIndicators'
 
 export interface IElementVirtuals {
   totalVolume: number

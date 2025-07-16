@@ -1,4 +1,4 @@
-import IActivity from "../client/activities/IActivity"
+import IActivity from '../client/activities/IActivity'
 
 interface ActivityResponse {
   activities: IActivity[]

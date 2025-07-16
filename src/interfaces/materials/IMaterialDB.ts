@@ -1,5 +1,5 @@
-import { Types } from "mongoose"
-import ILCAIndicators from "./ILCAIndicators"
+import { Types } from 'mongoose'
+import ILCAIndicators from './ILCAIndicators'
 
 interface IMaterialNewAttributesFromKBOB extends Partial<ILCAIndicators> {
   category?: string

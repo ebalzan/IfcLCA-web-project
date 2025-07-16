@@ -1,9 +1,9 @@
-  interface IUploadClient {
+interface IUploadClient {
   _id: string
   projectId: string
   userId: string
   filename: string
-  status: "Processing" | "Completed" | "Failed"
+  status: 'Processing' | 'Completed' | 'Failed'
   elementCount: number
   materialCount: number
   deleted: boolean

@@ -1,4 +1,4 @@
-import IMaterialChange from "./IMaterialChange";
+import IMaterialChange from './IMaterialChange'
 
 interface IMaterialPreview {
   changes: IMaterialChange[]

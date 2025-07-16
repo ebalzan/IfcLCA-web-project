@@ -2,5 +2,5 @@
 
 export default function ProjectsPage() {
   // return <ProjectNewPage />;
-  return <div>Project New Page</div>;
+  return <div>Project New Page</div>
 }

@@ -1,5 +1,5 @@
-import { IElementVirtuals } from "@/interfaces/elements/IElementDB"
-import IMaterialLayerClient from "./IMaterialLayerClient"
+import { IElementVirtuals } from '@/interfaces/elements/IElementDB'
+import IMaterialLayerClient from './IMaterialLayerClient'
 
 export interface IElementWithVirtuals extends IElementClient, IElementVirtuals {}
 

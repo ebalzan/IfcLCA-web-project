@@ -1,67 +1,57 @@
-"use client";
+'use client'
 
-import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { Breadcrumbs } from "@/components/breadcrumbs";
-import { LoaderIcon, Pencil, ArrowLeft, Trash2 } from "lucide-react";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
-import { DeleteProjectDialog } from "@/components/delete-project-dialog";
-import { useDeleteProject } from "@/hooks/projects/use-delete-project";
-import { useProjectById } from "@/hooks/projects/use-project-by-id";
-import { useForm } from "react-hook-form";
-import {
-  UpdateProjectSchema,
-  updateProjectSchema,
-} from "@/schemas/projects/updateProjectSchema";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useUpdateProject } from "@/hooks/projects/use-update-project";
-import { Queries } from "@/queries";
-import { useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from 'react'
+import { useRouter, useParams } from 'next/navigation'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useQueryClient } from '@tanstack/react-query'
+import { LoaderIcon, Pencil, ArrowLeft, Trash2 } from 'lucide-react'
+import { useForm } from 'react-hook-form'
+import { Breadcrumbs } from '@/components/breadcrumbs'
+import { DeleteProjectDialog } from '@/components/delete-project-dialog'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Textarea } from '@/components/ui/textarea'
+import { useDeleteProject } from '@/hooks/projects/use-delete-project'
+import { useProjectById } from '@/hooks/projects/use-project-by-id'
+import { useUpdateProject } from '@/hooks/projects/use-update-project'
+import { Queries } from '@/queries'
+import { UpdateProjectSchema, updateProjectSchema } from '@/schemas/projects/updateProjectSchema'
 
 export default function EditProjectPage() {
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
-  const router = useRouter();
-  const params = useParams<{ id: string }>();
-  const projectId = params.id;
-  const { mutateAsync: deleteProject } = useDeleteProject();
-  const { data: project, isLoading: isLoadingProject } =
-    useProjectById(projectId);
-  const { mutate: updateProject, isPending: isSaving } = useUpdateProject();
-  const queryClient = useQueryClient();
+  const router = useRouter()
+  const params = useParams<{ id: string }>()
+  const projectId = params.id
+  const { mutateAsync: deleteProject } = useDeleteProject()
+  const { data: project, isLoading: isLoadingProject } = useProjectById(projectId)
+  const { mutate: updateProject, isPending: isSaving } = useUpdateProject()
+  const queryClient = useQueryClient()
 
   const form = useForm<UpdateProjectSchema>({
     resolver: zodResolver(updateProjectSchema),
     defaultValues: {
-      name: project?.name || "",
-      description: project?.description || "",
+      name: project?.name || '',
+      description: project?.description || '',
     },
-  });
-  const { register, getValues, handleSubmit, reset } = form;
+  })
+  const { register, getValues, handleSubmit, reset } = form
 
   useEffect(() => {
     if (project) {
       reset({
-        name: project.name || "",
-        description: project.description || "",
-      });
+        name: project.name || '',
+        description: project.description || '',
+      })
     }
-  }, [project, reset]);
+  }, [project, reset])
 
   async function handleDeleteProject() {
-    await deleteProject(projectId);
-    router.replace("/projects");
+    await deleteProject(projectId)
+    router.replace('/projects')
   }
 
   function handleUpdateProject() {
@@ -71,22 +61,24 @@ export default function EditProjectPage() {
         onSuccess: async () => {
           await Promise.all([
             queryClient.invalidateQueries({ queryKey: [Queries.GET_PROJECTS] }),
-            queryClient.invalidateQueries({ queryKey: [Queries.GET_PROJECT_BY_ID, projectId] }),
-          ]);
+            queryClient.invalidateQueries({
+              queryKey: [Queries.GET_PROJECT_BY_ID, projectId],
+            }),
+          ])
           router.back()
         },
       }
-    );
+    )
   }
 
   const breadcrumbItems = [
-    { label: "Projects", href: "/projects" },
+    { label: 'Projects', href: '/projects' },
     {
-      label: project?.name || "Loading...",
+      label: project?.name || 'Loading...',
       href: `/projects/${projectId}`,
     },
-    { label: "Edit", href: undefined },
-  ];
+    { label: 'Edit', href: undefined },
+  ]
 
   if (!project || isLoadingProject) {
     return (
@@ -111,7 +103,7 @@ export default function EditProjectPage() {
           </CardContent>
         </Card>
       </div>
-    );
+    )
   }
 
   return (
@@ -125,9 +117,7 @@ export default function EditProjectPage() {
                 <Pencil className="h-6 w-6 text-muted-foreground" />
                 Edit Project
               </CardTitle>
-              <CardDescription>
-                Update your project details below
-              </CardDescription>
+              <CardDescription>Update your project details below</CardDescription>
             </div>
             <Button
               type="button"
@@ -135,23 +125,19 @@ export default function EditProjectPage() {
               size="icon"
               onClick={() => setIsDeleteDialogOpen(true)}
               disabled={isSaving}
-              className="h-10 w-10"
-            >
+              className="h-10 w-10">
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          <form
-            onSubmit={handleSubmit(handleUpdateProject)}
-            className="space-y-6"
-          >
+          <form onSubmit={handleSubmit(handleUpdateProject)} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="name" className="text-sm font-medium">
                 Project Name
               </Label>
               <Input
-                {...register("name")}
+                {...register('name')}
                 id="name"
                 required
                 disabled={isSaving}
@@ -165,7 +151,7 @@ export default function EditProjectPage() {
               </Label>
               <Textarea
                 id="description"
-                {...register("description")}
+                {...register('description')}
                 disabled={isSaving}
                 rows={4}
                 className="w-full resize-none"
@@ -177,8 +163,7 @@ export default function EditProjectPage() {
                 type="button"
                 variant="outline"
                 onClick={() => router.push(`/projects/${projectId}`)}
-                disabled={isSaving}
-              >
+                disabled={isSaving}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Cancel
               </Button>
@@ -188,7 +173,7 @@ export default function EditProjectPage() {
                 ) : (
                   <Pencil className="mr-2 h-4 w-4" />
                 )}
-                {isSaving ? "Saving..." : "Save Changes"}
+                {isSaving ? 'Saving...' : 'Save Changes'}
               </Button>
             </div>
           </form>
@@ -201,5 +186,5 @@ export default function EditProjectPage() {
         onDelete={handleDeleteProject}
       />
     </div>
-  );
+  )
 }

@@ -49,7 +49,6 @@
 //         },
 //       });
 
-
 //       // Update project with new image URL
 //       const updateResponse = await fetchApi(`/api/projects/${projectId}`, {
 //         method: "PATCH",

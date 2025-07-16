@@ -1,14 +1,14 @@
-export type ActivityType = 
-  | "project_created"
-  | "file_uploaded"
-  | "material_created"
-  | "project_deleted"
-  | "material_deleted"
-  | "project_updated"
-  | "new_user"
-  | "project_member_added"
-  | "project_member_removed"
-  | "image_uploaded"
+export type ActivityType =
+  | 'project_created'
+  | 'file_uploaded'
+  | 'material_created'
+  | 'project_deleted'
+  | 'material_deleted'
+  | 'project_updated'
+  | 'new_user'
+  | 'project_member_added'
+  | 'project_member_removed'
+  | 'image_uploaded'
 
 interface IActivity {
   id: string

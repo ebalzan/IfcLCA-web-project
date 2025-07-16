@@ -1,5 +1,5 @@
-import { Types } from "mongoose"
-import ILCAIndicators from "../materials/ILCAIndicators"
+import { Types } from 'mongoose'
+import ILCAIndicators from '../materials/ILCAIndicators'
 
 interface IProjectDB {
   _id: Types.ObjectId

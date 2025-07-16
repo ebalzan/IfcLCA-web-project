@@ -1,8 +1,8 @@
-import IProjectDB from "./IProjectDB"
-import IUploadDB from "../uploads/IUploadDB"
-import IElementDB, { IElementVirtuals } from "../elements/IElementDB"
-import IMaterialDB from "../materials/IMaterialDB"
-import ILCAIndicators from "../materials/ILCAIndicators"
+import IProjectDB from './IProjectDB'
+import IElementDB, { IElementVirtuals } from '../elements/IElementDB'
+import ILCAIndicators from '../materials/ILCAIndicators'
+import IMaterialDB from '../materials/IMaterialDB'
+import IUploadDB from '../uploads/IUploadDB'
 
 export interface IElementWithMaterialRefs extends IElementDB, IElementVirtuals {
   materialRefs: IMaterialDB[]

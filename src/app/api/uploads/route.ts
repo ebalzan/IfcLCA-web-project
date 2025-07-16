@@ -1,7 +1,7 @@
-import { AuthenticatedRequest } from "@/lib/auth-middleware";
-import { Element, Material, Upload } from "@/models";
-import { ClientSession } from "mongoose";
-import { NextResponse } from "next/server";
+import { NextResponse } from 'next/server'
+import { ClientSession } from 'mongoose'
+import { AuthenticatedRequest } from '@/lib/auth-middleware'
+import { Element, Material, Upload } from '@/models'
 
 export async function processMaterials(
   projectId: string,
@@ -22,11 +22,11 @@ export async function processMaterials(
   request: AuthenticatedRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await context.params;
-  const upload = await Upload.findById(id).populate("elements");
+  const { id } = await context.params
+  const upload = await Upload.findById(id).populate('elements')
 
   if (!upload) {
-    return NextResponse.json({ error: "Upload not found" }, { status: 404 });
+    return NextResponse.json({ error: 'Upload not found' }, { status: 404 })
   }
 
   // Create elements

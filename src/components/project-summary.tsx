@@ -1,13 +1,13 @@
-"use client";
+'use client'
 
-import { Card, CardContent } from "@/components/ui/card";
-import { BoxIcon, FileTextIcon, LayersIcon, GaugeIcon } from "lucide-react";
-import { ProjectImageUpload } from "@/components/project-image-upload";
-import { EmissionsSummaryCard } from "@/components/emissions-summary-card";
-import IProjectWithStatsClient from "@/interfaces/client/projects/IProjectWithStatsClient";
+import { BoxIcon, FileTextIcon, LayersIcon, GaugeIcon } from 'lucide-react'
+import { EmissionsSummaryCard } from '@/components/emissions-summary-card'
+import { ProjectImageUpload } from '@/components/project-image-upload'
+import { Card, CardContent } from '@/components/ui/card'
+import IProjectWithStatsClient from '@/interfaces/client/projects/IProjectWithStatsClient'
 
 interface ProjectSummaryProps {
-  project: IProjectWithStatsClient;
+  project: IProjectWithStatsClient
 }
 
 export function ProjectSummary({ project }: ProjectSummaryProps) {
@@ -49,10 +49,7 @@ export function ProjectSummary({ project }: ProjectSummaryProps) {
   return (
     <div className="grid grid-cols-12 gap-4 h-full">
       <div className="col-span-12 lg:col-span-5 h-full">
-        <ProjectImageUpload
-          projectId={project._id}
-          imageUrl={project.imageUrl}
-        />
+        <ProjectImageUpload projectId={project._id} imageUrl={project.imageUrl} />
       </div>
 
       <div className="col-span-12 lg:col-span-3 h-full">
@@ -128,5 +125,5 @@ export function ProjectSummary({ project }: ProjectSummaryProps) {
         </CardContent>
       </Card>
     </div>
-  );
+  )
 }

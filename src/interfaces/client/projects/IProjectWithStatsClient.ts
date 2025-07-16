@@ -1,11 +1,10 @@
+import ILCAIndicators from '@/interfaces/materials/ILCAIndicators'
+import IProjectClient from './IProjectClient'
+import { IElementWithVirtuals } from '../elements/IElementClient'
+import IMaterialClient from '../materials/IMaterialClient'
+import IUploadClient from '../uploads/IUploadClient'
 
-import ILCAIndicators from "@/interfaces/materials/ILCAIndicators"
-import { IElementWithVirtuals } from "../elements/IElementClient"
-import IMaterialClient from "../materials/IMaterialClient"
-import IUploadClient from "../uploads/IUploadClient"
-import IProjectClient from "./IProjectClient"
-
-export interface IElementWithMaterialRefsClient extends IElementWithVirtuals{
+export interface IElementWithMaterialRefsClient extends IElementWithVirtuals {
   materialRefs: IMaterialClient[]
 }
 

@@ -1,7 +1,9 @@
-"use client";
+'use client'
 
-import { ActivityFeed } from "@/components/activity-feed";
-import { Button } from "@/components/ui/button";
+import Link from 'next/link'
+import { Box, Building, Layers, PlusCircle } from 'lucide-react'
+import { ActivityFeed } from '@/components/activity-feed'
+import { Button } from '@/components/ui/button'
 // import {
 //   Dialog,
 //   DialogContent,
@@ -11,19 +13,17 @@ import { Button } from "@/components/ui/button";
 // } from "@/components/ui/dialog";
 // import { UploadIfcButton } from "@/components/upload-ifc-button";
 // import { UploadModal } from "@/components/upload-modal";
-import { Box, Building, Layers, PlusCircle } from "lucide-react";
-import Link from "next/link";
 // import { useRouter } from "next/navigation";
 // import { useState } from "react";
-import ILCAIndicators from "@/interfaces/materials/ILCAIndicators";
+import ILCAIndicators from '@/interfaces/materials/ILCAIndicators'
 // import { useProjectsWithStats } from "@/hooks/projects/use-projects-with-stats";
-import { ProjectOverview } from "./project-overview";
+import { ProjectOverview } from './project-overview'
 
 interface DashboardStatistics {
-  totalProjects: number;
-  totalElements: number;
-  totalMaterials: number;
-  totalEmissions?: ILCAIndicators;
+  totalProjects: number
+  totalElements: number
+  totalMaterials: number
+  totalEmissions?: ILCAIndicators
 }
 
 // Define the icon components explicitly
@@ -31,14 +31,14 @@ const Icons = {
   Building: Building,
   Box: Box,
   Layers: Layers,
-} as const;
+} as const
 
 // Type for the metrics
 interface Metric {
-  title: string;
-  value: number;
-  description: string;
-  icon: keyof typeof Icons;
+  title: string
+  value: number
+  description: string
+  icon: keyof typeof Icons
 }
 
 export default function Dashboard() {
@@ -204,9 +204,7 @@ export default function Dashboard() {
         <div className="page-header">
           <div>
             <h1 className="page-title">Home</h1>
-            <p className="page-description">
-              Overview of your projects and recent activity
-            </p>
+            <p className="page-description">Overview of your projects and recent activity</p>
           </div>
           <div className="flex gap-4">
             <Button asChild>
@@ -365,5 +363,5 @@ export default function Dashboard() {
         />
       )} */}
     </div>
-  );
+  )
 }

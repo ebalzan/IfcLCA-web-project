@@ -1,4 +1,4 @@
-import IMaterialClient from "../materials/IMaterialClient"
+import IMaterialClient from '../materials/IMaterialClient'
 
 interface IMaterialLayerClient {
   _id: string

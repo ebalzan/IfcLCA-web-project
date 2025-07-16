@@ -1,5 +1,5 @@
-import IUploadDB from "@/interfaces/uploads/IUploadDB";
-import { Model, Schema, model, models } from "mongoose";
+import { Model, Schema, model, models } from 'mongoose'
+import IUploadDB from '@/interfaces/uploads/IUploadDB'
 
 type IUploadModelType = Model<IUploadDB>
 
@@ -7,21 +7,21 @@ const uploadSchema = new Schema<IUploadDB, IUploadModelType>(
   {
     projectId: {
       type: Schema.Types.ObjectId,
-      ref: "Project",
-      required: [true, "Project ID is required"],
+      ref: 'Project',
+      required: [true, 'Project ID is required'],
     },
     userId: {
       type: String,
-      required: [true, "User ID is required"],
+      required: [true, 'User ID is required'],
     },
     filename: {
       type: String,
-      required: [true, "Filename is required"],
+      required: [true, 'Filename is required'],
     },
     status: {
       type: String,
-      enum: ["Processing", "Completed", "Failed"],
-      default: "Processing",
+      enum: ['Processing', 'Completed', 'Failed'],
+      default: 'Processing',
     },
     elementCount: {
       type: Number,
@@ -39,18 +39,18 @@ const uploadSchema = new Schema<IUploadDB, IUploadModelType>(
   {
     timestamps: true,
     strict: true,
-    collection: "uploads", // Explicitly set collection name
+    collection: 'uploads', // Explicitly set collection name
   }
-);
+)
 
 // Add validation middleware
-uploadSchema.pre("save", function (next) {
+uploadSchema.pre('save', function (next) {
   if (!this.projectId || !this.userId) {
-    next(new Error("ProjectId and UserId are required"));
-    return;
+    next(new Error('ProjectId and UserId are required'))
+    return
   }
-  next();
-});
+  next()
+})
 
 // Export as a named constant to ensure consistent usage
-export const Upload: IUploadModelType = models.Upload || model("Upload", uploadSchema);
+export const Upload: IUploadModelType = models.Upload || model('Upload', uploadSchema)

@@ -1,5 +1,5 @@
-import { Schema, model, models, Model } from "mongoose";
-import IProjectDB from "@/interfaces/projects/IProjectDB";
+import { Schema, model, models, Model } from 'mongoose'
+import IProjectDB from '@/interfaces/projects/IProjectDB'
 
 type IProjectModelType = Model<IProjectDB>
 
@@ -30,9 +30,9 @@ const projectSchema = new Schema<IProjectDB, IProjectModelType>(
     timestamps: true,
     strict: true,
   }
-);
+)
 
 // Add index for better query performance
-projectSchema.index({ "emissions.lastCalculated": -1 });
+projectSchema.index({ 'emissions.lastCalculated': -1 })
 
-export const Project: IProjectModelType = models.Project || model("Project", projectSchema);
+export const Project: IProjectModelType = models.Project || model('Project', projectSchema)
