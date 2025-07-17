@@ -13,6 +13,7 @@ import { ProjectSummary } from '@/components/project-summary'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import {
   Pagination,
   PaginationContent,
@@ -21,7 +22,6 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { UploadModal } from '@/components/upload-modal'
 import { useProjectWithStatsById } from '@/hooks/projects/use-project-operations'
@@ -55,18 +55,13 @@ export default function ProjectPage() {
   //   }
   // }
 
-  if (!project) {
-    return <ProjectNotFound />
-  }
-
-  if (isLoading) {
+  if (!project || isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center min-h-screen bg-background">
-        <Skeleton className="h-full w-full" />
+      <div className="flex-1 flex justify-center items-center h-screen">
+        <LoadingSpinner />
       </div>
     )
   }
-  // if (error) return <ErrorMessage message={error.message} />;
 
   const breadcrumbItems = [
     { label: 'Projects', href: '/projects' },
@@ -91,29 +86,6 @@ export default function ProjectPage() {
     </div>
   )
 }
-
-// const ErrorMessage = ({ message }: { message: string }) => (
-//   <div className="container mx-auto p-6">
-//     <div
-//       className="bg-destructive/15 border-l-4 border-destructive text-destructive p-4 rounded"
-//       role="alert"
-//     >
-//       <p className="font-bold">Error</p>
-//       <p>{message}</p>
-//     </div>
-//   </div>
-// );
-
-const ProjectNotFound = () => (
-  <div className="container mx-auto p-6">
-    <div
-      className="bg-warning/15 border-l-4 border-warning text-warning-foreground p-4 rounded"
-      role="alert">
-      <p className="font-bold">Project not found</p>
-      <p>The requested project could not be found.</p>
-    </div>
-  </div>
-)
 
 const ProjectHeader = ({
   project,

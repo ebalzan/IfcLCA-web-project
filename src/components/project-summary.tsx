@@ -1,14 +1,10 @@
 'use client'
 
-import { useEffect } from 'react'
-import { useParams } from 'next/navigation'
-import { BoxIcon, FileTextIcon, LayersIcon, GaugeIcon } from 'lucide-react'
+import { BoxIcon, FileTextIcon, GaugeIcon, LayersIcon } from 'lucide-react'
 import { EmissionsSummaryCard } from '@/components/emissions-summary-card'
 import { ProjectImageUpload } from '@/components/project-image-upload'
 import { Card, CardContent } from '@/components/ui/card'
-import { useProjectWithStatsById } from '@/hooks/projects/use-project-operations'
 import IProjectWithStatsClient from '@/interfaces/client/projects/IProjectWithStatsClient'
-import { Skeleton } from './ui/skeleton'
 
 interface ProjectSummaryProps {
   project: IProjectWithStatsClient

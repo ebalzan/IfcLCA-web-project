@@ -24,7 +24,7 @@ export const materialsColumns: ColumnDef<IMaterialClient>[] = [
     },
   },
   {
-    accessorKey: 'volume',
+    accessorKey: 'totalVolume',
     header: 'Volume (m³)',
     cell: ({ row }) => {
       const volume = row.original.totalVolume
