@@ -294,7 +294,7 @@ async function createProject(request: AuthenticatedRequest) {
     },
   })
 
-  return NextResponse.json(project)
+  return NextResponse.json<IProjectDB>(project)
 }
 
 export const GET = withAuthAndDB(getProjects)
