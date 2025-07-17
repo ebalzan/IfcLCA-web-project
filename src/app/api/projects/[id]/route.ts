@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Types } from 'mongoose'
 import IProjectWithStats from '@/interfaces/projects/IProjectWithStats'
-import { ProjectResponse } from '@/interfaces/projects/ProjectResponse'
+import { ProjectResponse, ProjectWithStatsResponse } from '@/interfaces/projects/ProjectResponse'
 import { AuthenticatedRequest, getUserId, withAuthAndDBParams } from '@/lib/api-middleware'
 import { Element, Material, Project, Upload } from '@/models'
 
@@ -304,10 +304,9 @@ async function updateProject(
     return NextResponse.json({ error: 'Project not found' }, { status: 404 })
   }
 
-  return NextResponse.json<ProjectResponse>({
-    ...project,
-    _id: project._id.toString(),
-  })
+  const editedProject = await getProjectWithStats(new Types.ObjectId(params.id))
+
+  return NextResponse.json<IProjectWithStats>(editedProject)
 }
 
 export async function deleteProject(

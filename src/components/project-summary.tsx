@@ -1,10 +1,14 @@
 'use client'
 
+import { useEffect } from 'react'
+import { useParams } from 'next/navigation'
 import { BoxIcon, FileTextIcon, LayersIcon, GaugeIcon } from 'lucide-react'
 import { EmissionsSummaryCard } from '@/components/emissions-summary-card'
 import { ProjectImageUpload } from '@/components/project-image-upload'
 import { Card, CardContent } from '@/components/ui/card'
+import { useProjectWithStatsById } from '@/hooks/projects/use-project-operations'
 import IProjectWithStatsClient from '@/interfaces/client/projects/IProjectWithStatsClient'
+import { Skeleton } from './ui/skeleton'
 
 interface ProjectSummaryProps {
   project: IProjectWithStatsClient
@@ -64,7 +68,7 @@ export function ProjectSummary({ project }: ProjectSummaryProps) {
               </div>
               <div className="flex flex-col">
                 <p className="text-2xl font-bold leading-none mb-0.5 group-hover:text-primary transition-colors">
-                  {project._count.elements}
+                  {project._count?.elements}
                 </p>
                 <p className="text-xs text-muted-foreground group-hover:text-primary/70 transition-colors">
                   Construction components
@@ -83,7 +87,7 @@ export function ProjectSummary({ project }: ProjectSummaryProps) {
               </div>
               <div className="flex flex-col">
                 <p className="text-2xl font-bold leading-none mb-0.5 group-hover:text-primary transition-colors">
-                  {project._count.uploads}
+                  {project._count?.uploads}
                 </p>
                 <p className="text-xs text-muted-foreground group-hover:text-primary/70 transition-colors">
                   Files analysed
@@ -102,7 +106,7 @@ export function ProjectSummary({ project }: ProjectSummaryProps) {
               </div>
               <div className="flex flex-col">
                 <p className="text-2xl font-bold leading-none mb-0.5 group-hover:text-primary transition-colors">
-                  {project._count.materials}
+                  {project._count?.materials}
                 </p>
                 <p className="text-xs text-muted-foreground group-hover:text-primary/70 transition-colors">
                   Unique materials

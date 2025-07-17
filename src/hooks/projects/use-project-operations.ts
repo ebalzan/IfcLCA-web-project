@@ -62,17 +62,20 @@ export const useCreateProject = () => {
 export const useUpdateProject = (projectId: string) => {
   const router = useRouter()
 
-  return useTanStackMutation<ProjectResponse, UpdateProjectSchema>(`/api/projects/${projectId}`, {
-    method: 'PATCH',
-    mutationKey: [Queries.GET_PROJECT_BY_ID, projectId],
-    showSuccessToast: true,
-    successMessage: 'Project has been updated successfully',
-    showErrorToast: true,
-    invalidateQueries: [[Queries.GET_PROJECT_BY_ID, projectId], [Queries.GET_PROJECTS]],
-    onSuccess: () => {
-      router.back()
-    },
-  })
+  return useTanStackMutation<ProjectWithStatsResponse, UpdateProjectSchema>(
+    `/api/projects/${projectId}`,
+    {
+      method: 'PATCH',
+      mutationKey: [Queries.GET_PROJECT_BY_ID, projectId],
+      showSuccessToast: true,
+      successMessage: 'Project has been updated successfully',
+      showErrorToast: true,
+      invalidateQueries: [[Queries.GET_PROJECTS], [Queries.GET_PROJECT_BY_ID]],
+      onSuccess: data => {
+        router.push(`/projects/${data._id}`)
+      },
+    }
+  )
 }
 
 export const useDeleteProject = () => {

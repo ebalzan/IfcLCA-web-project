@@ -15,7 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import {
   useDeleteProject,
-  useProjectById,
+  useProjectWithStatsById,
   useUpdateProject,
 } from '@/hooks/projects/use-project-operations'
 import { UpdateProjectSchema, updateProjectSchema } from '@/schemas/projects/updateProjectSchema'
@@ -26,9 +26,9 @@ export default function EditProjectPage() {
   const router = useRouter()
   const params = useParams<{ id: string }>()
   const projectId = params.id
-  const { data: project, isLoading: isLoadingProject } = useProjectById(projectId)
-  const { mutate: updateProject, isLoading } = useUpdateProject(projectId)
-  const { mutate: deleteProject, isLoading: isLoadingDelete } = useDeleteProject()
+  const { data: project, isLoading: isLoadingProject } = useProjectWithStatsById(projectId)
+  const { mutate: updateProject, isLoading: isUpdatingProject } = useUpdateProject(projectId)
+  const { mutate: deleteProject, isLoading: isDeletingProject } = useDeleteProject()
 
   const form = useForm<UpdateProjectSchema>({
     resolver: zodResolver(updateProjectSchema),
@@ -37,7 +37,13 @@ export default function EditProjectPage() {
       description: project?.description || '',
     },
   })
-  const { register, getValues, handleSubmit, reset } = form
+  const {
+    register,
+    getValues,
+    handleSubmit,
+    reset,
+    formState: { isDirty },
+  } = form
 
   useEffect(() => {
     if (project) {
@@ -101,14 +107,16 @@ export default function EditProjectPage() {
               variant="destructive"
               size="icon"
               onClick={() => setIsDeleteDialogOpen(true)}
-              disabled={isLoadingDelete}
+              disabled={isDeletingProject}
               className="h-10 w-10">
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(() => updateProject(getValues()))} className="space-y-6">
+          <form
+            onSubmit={handleSubmit(() => updateProject({ ...getValues() }))}
+            className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="name" className="text-sm font-medium">
                 Project Name
@@ -117,7 +125,7 @@ export default function EditProjectPage() {
                 {...register('name')}
                 id="name"
                 required
-                disabled={isLoading}
+                disabled={isUpdatingProject}
                 className="w-full"
                 placeholder="Enter project name"
               />
@@ -129,7 +137,7 @@ export default function EditProjectPage() {
               <Textarea
                 id="description"
                 {...register('description')}
-                disabled={isLoading}
+                disabled={isUpdatingProject}
                 rows={4}
                 className="w-full resize-none"
                 placeholder="Enter project description (optional)"
@@ -139,18 +147,18 @@ export default function EditProjectPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => router.push(`/projects/${projectId}`)}
-                disabled={isLoading}>
+                onClick={() => router.back()}
+                disabled={isUpdatingProject}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Cancel
               </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? (
+              <Button type="submit" disabled={isUpdatingProject || !isDirty}>
+                {isUpdatingProject ? (
                   <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Pencil className="mr-2 h-4 w-4" />
                 )}
-                {isLoading ? 'Saving...' : 'Save Changes'}
+                {isUpdatingProject ? 'Saving...' : 'Save Changes'}
               </Button>
             </div>
           </form>

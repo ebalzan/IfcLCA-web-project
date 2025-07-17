@@ -55,7 +55,11 @@ export default function ProjectPage() {
   //   }
   // }
 
-  if (isLoading || !project) {
+  if (!project) {
+    return <ProjectNotFound />
+  }
+
+  if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-screen bg-background">
         <Skeleton className="h-full w-full" />
@@ -77,9 +81,7 @@ export default function ProjectPage() {
         onUpload={() => setIsUploadModalOpen(true)}
         onEdit={handleNavigateToEditProject}
       />
-      <section className="space-y-4">
-        <ProjectSummary project={project} />
-      </section>
+      <ProjectSummary project={project} />
       <ProjectTabs project={project} onUpload={() => setIsUploadModalOpen(true)} />
       <UploadModal
         projectId={projectId}
