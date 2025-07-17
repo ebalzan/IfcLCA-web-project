@@ -24,24 +24,13 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { useTanStackMutation } from '@/hooks/use-tanstack-fetch'
-import IProjectDB from '@/interfaces/projects/IProjectDB'
-import { Queries } from '@/queries'
+import { useCreateProject } from '@/hooks/projects/use-project-operations'
 import { CreateProjectSchema, createProjectSchema } from '@/schemas/projects/createProjectSchema'
 
 export default function ProjectsNewPage() {
   const router = useRouter()
-  const { mutate: createProject, isLoading } = useTanStackMutation<IProjectDB, CreateProjectSchema>(
-    '/api/projects',
-    {
-      mutationKey: [Queries.CREATE_PROJECT],
-      method: 'POST',
-      showErrorToast: true,
-      onSuccess: data => {
-        router.push(`/projects/${data._id}`)
-      },
-    }
-  )
+  const { mutate: createProject, isLoading } = useCreateProject()
+
   const form = useForm<CreateProjectSchema>({
     resolver: zodResolver(createProjectSchema),
     defaultValues: {

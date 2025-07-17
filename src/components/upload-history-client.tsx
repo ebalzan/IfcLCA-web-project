@@ -5,7 +5,7 @@ import { FileDown, Trash2 } from 'lucide-react'
 import { DataTable } from '@/components/data-table'
 import { Button } from '@/components/ui/button'
 import { UploadModal } from '@/components/upload-modal'
-import { fetchApi } from '@/lib/fetch'
+import { api } from '@/lib/fetch'
 
 const columns = [
   {
@@ -44,7 +44,7 @@ export function UploadHistoryClient({ projectId }: { projectId: string }) {
 
   const refreshData = useCallback(async () => {
     try {
-      const data = await fetchApi<any[]>(`/api/projects/${projectId}/uploads`)
+      const data = await api.get<any[]>(`/api/projects/${projectId}/uploads`)
       setUploadHistory(data)
     } catch (error) {
       console.error('Failed to fetch upload history:', error)

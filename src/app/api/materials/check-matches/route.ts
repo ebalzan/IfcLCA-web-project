@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { withAuthAndDB } from '@/lib/api-middleware'
-import { AuthenticatedRequest, getUserId } from '@/lib/auth-middleware'
+import { AuthenticatedRequest, getUserId, withAuthAndDB } from '@/lib/api-middleware'
 import { MaterialService } from '@/lib/services/material-service'
 import { Project } from '@/models'
 

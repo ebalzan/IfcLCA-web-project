@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { ReloadIcon } from '@radix-ui/react-icons'
 import { UploadCloud } from 'lucide-react'
 import { useDropzone } from 'react-dropzone'
@@ -9,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useToast } from '@/hooks/use-toast'
 import { logger } from '@/lib/logger'
 import { IFCParseResult, parseIFCFile } from '@/lib/services/ifc-parser-client'
+import { Queries } from '@/queries'
 
 interface UploadModalProps {
   projectId: string
@@ -22,6 +24,7 @@ export function UploadModal({ projectId, open, onOpenChange, onSuccess }: Upload
   const [uploadStatus, setUploadStatus] = useState<string>('Processing IFC file...')
   const { toast } = useToast()
   const router = useRouter()
+  const queryClient = useQueryClient()
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
@@ -58,6 +61,11 @@ export function UploadModal({ projectId, open, onOpenChange, onSuccess }: Upload
         })
 
         onOpenChange(false)
+
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: [Queries.GET_PROJECTS] }),
+          queryClient.invalidateQueries({ queryKey: [Queries.GET_PROJECT_BY_ID, projectId] }),
+        ])
 
         if (results.shouldRedirectToLibrary) {
           logger.debug('Redirecting to materials library')
@@ -101,7 +109,7 @@ export function UploadModal({ projectId, open, onOpenChange, onSuccess }: Upload
         setUploadStatus('Processing IFC file...')
       }
     },
-    [projectId, onSuccess, onOpenChange, router, toast]
+    [projectId, toast, onOpenChange, queryClient, router, onSuccess]
   )
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({

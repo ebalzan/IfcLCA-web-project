@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Types } from 'mongoose'
 import { UploadResponse } from '@/interfaces/client/uploads/UploadResponse'
-import { withAuthAndDBParams } from '@/lib/api-middleware'
-import { AuthenticatedRequest, getUserId } from '@/lib/auth-middleware'
+import { AuthenticatedRequest, getUserId, withAuthAndDBParams } from '@/lib/api-middleware'
 import { Upload } from '@/models'
 
 export const runtime = 'nodejs'

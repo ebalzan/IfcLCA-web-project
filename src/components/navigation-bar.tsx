@@ -46,10 +46,10 @@ import {
 } from '@/components/ui/navigation-menu'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { UploadModal } from '@/components/upload-modal'
-import { useProjectsWithStats } from '@/hooks/projects/use-projects-with-stats'
+import { useProjectsWithStats } from '@/hooks/projects/use-project-operations'
 import { useDebounce } from '@/hooks/use-debounce'
 import IProjectClient from '@/interfaces/client/projects/IProjectClient'
-import { fetchApi } from '@/lib/fetch'
+import { api } from '@/lib/fetch'
 import { cn } from '@/lib/utils'
 
 interface Notification {
@@ -135,13 +135,14 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
   const { theme, setTheme } = useTheme()
   const [showProjectSelect, setShowProjectSelect] = useState(false)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
-  const { projectsWithStats } = useProjectsWithStats()
+  const { data: projectsWithStats } = useProjectsWithStats()
+
   useEffect(() => {
     const searchProjects = async () => {
       if (isFocused && !debouncedSearch) {
         setIsSearching(true)
         try {
-          const data = await fetchApi<SearchResult[]>('/api/projects/search?all=true')
+          const data = await api.get<SearchResult[]>('/api/projects/search?all=true')
           setSearchResults(data)
         } catch (error) {
           console.error('Failed to fetch projects:', error)
@@ -158,7 +159,7 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
 
       setIsSearching(true)
       try {
-        const data = await fetchApi<SearchResult[]>(`/api/projects/search?q=${debouncedSearch}`)
+        const data = await api.get<SearchResult[]>(`/api/projects/search?q=${debouncedSearch}`)
         setSearchResults(data)
       } catch (error) {
         console.error('Failed to search projects:', error)
@@ -529,7 +530,7 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
             setSelectedProjectId(null)
             router.push(`/projects/${selectedProjectId}`)
           }}
-          onProgress={(progress: number) => {}}
+          // onProgress={(progress: number) => {}}
         />
       )}
     </nav>

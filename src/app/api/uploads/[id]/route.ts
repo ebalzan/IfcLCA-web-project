@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { withAuthAndDBParams } from '@/lib/api-middleware'
-import { AuthenticatedRequest } from '@/lib/auth-middleware'
+import { AuthenticatedRequest, withAuthAndDBParams } from '@/lib/api-middleware'
 import { Upload } from '@/models'
 
 async function getUpload(

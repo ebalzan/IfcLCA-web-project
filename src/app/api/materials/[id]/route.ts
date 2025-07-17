@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { withAuthAndDBParams } from '@/lib/api-middleware'
-import { getUserId, AuthenticatedRequest } from '@/lib/auth-middleware'
+import { getUserId, AuthenticatedRequest, withAuthAndDBParams } from '@/lib/api-middleware'
 import { Material, MaterialDeletion } from '@/models'
 
 async function deleteMaterial(

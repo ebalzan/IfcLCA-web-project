@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Types } from 'mongoose'
 import ILCAIndicators from '@/interfaces/materials/ILCAIndicators'
-import { withAuthAndDBParams } from '@/lib/api-middleware'
-import { AuthenticatedRequest, getUserId } from '@/lib/auth-middleware'
+import { AuthenticatedRequest, getUserId, withAuthAndDBParams } from '@/lib/api-middleware'
 import { Element, Project } from '@/models'
 
 async function getProjectEmissions(

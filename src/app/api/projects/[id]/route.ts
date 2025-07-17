@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server'
-import { startSession, Types } from 'mongoose'
+import { Types } from 'mongoose'
 import IProjectWithStats from '@/interfaces/projects/IProjectWithStats'
 import { ProjectResponse } from '@/interfaces/projects/ProjectResponse'
-import { withAuthAndDBParams } from '@/lib/api-middleware'
-import { AuthenticatedRequest, getUserId } from '@/lib/auth-middleware'
+import { AuthenticatedRequest, getUserId, withAuthAndDBParams } from '@/lib/api-middleware'
 import { Element, Material, Project, Upload } from '@/models'
 
 export const runtime = 'nodejs'

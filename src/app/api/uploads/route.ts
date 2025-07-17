@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { ClientSession } from 'mongoose'
-import { AuthenticatedRequest } from '@/lib/auth-middleware'
+import { AuthenticatedRequest } from '@/lib/api-middleware'
 import { Element, Material, Upload } from '@/models'
 
 export async function processMaterials(

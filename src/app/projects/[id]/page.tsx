@@ -24,12 +24,11 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { UploadModal } from '@/components/upload-modal'
-import { useProjectWithStatsById } from '@/hooks/projects/use-project-by-id'
+import { useProjectWithStatsById } from '@/hooks/projects/use-project-operations'
 import IMaterialLayerClient from '@/interfaces/client/elements/IMaterialLayerClient'
 import IMaterialClient from '@/interfaces/client/materials/IMaterialClient'
 import IProjectWithStatsClient from '@/interfaces/client/projects/IProjectWithStatsClient'
 import IUploadClient from '@/interfaces/client/uploads/IUploadClient'
-import { logger } from '@/lib/logger'
 
 export default function ProjectPage() {
   const router = useRouter()

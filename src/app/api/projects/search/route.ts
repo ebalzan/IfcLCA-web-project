@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import IProjectDB from '@/interfaces/projects/IProjectDB'
-import { withAuthAndDB } from '@/lib/api-middleware'
-import { AuthenticatedRequest, getUserId } from '@/lib/auth-middleware'
+import { AuthenticatedRequest, getUserId, withAuthAndDB } from '@/lib/api-middleware'
 import { Project } from '@/models'
 
 export type SearchResult = Pick<IProjectDB, 'name' | 'description' | '_id'>

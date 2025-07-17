@@ -14,23 +14,23 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useDeleteProject } from '@/hooks/projects/use-delete-project'
-import { useProjectsWithStats } from '@/hooks/projects/use-projects-with-stats'
+import { useDeleteProject, useProjectsWithStats } from '@/hooks/projects/use-project-operations'
 import { DeleteProjectDialog } from './delete-project-dialog'
 import ProjectCard from './project-card'
 
 export function ProjectOverview() {
-  const { projectsWithStats, isLoading, isError, error, hasNextPage, fetchNextPage } =
-    useProjectsWithStats()
+  const {
+    data: projectsWithStats,
+    isLoading,
+    isError,
+    error,
+    hasNextPage,
+    fetchNextPage,
+  } = useProjectsWithStats()
   const router = useRouter()
-  const hasProjects = projectsWithStats.length > 0
+  const hasProjects = projectsWithStats && projectsWithStats.length > 0
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null)
-  const { mutateAsync: deleteProject } = useDeleteProject()
-
-  async function handleDeleteProject(projectId: string) {
-    await deleteProject(projectId)
-    router.push('/projects')
-  }
+  const { mutate: deleteProject } = useDeleteProject()
 
   if (isLoading) {
     return (
@@ -55,7 +55,7 @@ export function ProjectOverview() {
   if (isError || error) {
     return (
       <div className="text-center py-12 bg-red-50 rounded-lg" role="alert">
-        <p className="text-red-600 font-semibold mb-4">{error?.message}</p>
+        <p className="text-red-600 font-semibold mb-4">{error}</p>
         <Button onClick={() => window.location.reload()} variant="outline" className="bg-white">
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           Try Again
@@ -142,7 +142,7 @@ export function ProjectOverview() {
       <DeleteProjectDialog
         isOpen={!!deleteProjectId}
         onClose={() => setDeleteProjectId(null)}
-        onDelete={() => deleteProjectId && handleDeleteProject(deleteProjectId)}
+        onDelete={() => deleteProjectId && deleteProject(deleteProjectId)}
       />
     </>
   )

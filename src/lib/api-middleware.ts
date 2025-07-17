@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import {
-  withAuth,
-  withAuthParams,
-  AuthenticatedRequest,
-  AuthHandler,
-  AuthHandlerWithParams,
-} from './auth-middleware'
+import { auth } from '@clerk/nextjs/server'
 import { connectToDatabase } from './mongodb'
 
-export type ApiHandler = AuthHandler
-export type ApiHandlerWithParams<T> = AuthHandlerWithParams<T>
+export interface AuthenticatedRequest extends NextRequest {
+  userId: string
+}
+
+export type ApiHandler = (request: AuthenticatedRequest, context?: unknown) => Promise<NextResponse>
+
+export type ApiHandlerWithParams<T> = (
+  request: AuthenticatedRequest,
+  context: { params: Promise<T> }
+) => Promise<NextResponse>
+
 export type PublicApiHandler = (request: NextRequest, context?: unknown) => Promise<NextResponse>
 
 export type PublicApiHandlerWithParams<T> = (
@@ -18,47 +21,59 @@ export type PublicApiHandlerWithParams<T> = (
 ) => Promise<NextResponse>
 
 /**
- * API middleware that uses auth middleware and adds database connection
+ * API middleware that uses Clerk auth and adds database connection
  */
 export function withAuthAndDB(handler: ApiHandler): ApiHandler {
-  // First apply auth middleware, then add database connection
-  const authHandler = withAuth(async (request: AuthenticatedRequest, context?: unknown) => {
+  return async (request: NextRequest, context?: unknown) => {
     try {
+      // Use Clerk's auth instead of custom auth
+      const { userId } = await auth()
+      if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+
       // Connect to database
       await connectToDatabase()
 
+      // Add userId to request object
+      const authenticatedRequest = request as AuthenticatedRequest
+      authenticatedRequest.userId = userId
+
       // Call the original handler
-      return await handler(request, context)
+      return await handler(authenticatedRequest, context)
     } catch (error: unknown) {
       console.error('API middleware error:', error)
-      return NextResponse.json({ error: 'ERROR: ' + error }, { status: 500 })
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
-  })
-
-  return authHandler
+  }
 }
 
 /**
  * API middleware for routes with dynamic parameters
  */
 export function withAuthAndDBParams<T>(handler: ApiHandlerWithParams<T>): ApiHandlerWithParams<T> {
-  // First apply auth middleware, then add database connection
-  const authHandler = withAuthParams(
-    async (request: AuthenticatedRequest, context: { params: Promise<T> }) => {
-      try {
-        // Connect to database
-        await connectToDatabase()
-
-        // Call the original handler
-        return await handler(request, context)
-      } catch (error) {
-        console.error('API middleware error:', error)
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  return async (request: NextRequest, context: { params: Promise<T> }) => {
+    try {
+      // Use Clerk's auth instead of custom auth
+      const { userId } = await auth()
+      if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
       }
-    }
-  )
 
-  return authHandler
+      // Connect to database
+      await connectToDatabase()
+
+      // Add userId to request object
+      const authenticatedRequest = request as AuthenticatedRequest
+      authenticatedRequest.userId = userId
+
+      // Call the original handler
+      return await handler(authenticatedRequest, context)
+    } catch (error) {
+      console.error('API middleware error:', error)
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+  }
 }
 
 /**
@@ -74,7 +89,7 @@ export function withDB(handler: PublicApiHandler): PublicApiHandler {
       return await handler(request, context)
     } catch (error) {
       console.error('API middleware error:', error)
-      return NextResponse.json({ error: 'ERROR: ' + error }, { status: 500 })
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
   }
 }
@@ -94,26 +109,14 @@ export function withDBParams<T>(
       return await handler(request, context)
     } catch (error) {
       console.error('API middleware error:', error)
-      return NextResponse.json({ error: 'ERROR: ' + error }, { status: 500 })
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
   }
 }
 
 /**
- * Helper function to handle common API errors
+ * Helper function to get authenticated user ID from request
  */
-export function handleApiError(error: unknown, context?: string): NextResponse {
-  console.error(`API Error${context ? ` in ${context}` : ''}:`, error)
-
-  if (error instanceof Error) {
-    // Handle specific error types
-    if (error.message.includes('not found')) {
-      return NextResponse.json({ error: 'Resource not found' }, { status: 404 })
-    }
-    if (error.message.includes('unauthorized') || error.message.includes('forbidden')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-  }
-
-  return NextResponse.json({ error: 'ERROR: ' + error }, { status: 500 })
+export function getUserId(request: AuthenticatedRequest): string {
+  return request.userId
 }

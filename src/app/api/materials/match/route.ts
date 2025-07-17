@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import IMaterialDB from '@/interfaces/materials/IMaterialDB'
-import { withAuthAndDBParams } from '@/lib/api-middleware'
-import { AuthenticatedRequest } from '@/lib/auth-middleware'
+import { AuthenticatedRequest, withAuthAndDBParams } from '@/lib/api-middleware'
 import { Element, KBOBMaterial, Material } from '@/models'
 
 interface MatchMaterialsToKBOBRequest {

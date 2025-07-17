@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Types } from 'mongoose'
 import ILCAIndicators from '@/interfaces/materials/ILCAIndicators'
-import { withAuthAndDB } from '@/lib/api-middleware'
-import { getUserId, AuthenticatedRequest } from '@/lib/auth-middleware'
+import { getUserId, AuthenticatedRequest, withAuthAndDB } from '@/lib/api-middleware'
 import { Project } from '@/models'
 
 export type IProjectEmissionsResponse = IProjectEmissions[]

@@ -2,7 +2,7 @@ import { CheckMatchesResponse } from '@/app/api/materials/check-matches/route'
 import { UploadResponse } from '@/interfaces/client/uploads/UploadResponse'
 import { logger } from '@/lib/logger'
 import { parseIfcWithWasm, IFCParseResult as WASMParseResult, APIElement } from './ifc-wasm-parser'
-import { fetchApi } from '../fetch'
+import { api } from '../fetch'
 
 export interface IFCParseResult {
   uploadId: string
@@ -23,9 +23,8 @@ export async function parseIFCFile(file: File, projectId: string): Promise<IFCPa
 
     // Create upload record
     logger.debug('Creating upload record...')
-    const uploadResponse = await fetchApi<UploadResponse>(`/api/projects/${projectId}/upload`, {
-      method: 'POST',
-      body: JSON.stringify({ filename: file.name }),
+    const uploadResponse = await api.post<UploadResponse>(`/api/projects/${projectId}/upload`, {
+      filename: file.name,
     })
     logger.debug('Upload response status:', uploadResponse.status)
     logger.debug('Upload response data:', uploadResponse)
@@ -121,13 +120,9 @@ export async function parseIFCFile(file: File, projectId: string): Promise<IFCPa
 
     // Process materials
     const materialNames = Array.from(materials)
-    const checkMatchesResponse = await fetchApi<CheckMatchesResponse>(
+    const checkMatchesResponse = await api.post<CheckMatchesResponse>(
       '/api/materials/check-matches',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ materialNames, projectId }),
-      }
+      { materialNames, projectId }
     )
 
     const unmatchedMaterialCount = checkMatchesResponse.unmatchedCount
@@ -168,45 +163,40 @@ export async function parseIFCFile(file: File, projectId: string): Promise<IFCPa
     })
 
     // Process elements
-    const processResponse = await fetchApi(`/api/projects/${projectId}/upload/process`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        uploadId: uploadResponse.uploadId,
-        elements: elements.map((element: APIElement) => ({
-          globalId: element.id,
-          type: element.type,
-          name: element.object_type,
-          volume: element.volume || 0,
-          properties: {
-            loadBearing: element.properties.loadBearing || false,
-            isExternal: element.properties.isExternal || false,
-          },
-          materials:
-            element.materials?.map((materialName: string) => {
-              const materialVolumeData = element.material_volumes?.[materialName]
-              const materialVolume =
-                materialVolumeData?.volume ||
-                (element.volume || 0) / (element.materials?.length || 1)
+    const processResponse = await api.post(`/api/projects/${projectId}/upload/process`, {
+      uploadId: uploadResponse.uploadId,
+      elements: elements.map((element: APIElement) => ({
+        globalId: element.id,
+        type: element.type,
+        name: element.object_type,
+        volume: element.volume || 0,
+        properties: {
+          loadBearing: element.properties.loadBearing || false,
+          isExternal: element.properties.isExternal || false,
+        },
+        materials:
+          element.materials?.map((materialName: string) => {
+            const materialVolumeData = element.material_volumes?.[materialName]
+            const materialVolume =
+              materialVolumeData?.volume || (element.volume || 0) / (element.materials?.length || 1)
 
-              return {
-                name: materialName,
-                volume: materialVolume,
-              }
-            }) || [],
-          materialLayers: element.material_volumes
-            ? {
-                layerSetName: `${element.type}_Layers`,
-                layers: Object.entries(element.material_volumes).map(([name, data]) => ({
-                  materialName: name,
-                  volume: data.volume,
-                  fraction: data.fraction,
-                })),
-              }
-            : undefined,
-        })),
-        isLastChunk: true,
-      }),
+            return {
+              name: materialName,
+              volume: materialVolume,
+            }
+          }) || [],
+        materialLayers: element.material_volumes
+          ? {
+              layerSetName: `${element.type}_Layers`,
+              layers: Object.entries(element.material_volumes).map(([name, data]) => ({
+                materialName: name,
+                volume: data.volume,
+                fraction: data.fraction,
+              })),
+            }
+          : undefined,
+      })),
+      isLastChunk: true,
     })
 
     return {

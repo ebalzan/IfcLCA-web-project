@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server'
 import { Types } from 'mongoose'
 import IKBOBMaterial from '@/interfaces/materials/IKBOBMaterial'
 import IMaterialDB from '@/interfaces/materials/IMaterialDB'
-import { withAuthAndDBParams } from '@/lib/api-middleware'
-import { AuthenticatedRequest, getUserId } from '@/lib/auth-middleware'
+import { AuthenticatedRequest, getUserId, withAuthAndDBParams } from '@/lib/api-middleware'
 import { Material, Project } from '@/models'
 
 interface MatchMaterialRequest {

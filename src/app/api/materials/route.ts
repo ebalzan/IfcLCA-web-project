@@ -2,9 +2,7 @@ import { NextResponse } from 'next/server'
 import IKBOBMaterial from '@/interfaces/materials/IKBOBMaterial'
 import IMaterialDB, { IMaterialVirtuals } from '@/interfaces/materials/IMaterialDB'
 import IProjectDB from '@/interfaces/projects/IProjectDB'
-import { withAuthAndDB } from '@/lib/api-middleware'
-import { AuthenticatedRequest, getUserId } from '@/lib/auth-middleware'
-import { logger } from '@/lib/logger'
+import { AuthenticatedRequest, getUserId, withAuthAndDB } from '@/lib/api-middleware'
 import { Material, Project } from '@/models'
 
 async function getMaterials(request: AuthenticatedRequest) {

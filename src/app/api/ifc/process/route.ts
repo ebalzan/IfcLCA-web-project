@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
-import { withAuthAndDB } from '@/lib/api-middleware'
-import { AuthenticatedRequest } from '@/lib/auth-middleware'
-import { fetchApi } from '@/lib/fetch'
+import { AuthenticatedRequest, withAuthAndDB } from '@/lib/api-middleware'
+import { api } from '@/lib/fetch'
 
 export const maxDuration = 300 // 5 minutes
 export const runtime = 'nodejs'
@@ -19,10 +18,10 @@ async function processIfcFile(request: AuthenticatedRequest) {
   const fileBlob = new Blob([await file.arrayBuffer()], { type: file.type })
   externalFormData.append('file', fileBlob, file.name || 'upload.ifc')
 
-  const response = await fetchApi(
+  const response = await api.post(
     'https://openbim-service-production.up.railway.app/api/ifc/process',
+    undefined,
     {
-      method: 'POST',
       body: externalFormData,
     }
   )

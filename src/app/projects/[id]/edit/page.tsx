@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useQueryClient } from '@tanstack/react-query'
 import { LoaderIcon, Pencil, ArrowLeft, Trash2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { Breadcrumbs } from '@/components/breadcrumbs'
@@ -14,10 +13,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
-import { useDeleteProject } from '@/hooks/projects/use-delete-project'
-import { useProjectById } from '@/hooks/projects/use-project-by-id'
-import { useUpdateProject } from '@/hooks/projects/use-update-project'
-import { Queries } from '@/queries'
+import {
+  useDeleteProject,
+  useProjectById,
+  useUpdateProject,
+} from '@/hooks/projects/use-project-operations'
 import { UpdateProjectSchema, updateProjectSchema } from '@/schemas/projects/updateProjectSchema'
 
 export default function EditProjectPage() {
@@ -26,10 +26,9 @@ export default function EditProjectPage() {
   const router = useRouter()
   const params = useParams<{ id: string }>()
   const projectId = params.id
-  const { mutateAsync: deleteProject } = useDeleteProject()
   const { data: project, isLoading: isLoadingProject } = useProjectById(projectId)
-  const { mutate: updateProject, isPending: isSaving } = useUpdateProject()
-  const queryClient = useQueryClient()
+  const { mutate: updateProject, isLoading } = useUpdateProject(projectId)
+  const { mutate: deleteProject, isLoading: isLoadingDelete } = useDeleteProject()
 
   const form = useForm<UpdateProjectSchema>({
     resolver: zodResolver(updateProjectSchema),
@@ -48,28 +47,6 @@ export default function EditProjectPage() {
       })
     }
   }, [project, reset])
-
-  async function handleDeleteProject() {
-    await deleteProject(projectId)
-    router.replace('/projects')
-  }
-
-  function handleUpdateProject() {
-    updateProject(
-      { ...getValues() },
-      {
-        onSuccess: async () => {
-          await Promise.all([
-            queryClient.invalidateQueries({ queryKey: [Queries.GET_PROJECTS] }),
-            queryClient.invalidateQueries({
-              queryKey: [Queries.GET_PROJECT_BY_ID, projectId],
-            }),
-          ])
-          router.back()
-        },
-      }
-    )
-  }
 
   const breadcrumbItems = [
     { label: 'Projects', href: '/projects' },
@@ -124,14 +101,14 @@ export default function EditProjectPage() {
               variant="destructive"
               size="icon"
               onClick={() => setIsDeleteDialogOpen(true)}
-              disabled={isSaving}
+              disabled={isLoadingDelete}
               className="h-10 w-10">
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(handleUpdateProject)} className="space-y-6">
+          <form onSubmit={handleSubmit(() => updateProject(getValues()))} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="name" className="text-sm font-medium">
                 Project Name
@@ -140,7 +117,7 @@ export default function EditProjectPage() {
                 {...register('name')}
                 id="name"
                 required
-                disabled={isSaving}
+                disabled={isLoading}
                 className="w-full"
                 placeholder="Enter project name"
               />
@@ -152,7 +129,7 @@ export default function EditProjectPage() {
               <Textarea
                 id="description"
                 {...register('description')}
-                disabled={isSaving}
+                disabled={isLoading}
                 rows={4}
                 className="w-full resize-none"
                 placeholder="Enter project description (optional)"
@@ -163,17 +140,17 @@ export default function EditProjectPage() {
                 type="button"
                 variant="outline"
                 onClick={() => router.push(`/projects/${projectId}`)}
-                disabled={isSaving}>
+                disabled={isLoading}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSaving}>
-                {isSaving ? (
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? (
                   <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Pencil className="mr-2 h-4 w-4" />
                 )}
-                {isSaving ? 'Saving...' : 'Save Changes'}
+                {isLoading ? 'Saving...' : 'Save Changes'}
               </Button>
             </div>
           </form>
@@ -183,7 +160,7 @@ export default function EditProjectPage() {
       <DeleteProjectDialog
         isOpen={isDeleteDialogOpen}
         onClose={() => setIsDeleteDialogOpen(false)}
-        onDelete={handleDeleteProject}
+        onDelete={() => deleteProject(projectId)}
       />
     </div>
   )
