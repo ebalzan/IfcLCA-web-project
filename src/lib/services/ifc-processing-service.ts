@@ -1,4 +1,3 @@
-import type { ClientSession } from 'mongoose'
 import mongoose from 'mongoose'
 import IKBOBMaterial from '@/interfaces/materials/IKBOBMaterial'
 import { logger } from '@/lib/logger'
@@ -32,11 +31,10 @@ export class IFCProcessingService {
   /**
    * Process elements from Ifc file with existing material matches
    */
-  static async processElements(
+  static async processElementsAndMaterialsFromIFC(
     projectId: string,
     elements: IFCElement[],
-    uploadId: string,
-    session: ClientSession
+    uploadId: string
   ) {
     try {
       if (!elements?.length) {
@@ -63,7 +61,7 @@ export class IFCProcessingService {
         materials: Array.from(uniqueMaterialNames),
       })
 
-      // Create materials first
+      // Create or update materials first
       const materialOps = Array.from(uniqueMaterialNames).map(name => ({
         updateOne: {
           filter: {
@@ -84,7 +82,7 @@ export class IFCProcessingService {
         },
       }))
 
-      const materialResult = await Material.bulkWrite(materialOps, { session })
+      const materialResult = await Material.bulkWrite(materialOps)
 
       logger.debug('Material creation result', {
         upsertedCount: materialResult.upsertedCount,
@@ -98,7 +96,6 @@ export class IFCProcessingService {
         projectId: new mongoose.Types.ObjectId(projectId),
       })
         .populate<{ kbobMatchId: IKBOBMaterial }>('kbobMatchId')
-        .session(session)
         .lean()
 
       // Create map for quick lookups
@@ -198,7 +195,7 @@ export class IFCProcessingService {
           }
         })
 
-        const result = await Element.bulkWrite(bulkOps, { session })
+        const result = await Element.bulkWrite(bulkOps)
         processedCount += result.upsertedCount + result.modifiedCount
 
         logger.debug(`Processed batch ${i / BATCH_SIZE + 1}`, {
@@ -226,8 +223,7 @@ export class IFCProcessingService {
                   lastCalculated: new Date(),
                 },
               },
-            },
-            { session }
+            }
           )
 
           logger.debug('Updated project emissions', {
@@ -242,7 +238,7 @@ export class IFCProcessingService {
         }
       }
 
-      await MaterialService.updateProjectEmissions(projectId, session)
+      await MaterialService.updateProjectEmissions(projectId)
 
       return {
         elementCount: processedCount,
@@ -257,11 +253,7 @@ export class IFCProcessingService {
   /**
    * Find and apply automatic material matches
    */
-  static async findAutomaticMatches(
-    projectId: string,
-    materialNames: string[],
-    session: ClientSession
-  ) {
+  static async applyAutomaticMaterialMatches(projectId: string, materialNames: string[]) {
     try {
       logger.debug('Starting automatic material matching', {
         materialCount: materialNames.length,
@@ -322,7 +314,7 @@ export class IFCProcessingService {
           },
         }))
 
-        const matchResult = await Material.bulkWrite(matchOps, { session })
+        const matchResult = await Material.bulkWrite(matchOps)
 
         logger.debug('Material matching update result', {
           modifiedCount: matchResult.modifiedCount,

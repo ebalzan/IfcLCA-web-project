@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
-import mongoose from 'mongoose'
 import { AuthenticatedRequest, withAuthAndDBParams } from '@/lib/api-middleware'
-import { connectToDatabase } from '@/lib/mongodb'
 import { IFCProcessingService } from '@/lib/services/ifc-processing-service'
 import { Upload } from '@/models'
 
@@ -27,42 +25,32 @@ async function processUpload(
   context: { params: Promise<{ id: string }> }
 ) {
   const params = await context.params
-  const session = await mongoose.startSession()
 
   const { uploadId, elements } = (await request.json()) as {
     uploadId: string
     elements: IFCElement[]
   }
 
-  await connectToDatabase()
+  // Process elements and find automatic matches
+  const uniqueMaterialNames = [
+    ...new Set(
+      elements.flatMap((e: IFCElement) => e.materials?.map((m: IFCMaterial) => m.name) || [])
+    ),
+  ]
 
-  await session.withTransaction(async () => {
-    // Process elements and find automatic matches
-    const uniqueMaterialNames = [
-      ...new Set(
-        elements.flatMap((e: IFCElement) => e.materials?.map((m: IFCMaterial) => m.name) || [])
-      ),
-    ]
+  // Run both operations in parallel
+  const [elementResult, matchResult] = await Promise.all([
+    IFCProcessingService.processElementsAndMaterialsFromIFC(params.id, elements, uploadId),
+    IFCProcessingService.applyAutomaticMaterialMatches(params.id, uniqueMaterialNames),
+  ])
 
-    // Run both operations in parallel
-    const [elementResult, matchResult] = await Promise.all([
-      IFCProcessingService.processElements(params.id, elements, uploadId, session),
-      IFCProcessingService.findAutomaticMatches(params.id, uniqueMaterialNames, session),
-    ])
-
-    // Update upload status
-    await Upload.findByIdAndUpdate(
-      uploadId,
-      {
-        status: 'completed',
-        elementCount: elementResult.elementCount,
-        materialCount: elementResult.materialCount,
-        matchedMaterialCount: matchResult.matchedCount,
-      },
-      { session }
-    )
+  // Update upload status
+  await Upload.findByIdAndUpdate(uploadId, {
+    status: 'completed',
+    elementCount: elementResult.elementCount,
+    materialCount: elementResult.materialCount,
+    matchedMaterialCount: matchResult.matchedCount,
   })
-  await session.endSession()
 
   return NextResponse.json({
     success: true,

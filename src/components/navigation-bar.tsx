@@ -257,7 +257,7 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
               </span>
             </div>
           </Link>
-          <NavigationMenu>
+          {/* <NavigationMenu>
             <NavigationMenuList>
               <NavigationMenuItem className="relative">
                 <div className="flex items-center gap-1">
@@ -390,7 +390,7 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
                 </div>
               </NavigationMenuItem>
             </NavigationMenuList>
-          </NavigationMenu>
+          </NavigationMenu> */}
         </div>
 
         <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
