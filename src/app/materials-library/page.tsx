@@ -1,6 +1,6 @@
 'use client'
 
-// import { MaterialLibraryComponent } from "@/components/materials-library";
+import { MaterialLibraryComponent } from '@/components/materials-library'
 
 export default function MaterialsLibraryPage() {
   return (
@@ -14,7 +14,7 @@ export default function MaterialsLibraryPage() {
         </div>
       </div>
 
-      {/* <MaterialLibraryComponent /> */}
+      <MaterialLibraryComponent />
     </div>
   )
 }

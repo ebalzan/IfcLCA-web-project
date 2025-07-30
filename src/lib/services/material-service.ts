@@ -1,5 +1,4 @@
 import { ClientSession, startSession, Types } from 'mongoose'
-import IElementDB from '@/interfaces/elements/IElementDB'
 import IKBOBMaterial from '@/interfaces/materials/IKBOBMaterial'
 import ILCAIndicators from '@/interfaces/materials/ILCAIndicators'
 import IMaterialChange from '@/interfaces/materials/IMaterialChange'
@@ -7,6 +6,7 @@ import IMaterialDB from '@/interfaces/materials/IMaterialDB'
 import IMaterialPreview from '@/interfaces/materials/IMaterialPreview'
 import IProjectDB from '@/interfaces/projects/IProjectDB'
 import { logger } from '@/lib/logger'
+import { OpenEPDProduct, OpenEPDService } from '@/lib/services/openepd-service'
 import { Material, KBOBMaterial, Element, Project } from '@/models'
 
 // updateProjectEmissions && calculateProjectTotals && recalculateElementsForMaterials
@@ -969,6 +969,103 @@ export class MaterialService {
     } catch (error) {
       this.logError('recalculateElementsForMaterials', error, { materialIds })
       throw error
+    }
+  }
+
+  /**
+   * Update elements for OpenEPD material match
+   */
+  static async updateElementsForOpenEPDMatch(
+    materialIds: string[],
+    openepdProduct: OpenEPDProduct,
+    density: number
+  ): Promise<number> {
+    const objectIds = materialIds.map(id => new Types.ObjectId(id))
+
+    // Find elements that use these materials
+    const elements = await Element.find({
+      'materials.material': { $in: objectIds },
+    })
+      .populate<{ materials: { material: IMaterialDB }[] }>('materials.material')
+      .lean()
+
+    let totalModified = 0
+
+    // Process elements in batches
+    const batchSize = 500
+    for (let i = 0; i < elements.length; i += batchSize) {
+      const batch = elements.slice(i, i + batchSize)
+
+      const bulkOps = batch.map(element => ({
+        updateOne: {
+          filter: { _id: element._id },
+          update: {
+            $set: {
+              materials: element.materials.map((mat: any) => {
+                if (materialIds.includes(mat.material._id.toString())) {
+                  const indicators = OpenEPDService.calculateIndicators(
+                    mat.volume,
+                    density,
+                    openepdProduct
+                  )
+
+                  return {
+                    _id: mat._id,
+                    material: mat.material._id,
+                    volume: mat.volume,
+                    fraction: mat.fraction,
+                    indicators,
+                  }
+                }
+                return mat
+              }),
+              updatedAt: new Date(),
+            },
+          },
+        },
+      }))
+
+      try {
+        const result = await Element.bulkWrite(bulkOps, { ordered: false })
+        totalModified += result.modifiedCount
+      } catch (error) {
+        console.error('Error in batch update:', error)
+      }
+    }
+
+    return totalModified
+  }
+
+  /**
+   * Find best OpenEPD match for a material
+   */
+  static async findBestOpenEPDMatch(materialName: string): Promise<{
+    product: OpenEPDProduct
+    score: number
+  } | null> {
+    try {
+      const match = await OpenEPDService.findBestMatch(materialName)
+      if (!match) return null
+
+      // Calculate a simple similarity score (you can implement more sophisticated matching)
+      const cleanedName = materialName.trim().toLowerCase()
+      const productName = match.name.toLowerCase()
+
+      let score = 0
+      if (productName.includes(cleanedName) || cleanedName.includes(productName)) {
+        score = 0.9
+      } else {
+        // Simple word overlap scoring
+        const nameWords = cleanedName.split(' ')
+        const productWords = productName.split(' ')
+        const overlap = nameWords.filter(word => productWords.includes(word)).length
+        score = overlap / Math.max(nameWords.length, productWords.length)
+      }
+
+      return { product: match, score }
+    } catch (error) {
+      console.error('Error finding OpenEPD match:', error)
+      return null
     }
   }
 }

@@ -1,15 +1,15 @@
-import IKBOBMaterial from '@/interfaces/materials/IKBOBMaterial'
 import ILCAIndicators from '@/interfaces/materials/ILCAIndicators'
+import IOpenEPDProduct from '@/interfaces/materials/IOpenEPDProduct'
 import IElementClient from '../elements/IElementClient'
 
-interface IMaterialNewAttributesFromKBOB extends Partial<ILCAIndicators> {
+interface IMaterialNewAttributesFromEPD extends Partial<ILCAIndicators> {
   category?: string
   density?: number
-  kbobMatch?: IKBOBMaterial
+  openepdMatch?: IOpenEPDProduct
   lastCalculated?: Date
 }
 
-interface IMaterialClient extends IMaterialVirtuals, IMaterialNewAttributesFromKBOB {
+interface IMaterialClient extends IMaterialVirtuals, IMaterialNewAttributesFromEPD {
   _id: string
   name: string
   projectId: string

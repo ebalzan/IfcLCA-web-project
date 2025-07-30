@@ -1,8 +1,10 @@
+import IOpenEPDProduct from './IOpenEPDProduct'
+
 interface IMaterialChange {
   materialId: string
   materialName: string
-  oldKbobMatchId?: string
-  newKbobMatchId: string
+  oldOpenepdMatch?: IOpenEPDProduct
+  newOpenepdMatch?: IOpenEPDProduct
   oldDensity?: number
   newDensity: number
   affectedElements: number

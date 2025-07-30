@@ -1,6 +1,6 @@
 import { Types } from 'mongoose'
 
-interface IKBOBMaterial {
+interface IOpenEPDProduct {
   _id: Types.ObjectId
   name: string
   category: string
@@ -12,4 +12,4 @@ interface IKBOBMaterial {
   'max density'?: number
 }
 
-export default IKBOBMaterial
+export default IOpenEPDProduct

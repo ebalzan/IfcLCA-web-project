@@ -1,14 +1,14 @@
 import { Types } from 'mongoose'
 import ILCAIndicators from './ILCAIndicators'
 
-interface IMaterialNewAttributesFromKBOB extends Partial<ILCAIndicators> {
+interface IMaterialNewAttributesFromEPD extends Partial<ILCAIndicators> {
   category?: string
   density?: number
-  kbobMatchId?: Types.ObjectId
+  openepdMatchId?: Types.ObjectId
   lastCalculated?: Date
 }
 
-interface IMaterialDB extends IMaterialNewAttributesFromKBOB {
+interface IMaterialDB extends IMaterialNewAttributesFromEPD {
   _id: Types.ObjectId
   name: string
   projectId: Types.ObjectId
