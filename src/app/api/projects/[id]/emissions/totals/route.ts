@@ -2,15 +2,18 @@ import { NextResponse } from 'next/server'
 import { Types } from 'mongoose'
 import ILCAIndicators from '@/interfaces/materials/ILCAIndicators'
 import { AuthenticatedRequest, getUserId, withAuthAndDBParams } from '@/lib/api-middleware'
+import { validatePathParams } from '@/lib/validation-middleware'
 import { Element, Project } from '@/models'
+import { projectIdSchema } from '@/schemas/api'
 
 async function getProjectEmissions(
   request: AuthenticatedRequest,
-  context: { params: Promise<{ [key: string]: string }> }
+  context: { params: Promise<Record<string, string>> }
 ) {
   const userId = getUserId(request)
-  const params = await context.params
-  const projectId = new Types.ObjectId(params.id)
+
+  const validatedParams = await validatePathParams(projectIdSchema, context.params)
+  const projectId = new Types.ObjectId(validatedParams.id)
 
   const project = await Project.findOne({ _id: projectId, userId })
   if (!project) {

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import IKBOBMaterial from '@/interfaces/materials/IKBOBMaterial'
 import IMaterialDB, { IMaterialVirtuals } from '@/interfaces/materials/IMaterialDB'
+import IOpenEPDProduct from '@/interfaces/materials/IOpenEPDProduct'
 import IProjectDB from '@/interfaces/projects/IProjectDB'
 import { AuthenticatedRequest, getUserId, withAuthAndDB } from '@/lib/api-middleware'
 import { Material, Project } from '@/models'
@@ -17,12 +17,12 @@ async function getMaterials(request: AuthenticatedRequest) {
     projectId: { $in: projectIds },
   })
     .lean<(IMaterialDB & IMaterialVirtuals)[]>({ virtuals: true })
-    .populate<{ kbobMatchId: IKBOBMaterial }>('kbobMatchId')
+    .populate<{ openEPDMatchId: IOpenEPDProduct }>('openEPDMatchId')
 
   const transformedMaterials: IMaterialVirtuals[] = materials.map(material => ({
     ...material,
     totalVolume: material.totalVolume,
-    kbobMatchId: material.kbobMatchId,
+    openEPDMatchId: material.openEPDMatchId,
   }))
 
   return NextResponse.json(transformedMaterials)

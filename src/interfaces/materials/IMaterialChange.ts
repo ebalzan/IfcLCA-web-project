@@ -3,8 +3,8 @@ import IOpenEPDProduct from './IOpenEPDProduct'
 interface IMaterialChange {
   materialId: string
   materialName: string
-  oldOpenepdMatch?: IOpenEPDProduct
-  newOpenepdMatch?: IOpenEPDProduct
+  oldOpenEPDMatch?: IOpenEPDProduct
+  newOpenEPDMatch?: IOpenEPDProduct
   oldDensity?: number
   newDensity: number
   affectedElements: number

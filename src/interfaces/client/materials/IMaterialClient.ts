@@ -5,7 +5,7 @@ import IElementClient from '../elements/IElementClient'
 interface IMaterialNewAttributesFromEPD extends Partial<ILCAIndicators> {
   category?: string
   density?: number
-  openepdMatch?: IOpenEPDProduct
+  openEPDMatch?: IOpenEPDProduct
   lastCalculated?: Date
 }
 

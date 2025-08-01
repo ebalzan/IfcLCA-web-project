@@ -25,7 +25,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { useCreateProject } from '@/hooks/projects/use-project-operations'
-import { CreateProjectSchema, createProjectSchema } from '@/schemas/projects/createProjectSchema'
+import { CreateProjectSchema, createProjectSchema } from '@/schemas/projectSchema'
 
 export default function ProjectsNewPage() {
   const router = useRouter()

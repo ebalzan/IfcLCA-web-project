@@ -354,22 +354,22 @@ const GraphTab = ({ project }: { project: IProjectWithStatsClient }) => {
       name: element.name, // Element name from elements table
       elementName: element.name, // Explicit element name for grouping
       ifcMaterial: material.material?.name || 'Unknown',
-      kbobMaterial: material.material?.kbobMatch?.name,
+      openEPDMaterial: material.material?.openEPDMatch?.name,
       category: element.type, // Ifc entity type
       volume: material.volume, // Use individual material volume
       indicators: {
         gwp:
           material.volume *
           (material.material?.density || 0) *
-          (material.material?.kbobMatch?.gwp || 0),
+          (material.material?.openEPDMatch?.gwp || 0),
         ubp:
           material.volume *
           (material.material?.density || 0) *
-          (material.material?.kbobMatch?.ubp || 0),
+          (material.material?.openEPDMatch?.ubp || 0),
         penre:
           material.volume *
           (material.material?.density || 0) *
-          (material.material?.kbobMatch?.penre || 0),
+          (material.material?.openEPDMatch?.penre || 0),
       },
     }))
   )

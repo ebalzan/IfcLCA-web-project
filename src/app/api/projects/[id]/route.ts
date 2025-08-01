@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { Types } from 'mongoose'
 import IProjectWithStats from '@/interfaces/projects/IProjectWithStats'
-import { ProjectResponse, ProjectWithStatsResponse } from '@/interfaces/projects/ProjectResponse'
 import { AuthenticatedRequest, getUserId, withAuthAndDBParams } from '@/lib/api-middleware'
 import { Element, Material, Project, Upload } from '@/models'
 

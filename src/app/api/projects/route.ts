@@ -3,7 +3,14 @@ import IProjectWithStatsClient from '@/interfaces/client/projects/IProjectWithSt
 import IProjectDB from '@/interfaces/projects/IProjectDB'
 import { ProjectsWithStatsResponse } from '@/interfaces/projects/ProjectsResponse'
 import { AuthenticatedRequest, getUserId, withAuthAndDB } from '@/lib/api-middleware'
+import {
+  AuthenticatedValidationRequest,
+  validateQueryParams,
+  withAuthAndValidation,
+} from '@/lib/validation-middleware'
 import { Project } from '@/models'
+import { CreateProjectRequest, createProjectSchema } from '@/schemas/api'
+import { paginationSchema } from '@/schemas/api'
 
 export const runtime = 'nodejs'
 
@@ -259,31 +266,34 @@ async function getProjectsWithStats(userId: string, limit: number, page: number)
     .skip((page - 1) * limit)
 }
 
-async function getProjects(request: AuthenticatedRequest) {
+async function getProjects(
+  request: AuthenticatedRequest
+): Promise<NextResponse<ProjectsWithStatsResponse>> {
   const userId = getUserId(request)
 
-  const { searchParams } = new URL(request.url)
-  const limit = parseInt(searchParams.get('limit') || '10')
-  const page = parseInt(searchParams.get('page') || '1')
+  const queryParams = validateQueryParams(paginationSchema, request)
+  const { limit, page } = queryParams
 
   const projects = await getProjectsWithStats(userId, limit, page)
 
   const totalCount = await Project.countDocuments({ userId })
   const hasMore = page * limit < totalCount
 
-  return NextResponse.json<ProjectsWithStatsResponse>({
+  return NextResponse.json({
     projects,
     hasMore,
     totalCount,
   })
 }
 
-async function createProject(request: AuthenticatedRequest) {
+async function createProject(
+  request: AuthenticatedValidationRequest<CreateProjectRequest>
+): Promise<NextResponse<IProjectDB>> {
   const userId = getUserId(request)
-  const body: Pick<IProjectDB, 'name' | 'description' | 'imageUrl'> = await request.json()
+  const validatedData = request.validatedData
 
   const project: IProjectDB = await Project.create({
-    ...body,
+    ...validatedData,
     userId,
     emissions: {
       gwp: 0,
@@ -293,8 +303,8 @@ async function createProject(request: AuthenticatedRequest) {
     },
   })
 
-  return NextResponse.json<IProjectDB>(project)
+  return NextResponse.json(project)
 }
 
 export const GET = withAuthAndDB(getProjects)
-export const POST = withAuthAndDB(createProject)
+export const POST = withAuthAndValidation(createProjectSchema, createProject)

@@ -13,17 +13,13 @@ async function processIfcFile(request: AuthenticatedRequest) {
     return NextResponse.json({ error: 'No file provided' }, { status: 400 })
   }
 
-  // Forward to external API without API key (public endpoint)
   const externalFormData = new FormData()
   const fileBlob = new Blob([await file.arrayBuffer()], { type: file.type })
   externalFormData.append('file', fileBlob, file.name || 'upload.ifc')
 
   const response = await api.post(
     'https://openbim-service-production.up.railway.app/api/ifc/process',
-    undefined,
-    {
-      body: externalFormData,
-    }
+    externalFormData
   )
 
   return NextResponse.json(response)

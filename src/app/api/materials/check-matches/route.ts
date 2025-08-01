@@ -1,12 +1,9 @@
 import { NextResponse } from 'next/server'
-import { AuthenticatedRequest, getUserId, withAuthAndDB } from '@/lib/api-middleware'
+import { getUserId } from '@/lib/api-middleware'
 import { MaterialService } from '@/lib/services/material-service'
+import { AuthenticatedValidationRequest, withAuthAndValidation } from '@/lib/validation-middleware'
 import { Project } from '@/models'
-
-interface CheckMatchesRequest {
-  materialNames: string[]
-  projectId: string
-}
+import { CheckMatchesRequest, checkMatchesSchema } from '@/schemas/api'
 
 export interface CheckMatchesResponse {
   unmatchedMaterials: string[]
@@ -14,24 +11,17 @@ export interface CheckMatchesResponse {
   unmatchedCount: number
 }
 
-async function checkAndCreateMaterialMatches(request: AuthenticatedRequest) {
+async function checkAndCreateMaterialMatches(
+  request: AuthenticatedValidationRequest<CheckMatchesRequest>
+) {
   const userId = getUserId(request)
 
-  const body: CheckMatchesRequest = await request.json()
-  const { materialNames, projectId } = body
-
-  if (!projectId) {
-    return NextResponse.json({ error: 'projectId is required' }, { status: 400 })
-  }
+  const { materialNames, projectId } = request.validatedData
 
   // Verify that the project belongs to the current user
   const project = await Project.findOne({ _id: projectId, userId }).lean()
   if (!project) {
     return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-  }
-
-  if (!Array.isArray(materialNames)) {
-    return NextResponse.json({ error: 'materialNames must be an array' }, { status: 400 })
   }
 
   const unmatchedMaterials: string[] = []
@@ -62,4 +52,4 @@ async function checkAndCreateMaterialMatches(request: AuthenticatedRequest) {
   })
 }
 
-export const POST = withAuthAndDB(checkAndCreateMaterialMatches)
+export const POST = withAuthAndValidation(checkMatchesSchema, checkAndCreateMaterialMatches)

@@ -4,7 +4,7 @@ import ILCAIndicators from './ILCAIndicators'
 interface IMaterialNewAttributesFromEPD extends Partial<ILCAIndicators> {
   category?: string
   density?: number
-  openepdMatchId?: Types.ObjectId
+  openEPDMatchId?: Types.ObjectId
   lastCalculated?: Date
 }
 

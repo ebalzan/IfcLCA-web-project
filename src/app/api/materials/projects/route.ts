@@ -5,6 +5,7 @@ import { MaterialService } from '@/lib/services/material-service'
 async function getProjectsWithMaterials(request: AuthenticatedRequest) {
   const userId = getUserId(request)
   const projects = await MaterialService.getProjectsWithMaterials(userId)
+
   return NextResponse.json(projects)
 }
 

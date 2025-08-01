@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server'
 import { getUserId, AuthenticatedRequest, withAuthAndDBParams } from '@/lib/api-middleware'
+import { validatePathParams } from '@/lib/validation-middleware'
 import { Material, MaterialDeletion } from '@/models'
+import { materialIdSchema } from '@/schemas/api'
 
 async function deleteMaterial(
   request: AuthenticatedRequest,
-  context: { params: Promise<{ [key: string]: string }> }
+  context: { params: Promise<Record<string, string>> }
 ) {
   const userId = getUserId(request)
 
-  const params = await context.params
-  const materialId = params.id
+  const validatedParams = await validatePathParams(materialIdSchema, context.params)
+  const materialId = validatedParams.id
 
   // Find the material to get its name and project ID before deletion
   const material = await Material.findById(materialId).lean()

@@ -18,7 +18,7 @@ import {
   useProjectWithStatsById,
   useUpdateProject,
 } from '@/hooks/projects/use-project-operations'
-import { UpdateProjectSchema, updateProjectSchema } from '@/schemas/projects/updateProjectSchema'
+import { UpdateProjectSchema, updateProjectSchema } from '@/schemas/projectSchema'
 
 export default function EditProjectPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)

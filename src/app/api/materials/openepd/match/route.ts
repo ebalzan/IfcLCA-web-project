@@ -1,29 +1,23 @@
 import { NextResponse } from 'next/server'
 import { Types } from 'mongoose'
-import { AuthenticatedRequest, withAuthAndDB } from '@/lib/api-middleware'
 import { MaterialService } from '@/lib/services/material-service'
 import { OpenEPDService } from '@/lib/services/openepd-service'
+import { AuthenticatedValidationRequest, withAuthAndValidation } from '@/lib/validation-middleware'
 import { Material } from '@/models'
+import { MatchOpenEPDRequest, matchOpenEPDSchema } from '@/schemas/api'
 
-interface MatchOpenEPDRequest {
-  materialIds: string[]
-  openepdProductId: string
-  density?: number
-}
-
-async function handleMaterialMatch(request: AuthenticatedRequest) {
+async function handleMaterialMatch(request: AuthenticatedValidationRequest<MatchOpenEPDRequest>) {
   try {
-    const body: MatchOpenEPDRequest = await request.json()
-    const { materialIds, openepdProductId, density: userDefinedDensity } = body
+    const { materialIds, openEPDProductId, density: userDefinedDensity } = request.validatedData
 
     // Fetch the OpenEPD product
-    const openepdProduct = await OpenEPDService.getProductById({ productId: openepdProductId })
-    if (!openepdProduct) {
+    const openEPDProduct = await OpenEPDService.getProductById({ productId: openEPDProductId })
+    if (!openEPDProduct) {
       return NextResponse.json({ error: 'OpenEPD product not found' }, { status: 404 })
     }
 
     // Use user-defined density if provided, otherwise use product density
-    const finalDensity = userDefinedDensity || openepdProduct.density || 1000 // Default to 1000 kg/m³
+    const finalDensity = userDefinedDensity || openEPDProduct.density || 1000 // Default to 1000 kg/m³
 
     const objectIds = materialIds.map((id: string) => new Types.ObjectId(id))
 
@@ -32,18 +26,8 @@ async function handleMaterialMatch(request: AuthenticatedRequest) {
       { _id: { $in: objectIds } },
       {
         $set: {
-          openepdMatchId: openepdProductId,
-          openepdProduct: {
-            id: openepdProduct.id,
-            name: openepdProduct.name,
-            manufacturer: openepdProduct.manufacturer,
-            category: openepdProduct.category,
-            gwp: openepdProduct.gwp,
-            ubp: openepdProduct.ubp,
-            penre: openepdProduct.penre,
-            unit: openepdProduct.unit,
-            declaredUnit: openepdProduct.declaredUnit,
-          },
+          openepdMatchId: openEPDProductId,
+          openEPDProduct,
           density: finalDensity,
           updatedAt: new Date(),
         },
@@ -51,14 +35,14 @@ async function handleMaterialMatch(request: AuthenticatedRequest) {
     )
 
     // Update elements with new environmental indicators
-    await MaterialService.updateElementsForOpenEPDMatch(materialIds, openepdProduct, finalDensity)
+    await MaterialService.updateElementsForOpenEPDMatch(materialIds, openEPDProduct, finalDensity)
 
     return NextResponse.json({
       success: true,
       matchedCount: materialIds.length,
-      product: openepdProduct,
+      product: openEPDProduct,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('OpenEPD match error:', error)
     return NextResponse.json(
       { error: 'Failed to match materials with OpenEPD product' },
@@ -67,4 +51,4 @@ async function handleMaterialMatch(request: AuthenticatedRequest) {
   }
 }
 
-export const POST = withAuthAndDB(handleMaterialMatch)
+export const POST = withAuthAndValidation(matchOpenEPDSchema, handleMaterialMatch)

@@ -1,54 +1,57 @@
 import { NextResponse } from 'next/server'
-import { AuthenticatedRequest, withAuthAndDBParams } from '@/lib/api-middleware'
+import { Types } from 'mongoose'
 import { IFCProcessingService } from '@/lib/services/ifc-processing-service'
+import {
+  AuthenticatedValidationRequest,
+  validatePathParams,
+  withAuthAndValidation,
+} from '@/lib/validation-middleware'
 import { Upload } from '@/models'
+import {
+  IFCElement,
+  ProcessUploadRequest,
+  processUploadSchema,
+  projectIdSchema,
+} from '@/schemas/api'
 
 interface IFCMaterial {
   name: string
   volume: number
 }
 
-interface IFCElement {
-  globalId: string
-  type: string
-  name: string
-  volume: number
-  properties: {
-    loadBearing?: boolean
-    isExternal?: boolean
-  }
-  materials: IFCMaterial[]
-}
-
 async function processUpload(
-  request: AuthenticatedRequest,
-  context: { params: Promise<{ id: string }> }
+  request: AuthenticatedValidationRequest<ProcessUploadRequest>,
+  context: { params: Promise<Record<string, string>> }
 ) {
-  const params = await context.params
+  const validatedParams = await validatePathParams(projectIdSchema, context.params)
+  const projectId = new Types.ObjectId(validatedParams.id)
 
-  const { uploadId, elements } = (await request.json()) as {
-    uploadId: string
-    elements: IFCElement[]
-  }
+  const { uploadId, elements } = request.validatedData
 
   // Process elements and find automatic matches
   const uniqueMaterialNames = [
     ...new Set(
-      elements.flatMap((e: IFCElement) => e.materials?.map((m: IFCMaterial) => m.name) || [])
+      elements.flatMap(
+        (element: IFCElement) =>
+          element.materials?.map((material: IFCMaterial) => material.name) || []
+      )
     ),
   ]
 
   // Run both operations in parallel
   const [elementResult, matchResult] = await Promise.all([
-    IFCProcessingService.processElementsAndMaterialsFromIFC(params.id, elements, uploadId),
-    IFCProcessingService.applyAutomaticMaterialMatches(params.id, uniqueMaterialNames),
+    IFCProcessingService.processElementsAndMaterialsFromIFC(
+      projectId.toString(),
+      elements,
+      uploadId
+    ),
+    IFCProcessingService.applyAutomaticMaterialMatches(projectId.toString(), uniqueMaterialNames),
   ])
 
   // Update upload status
   await Upload.findByIdAndUpdate(uploadId, {
+    ...elementResult,
     status: 'completed',
-    elementCount: elementResult.elementCount,
-    materialCount: elementResult.materialCount,
     matchedMaterialCount: matchResult.matchedCount,
   })
 
@@ -58,4 +61,4 @@ async function processUpload(
   })
 }
 
-export const POST = withAuthAndDBParams(processUpload)
+export const POST = withAuthAndValidation(processUploadSchema, processUpload)

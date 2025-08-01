@@ -1,31 +1,9 @@
 import mongoose from 'mongoose'
-import IKBOBMaterial from '@/interfaces/materials/IKBOBMaterial'
 import { logger } from '@/lib/logger'
 import { Element, Material, Project } from '@/models'
+import { IFCElement } from '@/schemas/api'
 import { MaterialService } from './material-service'
-
-interface IFCMaterial {
-  name: string
-  volume: number
-}
-
-interface IFCElement {
-  globalId: string
-  type: string
-  name: string
-  volume: number
-  properties: {
-    loadBearing?: boolean
-    isExternal?: boolean
-  }
-  materials?: IFCMaterial[]
-  materialLayers?: {
-    layers: Array<{
-      materialName: string
-      volume: number
-    }>
-  }
-}
+import { OpenEPDProduct } from './openepd-service'
 
 export class IFCProcessingService {
   /**
@@ -51,7 +29,7 @@ export class IFCProcessingService {
       const uniqueMaterialNames = new Set(
         elements.flatMap(element => {
           const directMaterials = element.materials?.map(m => m.name) || []
-          const layerMaterials = element.materialLayers?.layers.map(l => l.materialName) || []
+          const layerMaterials = element.materialLayers?.map(l => l.layers.map(m => m.name)) || []
           return [...directMaterials, ...layerMaterials]
         })
       )
@@ -95,7 +73,7 @@ export class IFCProcessingService {
         name: { $in: Array.from(uniqueMaterialNames) },
         projectId: new mongoose.Types.ObjectId(projectId),
       })
-        .populate<{ kbobMatchId: IKBOBMaterial }>('kbobMatchId')
+        .populate<{ openEPDMatchId: OpenEPDProduct }>('openEPDMatchId')
         .lean()
 
       // Create map for quick lookups
@@ -125,11 +103,11 @@ export class IFCProcessingService {
                     material: match._id,
                     name: material.name,
                     volume: material.volume,
-                    indicators: match.kbobMatchId
+                    indicators: match.openEPDMatchId
                       ? MaterialService.calculateIndicators(
                           material.volume,
                           match.density,
-                          match.kbobMatchId
+                          match.openEPDMatchId
                         )
                       : undefined,
                   }
@@ -139,27 +117,27 @@ export class IFCProcessingService {
           }
 
           // Process material layers
-          if (element.materialLayers?.layers?.length) {
+          if (element.materialLayers?.length) {
             const totalVolume = element.volume || 0
-            const layers = element.materialLayers.layers
+            const layers = element.materialLayers.flatMap(l => l.layers)
 
             processedMaterials.push(
               ...layers
                 .map(layer => {
-                  const match = materialMatchMap.get(layer.materialName)
+                  const match = materialMatchMap.get(layer.name)
                   if (!match) {
-                    logger.warn(`Material not found: ${layer.materialName}`)
+                    logger.warn(`Material not found: ${layer.name}`)
                     return null
                   }
                   return {
                     material: match._id,
-                    name: layer.materialName,
+                    name: layer.name,
                     volume: layer.volume || totalVolume / layers.length,
-                    indicators: match.kbobMatchId
+                    indicators: match.openEPDMatchId
                       ? MaterialService.calculateIndicators(
                           layer.volume || totalVolume / layers.length,
                           match.density,
-                          match.kbobMatchId
+                          match.openEPDMatchId
                         )
                       : undefined,
                   }
@@ -207,7 +185,7 @@ export class IFCProcessingService {
       }
 
       // Update project emissions if there are matched materials
-      const matchedMaterials = materials.filter(m => m.kbobMatchId)
+      const matchedMaterials = materials.filter(m => m.openEPDMatchId)
       if (matchedMaterials.length > 0) {
         try {
           const totals = await MaterialService.calculateProjectTotals(projectId)
@@ -262,7 +240,7 @@ export class IFCProcessingService {
 
       const matches = await Promise.all(
         materialNames.map(async name => {
-          const bestMatch = await MaterialService.findBestKBOBMatch(name)
+          const bestMatch = await MaterialService.findBestOpenEPDMatch(name)
           if (!bestMatch || bestMatch.score < 0.9) {
             logger.debug(`No good match found for material: ${name}`, {
               score: bestMatch?.score || 0,
@@ -271,14 +249,14 @@ export class IFCProcessingService {
           }
 
           logger.debug(`Found match for material: ${name}`, {
-            kbobMaterial: bestMatch.kbobMaterial.name,
+            openEPDMaterial: bestMatch.product.name,
             score: bestMatch.score,
           })
 
           return {
             name,
-            kbobMatchId: bestMatch.kbobMaterial._id,
-            density: MaterialService.calculateDensity(bestMatch.kbobMaterial),
+            openEPDMatchId: bestMatch.product.id,
+            density: MaterialService.calculateDensity(bestMatch.product),
             matchScore: bestMatch.score,
             autoMatched: true,
           }
@@ -303,7 +281,7 @@ export class IFCProcessingService {
             },
             update: {
               $set: {
-                kbobMatchId: match.kbobMatchId,
+                openEPDMatchId: match.openEPDMatchId,
                 density: match.density,
                 matchScore: match.matchScore,
                 autoMatched: match.autoMatched,

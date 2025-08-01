@@ -1,33 +1,31 @@
 import { NextResponse } from 'next/server'
 import { Types } from 'mongoose'
 import { UploadResponse } from '@/interfaces/client/uploads/UploadResponse'
-import { AuthenticatedRequest, getUserId, withAuthAndDBParams } from '@/lib/api-middleware'
+import { getUserId } from '@/lib/api-middleware'
+import {
+  AuthenticatedValidationRequest,
+  validatePathParams,
+  withAuthAndValidation,
+} from '@/lib/validation-middleware'
 import { Upload } from '@/models'
+import { CreateUploadRequest, createUploadSchema, projectIdSchema } from '@/schemas/api'
 
 export const runtime = 'nodejs'
 
-type CreateUploadRequest = {
-  filename: string
-}
-
 async function createUpload(
-  request: AuthenticatedRequest,
-  context: { params: Promise<{ id: string }> }
-) {
+  request: AuthenticatedValidationRequest<CreateUploadRequest>,
+  context: { params: Promise<Record<string, string>> }
+): Promise<NextResponse<UploadResponse>> {
   const userId = getUserId(request)
-  const params = await context.params
 
-  const body: CreateUploadRequest = await request.json()
-  const filename = body.filename || 'Unnamed File'
+  const validatedParams = await validatePathParams(projectIdSchema, context.params)
+  const projectId = new Types.ObjectId(validatedParams.id)
 
-  // Validate and convert project ID
-  if (!Types.ObjectId.isValid(params.id)) {
-    return NextResponse.json({ error: 'Invalid project ID' }, { status: 400 })
-  }
+  const { filename } = request.validatedData
 
   // Create upload document with all required fields
   const upload = await Upload.create({
-    projectId: new Types.ObjectId(params.id),
+    projectId,
     userId,
     filename,
     status: 'Processing',
@@ -36,11 +34,11 @@ async function createUpload(
     deleted: false,
   })
 
-  return NextResponse.json<UploadResponse>({
+  return NextResponse.json({
     uploadId: upload._id.toString(),
     status: upload.status,
     filename: upload.filename,
   })
 }
 
-export const POST = withAuthAndDBParams(createUpload)
+export const POST = withAuthAndValidation(createUploadSchema, createUpload)
