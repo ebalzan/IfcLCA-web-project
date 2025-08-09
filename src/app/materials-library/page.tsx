@@ -9,7 +9,7 @@ export default function MaterialsLibraryPage() {
         <div>
           <h1 className="page-title">Material Library</h1>
           <p className="page-description">
-            Match project materials with KBOB environmental indicators
+            Match project materials with EC3 environmental indicators
           </p>
         </div>
       </div>

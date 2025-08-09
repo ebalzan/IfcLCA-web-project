@@ -1,7 +1,6 @@
 'use client'
 
-import * as React from 'react'
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo } from 'react'
 import { ChevronDownIcon } from '@radix-ui/react-icons'
 import { ReloadIcon } from '@radix-ui/react-icons'
 import { Button } from '@/components/ui/button'
@@ -28,6 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { useMaterialsLibraryStore } from '@/hooks/materials/materials-library/materials-library-store'
 import IMaterialChange from '@/interfaces/materials/IMaterialChange'
 
 interface MaterialChangesPreviewModalProps {
@@ -47,27 +47,20 @@ export function MaterialChangesPreviewModal({
   onNavigateToProject,
   isLoading = false,
 }: MaterialChangesPreviewModalProps) {
-  const [localChanges, setLocalChanges] = React.useState<IMaterialChange[]>(changes)
-
-  React.useEffect(() => {
-    setLocalChanges(
-      changes.map(change => ({
-        ...change,
-        selectedDensity: change.newDensity,
-      }))
-    )
-  }, [changes])
+  const { previewChanges, setPreviewChanges } = useMaterialsLibraryStore()
 
   const handleDensityChange = (materialId: string, newValue: number[]) => {
-    setLocalChanges(prev =>
-      prev.map(change =>
-        change.materialId === materialId ? { ...change, selectedDensity: newValue[0] } : change
+    setPreviewChanges(
+      previewChanges.map(change =>
+        change.materialId.toString() === materialId
+          ? { ...change, newDensity: newValue[0] }
+          : change
       )
     )
   }
 
   const handleConfirm = () => {
-    onConfirm(localChanges)
+    onConfirm(previewChanges)
   }
 
   // Check if all materials are from the same project
@@ -79,7 +72,7 @@ export function MaterialChangesPreviewModal({
     changes.forEach(change => {
       if (change.projects) {
         change.projects.forEach(projectId => {
-          uniqueProjectIds.add(projectId)
+          uniqueProjectIds.add(projectId.toString())
         })
       }
     })
@@ -110,20 +103,20 @@ export function MaterialChangesPreviewModal({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {localChanges.map(change => (
-                <TableRow key={change.materialId}>
+              {previewChanges.map(change => (
+                <TableRow key={change.materialId.toString()}>
                   <TableCell>{change.materialName}</TableCell>
                   <TableCell>
-                    {change.oldOpenepdMatch && (
+                    {change.oldEC3Match && (
                       <div className="line-through text-muted-foreground">
-                        {change.oldOpenepdMatch.name}
+                        {change.oldEC3Match.name}
                       </div>
                     )}
-                    <div className="text-green-600">{change.newOpenepdMatch?.name}</div>
+                    <div className="text-green-600">{change.newEC3Match?.name}</div>
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-2">
-                      {change.oldOpenepdMatch && (
+                      {change.oldEC3Match && (
                         <div className="line-through text-muted-foreground">
                           {change.oldDensity?.toFixed(0)} kg/m³
                         </div>
@@ -131,21 +124,23 @@ export function MaterialChangesPreviewModal({
                       <div className="flex items-center justify-between">
                         <span className="text-green-600">{change.newDensity.toFixed(0)} kg/m³</span>
                       </div>
-                      {change.newOpenepdMatch &&
-                        change.newOpenepdMatch['min density'] !== undefined &&
-                        change.newOpenepdMatch['max density'] !== undefined && (
+                      {change.newEC3Match &&
+                        change.newEC3Match['min density'] !== undefined &&
+                        change.newEC3Match['max density'] !== undefined && (
                           <>
                             <Slider
                               value={[change.newDensity]}
-                              min={change.newOpenepdMatch['min density']}
-                              max={change.newOpenepdMatch['max density']}
+                              min={change.newEC3Match['min density']}
+                              max={change.newEC3Match['max density']}
                               step={1}
-                              onValueChange={value => handleDensityChange(change.materialId, value)}
+                              onValueChange={value =>
+                                handleDensityChange(change.materialId.toString(), value)
+                              }
                               className="w-[120px]"
                             />
                             <div className="text-xs text-muted-foreground">
-                              Range: {change.newOpenepdMatch['min density'].toFixed(0)} -{' '}
-                              {change.newOpenepdMatch['max density'].toFixed(0)} kg/m³
+                              Range: {change.newEC3Match['min density'].toFixed(0)} -{' '}
+                              {change.newEC3Match['max density'].toFixed(0)} kg/m³
                             </div>
                           </>
                         )}
@@ -181,8 +176,8 @@ export function MaterialChangesPreviewModal({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
-                  onClick={async () => {
-                    await handleConfirm()
+                  onClick={() => {
+                    handleConfirm()
                     onNavigateToProject(singleProjectId)
                   }}>
                   Go to Project

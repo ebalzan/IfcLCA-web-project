@@ -9,7 +9,7 @@ import { useDropzone } from 'react-dropzone'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
 import { logger } from '@/lib/logger'
-import { IFCParseResult, parseIFCFile } from '@/lib/services/ifc-parser-client'
+import { IFCParseResult, parseIFCFile } from '@/lib/services/ifc/ifc-parser-client'
 import { Queries } from '@/queries'
 
 interface UploadModalProps {

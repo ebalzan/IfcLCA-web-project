@@ -1,14 +1,15 @@
-import IOpenEPDProduct from './IOpenEPDProduct'
+import { Types } from 'mongoose'
+import { IEC3Material } from './ec3/IEC3Material'
 
 interface IMaterialChange {
-  materialId: string
+  materialId: Types.ObjectId
   materialName: string
-  oldOpenEPDMatch?: IOpenEPDProduct
-  newOpenEPDMatch?: IOpenEPDProduct
+  oldEC3Match?: IEC3Material
+  newEC3Match?: IEC3Material
   oldDensity?: number
   newDensity: number
   affectedElements: number
-  projects: string[]
+  projects: Types.ObjectId[]
 }
 
 export default IMaterialChange

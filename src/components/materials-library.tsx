@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MaterialChangesPreviewModal } from '@/components/material-changes-preview-modal'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -13,53 +13,56 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useMaterialMatching } from '@/hooks/materials/use-material-matching'
-import { useMaterialSelection } from '@/hooks/materials/use-material-selection'
-import { useMaterialsLibrary } from '@/hooks/materials/use-materials-library'
-import { useOpenEPDSearch } from '@/hooks/materials/use-openepd-search'
+import { useMaterialsLibraryStore } from '@/hooks/materials/materials-library/materials-library-store'
+import { useEC3Search } from '@/hooks/materials/materials-library/use-ec3-search'
+import { useMaterialMatching } from '@/hooks/materials/materials-library/use-material-matching'
+import { useMaterialSelection } from '@/hooks/materials/materials-library/use-material-selection'
+import { useProjectsWithStats } from '@/hooks/projects/use-project-operations'
 import IMaterialClient from '@/interfaces/client/materials/IMaterialClient'
-import { MaterialCard } from './materials-library/material-card'
-import { MaterialsHeader } from './materials-library/materials-header'
-import { OpenEPDHeader } from './materials-library/openepd-header'
-import { OpenEPDProductCard } from './materials-library/openepd-product-card'
+import { EC3Header } from './materials-library/ec3-header'
+import { EC3ProductCard } from './materials-library/ec3-product-card'
+import { MaterialsLibraryIFCBox } from './materials-library/materials-library-ifc-box'
 
 export function MaterialLibraryComponent() {
-  // Custom hooks for state management
+  const {
+    data: projectsWithStats,
+    isLoading: isProjectsWithStatsLoading,
+    error: projectsWithStatsError,
+  } = useProjectsWithStats()
+
   const {
     selectedMaterials,
     materialsCount,
     selectedProject,
     searchValue,
     filteredMaterials,
-    isProjectsWithStatsLoading,
-    projectsWithStatsError,
-    handleProjectChange,
-    handleSearchChange,
-    projectsWithStats,
-  } = useMaterialsLibrary()
+    setSelectedProject,
+    setSearchValue,
+    updateMaterials,
+    temporaryMatches,
+    isMatchingInProgress,
+    previewChanges,
+    isOpenMaterialChangesModal,
+    autoSuggestedMatches,
+    getMatchingProgress,
+    cancelMatch,
+  } = useMaterialsLibraryStore()
 
   const {
-    searchTerm,
+    acceptMatchWithConfetti,
+    acceptAllMatchesWithConfetti,
+    showPreviewChanges,
+    confirmMatch,
+  } = useMaterialMatching()
+
+  const {
+    // searchValue,
     products,
     isSearching,
     filteredProducts,
     handleSearch,
     handleSearchTermChange,
-  } = useOpenEPDSearch()
-
-  const {
-    temporaryMatches,
-    isMatchingInProgress,
-    previewChanges,
-    showPreview,
-    autoSuggestedMatches,
-    handleMatch,
-    handleBulkMatch,
-    handleShowPreview,
-    handleCancelMatch,
-    handleConfirmMatch,
-    getMatchingProgress,
-  } = useMaterialMatching()
+  } = useEC3Search()
 
   const {
     selectedMaterials: selectedMaterialIds,
@@ -71,7 +74,12 @@ export function MaterialLibraryComponent() {
   // Local state
   const [autoScrollEnabled, setAutoScrollEnabled] = useState<boolean>(true)
   const [favoriteProducts, setFavoriteProducts] = useState<string[]>([])
-  const openepdListRef = useRef<HTMLDivElement>(null)
+  const ec3ListRef = useRef<HTMLDivElement>(null)
+
+  // Update materials when projects data changes
+  useEffect(() => {
+    updateMaterials(projectsWithStats)
+  }, [projectsWithStats, updateMaterials])
 
   // Computed values
   const matchingProgress = useMemo(
@@ -89,23 +97,20 @@ export function MaterialLibraryComponent() {
     (material: IMaterialClient) => {
       handleSelect(material)
       if (selectedMaterialIds.length === 0) {
-        scrollToMatchingOpenEPD(material.name)
+        scrollToMatchingEC3(material.name)
       }
     },
-    [handleSelect, selectedMaterialIds]
+    [handleSelect, scrollToMatchingEC3, selectedMaterialIds.length]
   )
 
-  const handleOpenEPDSelect = useCallback(
+  const handleEC3Select = useCallback(
     (productId: string) => {
       if (selectedMaterialIds.length > 0) {
-        handleBulkMatch(
-          productId,
-          selectedMaterialIds.map(m => m._id)
-        )
+        acceptAllMatchesWithConfetti(productId)
         clearSelection()
       }
     },
-    [selectedMaterialIds, handleBulkMatch, clearSelection]
+    [selectedMaterialIds, acceptAllMatchesWithConfetti, clearSelection]
   )
 
   const handleToggleFavorite = useCallback((productId: string) => {
@@ -119,10 +124,10 @@ export function MaterialLibraryComponent() {
   }, [])
 
   const handleAcceptSuggestion = useCallback(
-    (materialId: string, openepdId: string) => {
-      handleMatch([materialId], openepdId)
+    (materialId: string, openEPDId: string) => {
+      acceptMatchWithConfetti(openEPDId, materialId)
     },
-    [handleMatch]
+    [acceptMatchWithConfetti]
   )
 
   const handleDeleteMaterial = useCallback(async (material: IMaterialClient) => {
@@ -131,9 +136,9 @@ export function MaterialLibraryComponent() {
   }, [])
 
   // Auto-scroll functionality
-  const scrollToMatchingOpenEPD = useCallback(
+  const scrollToMatchingEC3 = useCallback(
     (materialName: string) => {
-      if (!autoScrollEnabled || !openepdListRef.current) return
+      if (!autoScrollEnabled || !ec3ListRef.current) return
 
       // Implementation for auto-scrolling to matching OpenEPD product
       console.log('Scroll to matching OpenEPD for:', materialName)
@@ -160,7 +165,7 @@ export function MaterialLibraryComponent() {
         <div className="flex items-center justify-between">
           <div></div>
           <div className="flex items-center gap-4">
-            <Select value={selectedProject || 'all'} onValueChange={handleProjectChange}>
+            <Select value={selectedProject || 'all'} onValueChange={setSelectedProject}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Filter by Project" />
               </SelectTrigger>
@@ -174,7 +179,9 @@ export function MaterialLibraryComponent() {
               </SelectContent>
             </Select>
             <div className="flex items-center gap-2">
-              <Button onClick={handleShowPreview}>Preview Changes</Button>
+              <Button disabled={true} onClick={showPreviewChanges}>
+                Preview Changes
+              </Button>
               {unappliedMatchesCount > 0 && (
                 <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
                   {unappliedMatchesCount} unapplied matches
@@ -187,32 +194,38 @@ export function MaterialLibraryComponent() {
 
       <CardContent className="flex-1 p-6 min-h-0">
         <div className="grid grid-cols-2 gap-6 h-full">
-          {/* Left Column - IFC Materials */}
+          {/* Left Box - IFC Materials Box */}
           <div className="flex flex-col border rounded-lg overflow-hidden h-full">
-            <MaterialsHeader
+            <MaterialsLibraryIFCBox.Header
               materialsCount={materialsCount}
               matchingProgress={matchingProgress}
               searchValue={searchValue}
-              onSearchChange={handleSearchChange}
-              onPreviewChanges={handleShowPreview}
+              onSearchChange={setSearchValue}
+              onPreviewChanges={showPreviewChanges}
               unappliedMatchesCount={unappliedMatchesCount}
             />
 
             <div className="flex-1 overflow-y-auto min-h-0">
               <div className="divide-y divide-transparent px-2">
-                {filteredMaterials.map(material => (
-                  <MaterialCard
-                    key={material._id}
-                    material={material}
-                    isSelected={isSelected(material)}
+                {filteredMaterials.map(filteredMaterial => (
+                  <MaterialsLibraryIFCBox.Card
+                    key={filteredMaterial._id}
+                    material={filteredMaterial}
+                    isSelected={isSelected(filteredMaterial)}
                     temporaryMatch={
-                      temporaryMatches[material._id]
-                        ? products.find(p => p.id === temporaryMatches[material._id]) || null
+                      temporaryMatches[filteredMaterial._id]
+                        ? products.find(p => p.id === temporaryMatches[filteredMaterial._id]) ||
+                          null
                         : null
                     }
-                    autoSuggestedMatch={autoSuggestedMatches[material._id] || null}
+                    autoSuggestedMatch={autoSuggestedMatches[filteredMaterial._id] || null}
                     onSelect={handleMaterialSelect}
-                    onMatch={handleMatch}
+                    onMatch={() =>
+                      acceptMatchWithConfetti(
+                        filteredMaterial.ec3MatchId?._id.toString() || '',
+                        filteredMaterial._id
+                      )
+                    }
                     onDelete={handleDeleteMaterial}
                     onAcceptSuggestion={handleAcceptSuggestion}
                   />
@@ -221,11 +234,11 @@ export function MaterialLibraryComponent() {
             </div>
           </div>
 
-          {/* Right Column - OpenEPD Products */}
+          {/* Right Box - OpenEPD Products */}
           <div className="flex flex-col border rounded-lg overflow-hidden h-full">
-            <OpenEPDHeader
+            <EC3Header
               productsCount={products.length}
-              searchTerm={searchTerm}
+              searchTerm={searchValue}
               isSearching={isSearching}
               autoScrollEnabled={autoScrollEnabled}
               onSearchTermChange={handleSearchTermChange}
@@ -233,15 +246,15 @@ export function MaterialLibraryComponent() {
               onAutoScrollChange={setAutoScrollEnabled}
             />
 
-            <div className="flex-1 overflow-y-auto min-h-0" ref={openepdListRef}>
+            <div className="flex-1 overflow-y-auto min-h-0" ref={ec3ListRef}>
               <div className="divide-y">
                 {filteredProducts.map(product => (
-                  <OpenEPDProductCard
+                  <EC3ProductCard
                     key={product.id}
                     product={product}
                     isFavorite={favoriteProducts.includes(product.id)}
                     isSelectable={selectedMaterialIds.length > 0}
-                    onSelect={handleOpenEPDSelect}
+                    onSelect={handleEC3Select}
                     onToggleFavorite={handleToggleFavorite}
                   />
                 ))}
@@ -252,16 +265,14 @@ export function MaterialLibraryComponent() {
       </CardContent>
 
       {/* Preview Modal */}
-      {showPreview && (
-        <MaterialChangesPreviewModal
-          changes={previewChanges}
-          isOpen={showPreview}
-          onClose={handleCancelMatch}
-          onConfirm={handleConfirmMatch}
-          onNavigateToProject={() => {}}
-          isLoading={isMatchingInProgress}
-        />
-      )}
+      <MaterialChangesPreviewModal
+        changes={previewChanges}
+        isOpen={isOpenMaterialChangesModal}
+        onClose={cancelMatch}
+        onConfirm={confirmMatch}
+        onNavigateToProject={() => {}}
+        isLoading={isMatchingInProgress}
+      />
     </Card>
   )
 }

@@ -43,15 +43,15 @@ async function getProjectsWithStats(userId: string, limit: number, page: number)
               pipeline: [
                 {
                   $lookup: {
-                    from: 'indicatorsKBOB',
-                    localField: 'kbobMatchId',
+                    from: 'indicatorsEC3',
+                    localField: 'ec3MatchId',
                     foreignField: '_id',
-                    as: 'kbobMatch',
+                    as: 'ec3Match',
                   },
                 },
                 {
                   $unwind: {
-                    path: '$kbobMatch',
+                    path: '$ec3Match',
                     preserveNullAndEmptyArrays: true,
                   },
                 },
@@ -99,7 +99,7 @@ async function getProjectsWithStats(userId: string, limit: number, page: number)
                           $multiply: [
                             '$$this.volume',
                             { $ifNull: ['$$this.material.density', 0] },
-                            { $ifNull: ['$$this.material.kbobMatch.GWP', 0] },
+                            { $ifNull: ['$$this.material.ec3Match.GWP', 0] },
                           ],
                         },
                       ],
@@ -111,7 +111,7 @@ async function getProjectsWithStats(userId: string, limit: number, page: number)
                           $multiply: [
                             '$$this.volume',
                             { $ifNull: ['$$this.material.density', 0] },
-                            { $ifNull: ['$$this.material.kbobMatch.UBP', 0] },
+                            { $ifNull: ['$$this.material.ec3Match.UBP', 0] },
                           ],
                         },
                       ],
@@ -124,7 +124,7 @@ async function getProjectsWithStats(userId: string, limit: number, page: number)
                             '$$this.volume',
                             { $ifNull: ['$$this.material.density', 0] },
                             {
-                              $ifNull: ['$$this.material.kbobMatch.PENRE', 0],
+                              $ifNull: ['$$this.material.ec3Match.PENRE', 0],
                             },
                           ],
                         },
@@ -147,15 +147,15 @@ async function getProjectsWithStats(userId: string, limit: number, page: number)
         pipeline: [
           {
             $lookup: {
-              from: 'indicatorsKBOB',
-              localField: 'kbobMatchId',
+              from: 'indicatorsEC3',
+              localField: 'ec3MatchId',
               foreignField: '_id',
-              as: 'kbobMatch',
+              as: 'ec3Match',
             },
           },
           {
             $unwind: {
-              path: '$kbobMatch',
+              path: '$ec3Match',
               preserveNullAndEmptyArrays: true,
             },
           },
@@ -202,7 +202,7 @@ async function getProjectsWithStats(userId: string, limit: number, page: number)
                     $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
                   },
                   { $ifNull: ['$density', 0] },
-                  { $ifNull: ['$kbobMatch.GWP', 0] },
+                  { $ifNull: ['$ec3Match.GWP', 0] },
                 ],
               },
               ubp: {
@@ -211,7 +211,7 @@ async function getProjectsWithStats(userId: string, limit: number, page: number)
                     $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
                   },
                   { $ifNull: ['$density', 0] },
-                  { $ifNull: ['$kbobMatch.UBP', 0] },
+                  { $ifNull: ['$ec3Match.UBP', 0] },
                 ],
               },
               penre: {
@@ -220,7 +220,7 @@ async function getProjectsWithStats(userId: string, limit: number, page: number)
                     $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
                   },
                   { $ifNull: ['$density', 0] },
-                  { $ifNull: ['$kbobMatch.PENRE', 0] },
+                  { $ifNull: ['$ec3Match.PENRE', 0] },
                 ],
               },
             },

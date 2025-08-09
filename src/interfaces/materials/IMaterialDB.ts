@@ -1,17 +1,12 @@
 import { Types } from 'mongoose'
-import ILCAIndicators from './ILCAIndicators'
+import { IEC3Material } from './ec3/IEC3Material'
 
-interface IMaterialNewAttributesFromEPD extends Partial<ILCAIndicators> {
-  category?: string
-  density?: number
-  openEPDMatchId?: Types.ObjectId
-  lastCalculated?: Date
-}
-
-interface IMaterialDB extends IMaterialNewAttributesFromEPD {
+interface IMaterialDB extends Partial<Omit<IEC3Material, 'id' | 'name'>> {
   _id: Types.ObjectId
   name: string
   projectId: Types.ObjectId
+  ec3MatchId: string | null
+  lastCalculated: Date
 }
 
 export interface IMaterialVirtuals {

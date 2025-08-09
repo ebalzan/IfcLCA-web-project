@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { Types } from 'mongoose'
-import { IFCProcessingService } from '@/lib/services/ifc-processing-service'
+import { IFCProcessingService } from '@/lib/services/ifc/ifc-processing-service'
 import {
   AuthenticatedValidationRequest,
   validatePathParams,
@@ -26,7 +26,9 @@ async function processUpload(
   const validatedParams = await validatePathParams(projectIdSchema, context.params)
   const projectId = new Types.ObjectId(validatedParams.id)
 
-  const { uploadId, elements } = request.validatedData
+  const validatedData = request.validatedData
+  const elements = validatedData.elements
+  const uploadId = new Types.ObjectId(validatedData.uploadId)
 
   // Process elements and find automatic matches
   const uniqueMaterialNames = [
@@ -40,12 +42,8 @@ async function processUpload(
 
   // Run both operations in parallel
   const [elementResult, matchResult] = await Promise.all([
-    IFCProcessingService.processElementsAndMaterialsFromIFC(
-      projectId.toString(),
-      elements,
-      uploadId
-    ),
-    IFCProcessingService.applyAutomaticMaterialMatches(projectId.toString(), uniqueMaterialNames),
+    IFCProcessingService.processElementsAndMaterialsFromIFC(projectId, elements, uploadId),
+    IFCProcessingService.applyAutomaticMaterialMatches(projectId, uniqueMaterialNames),
   ])
 
   // Update upload status

@@ -1,75 +1,52 @@
 import { NextResponse } from 'next/server'
 import { Types } from 'mongoose'
-import IKBOBMaterial from '@/interfaces/materials/IKBOBMaterial'
-import IMaterialDB from '@/interfaces/materials/IMaterialDB'
-import { AuthenticatedRequest, getUserId, withAuthAndDBParams } from '@/lib/api-middleware'
-import { Material, Project } from '@/models'
+import { MaterialService } from '@/lib/services/material-service'
+import {
+  AuthenticatedValidationRequest,
+  validatePathParams,
+  withAuthAndValidation,
+} from '@/lib/validation-middleware'
+import {
+  idParamSchema,
+  CreateMaterialMatchRequest,
+  createMaterialMatchRequestSchema,
+} from '@/schemas/api/requests'
+import {
+  CreateMaterialMatchResponse,
+  ErrorResponse,
+  SuccessResponse,
+} from '@/schemas/api/responses'
 
-interface MatchMaterialRequest {
-  kbobMatchId: Types.ObjectId
-}
-
-interface MatchMaterialResponse extends Omit<IMaterialDB, '_id' | 'kbobMatchId'> {
-  _id: string
-  kbobMatchId: Omit<IKBOBMaterial, '_id'> & { _id: string }
-}
-
-async function matchMaterialsWithKbob(
-  request: AuthenticatedRequest,
+async function createMaterialMatch(
+  request: AuthenticatedValidationRequest<CreateMaterialMatchRequest>,
   context: { params: Promise<{ [key: string]: string }> }
 ) {
-  const userId = getUserId(request)
-  const params = await context.params
+  const validatedParams = await validatePathParams(idParamSchema, context.params)
+  const materialId = validatedParams.id
 
-  const body: MatchMaterialRequest = await request.json()
-  const { kbobMatchId } = body
+  const { data } = request.validatedData
 
-  // Get the material first to check project ownership
-  const material = await Material.findById(params.id)
-    .select('projectId')
-    .lean<Pick<IMaterialDB, 'projectId'>>()
+  try {
+    const result = await MaterialService.createMaterialMatch({
+      materialId: new Types.ObjectId(materialId),
+      data,
+    })
 
-  if (!material) {
-    return NextResponse.json({ error: 'Material not found' }, { status: 404 })
-  }
-
-  // Verify user has access to this project
-  const project = await Project.findOne({
-    _id: material.projectId,
-    userId,
-  }).lean()
-
-  if (!project) {
-    return NextResponse.json({ error: 'Not authorized to modify this material' }, { status: 403 })
-  }
-
-  // Update the material with KBOB match
-  const updatedMaterial = await Material.findByIdAndUpdate(
-    params.id,
-    {
-      $set: {
-        kbobMatchId,
+    return NextResponse.json<SuccessResponse<CreateMaterialMatchResponse>>({
+      success: true,
+      message: 'Material matched with EC3 product successfully',
+      data: result,
+    })
+  } catch (error: unknown) {
+    return NextResponse.json<ErrorResponse>({
+      success: false,
+      error: 'Failed to match material with EC3 product',
+      code: 'MATCH_MATERIAL_WITH_EC3_FAILED',
+      meta: {
+        timestamp: new Date(),
       },
-    },
-    { new: true }
-  )
-    .populate<{
-      kbobMatchId: Pick<IKBOBMaterial, '_id' | 'name' | 'category' | 'gwp' | 'ubp' | 'penre'>
-    }>('kbobMatchId', '_id name category gwp ubp penre')
-    .lean()
-
-  if (!updatedMaterial) {
-    return NextResponse.json({ error: 'Failed to update material' }, { status: 500 })
+    })
   }
-
-  return NextResponse.json<MatchMaterialResponse>({
-    ...updatedMaterial,
-    _id: updatedMaterial._id.toString(),
-    kbobMatchId: {
-      ...updatedMaterial.kbobMatchId,
-      _id: updatedMaterial.kbobMatchId._id.toString(),
-    },
-  })
 }
 
-export const POST = withAuthAndDBParams(matchMaterialsWithKbob)
+export const POST = withAuthAndValidation(createMaterialMatchRequestSchema, createMaterialMatch)

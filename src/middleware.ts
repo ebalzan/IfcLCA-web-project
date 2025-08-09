@@ -10,7 +10,7 @@ const isPublicRoute = createRouteMatcher([
   '/privacy',
   '/cookies',
   '/api/accept-terms(.*)',
-  '/api/kbob(.*)',
+  '/api/ec3(.*)',
 ])
 
 // Define routes that require terms acceptance

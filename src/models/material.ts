@@ -16,20 +16,53 @@ const materialSchema = new Schema<IMaterialDB, IMaterialModelType, {}, IMaterial
       type: String,
       required: true,
     },
+    manufacturer: {
+      type: String,
+    },
     category: {
+      type: String,
+    },
+    description: {
+      type: String,
+    },
+    gwp: {
+      type: Number,
+    },
+    ubp: {
+      type: Number,
+    },
+    penre: {
+      type: Number,
+    },
+    unit: {
       type: String,
     },
     density: {
       type: Number,
-      min: 0,
-      validate: {
-        validator: (v: number) => v === 0 || Number.isFinite(v),
-        message: 'Density must be 0 or a finite number',
-      },
     },
-    kbobMatchId: {
-      type: Schema.Types.ObjectId,
-      ref: 'KBOBMaterial',
+    ec3MatchId: {
+      type: String,
+      required: true,
+      default: null,
+      nullable: true,
+    },
+    declaredUnit: {
+      type: String,
+    },
+    validFrom: {
+      type: String,
+    },
+    validTo: {
+      type: String,
+    },
+    'kg/unit': {
+      type: Number,
+    },
+    'min density': {
+      type: Number,
+    },
+    'max density': {
+      type: Number,
     },
     lastCalculated: {
       type: Date,
@@ -44,7 +77,7 @@ const materialSchema = new Schema<IMaterialDB, IMaterialModelType, {}, IMaterial
 
 // Indexes
 materialSchema.index({ projectId: 1, name: 1 }, { unique: true })
-materialSchema.index({ kbobMatchId: 1 })
+materialSchema.index({ ec3MatchId: 1 })
 
 // Virtual for elements using this material
 materialSchema.virtual('elements', {

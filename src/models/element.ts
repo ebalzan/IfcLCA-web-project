@@ -85,16 +85,16 @@ elementSchema.virtual('emissions').get(function () {
   return this.materials.reduce(
     (acc, materialLayer) => {
       const material = materialLayer.material as any // Will be populated
-      if (!material?.kbobMatchId) return acc
+      if (!material?.ec3MatchId) return acc
 
       const volume = materialLayer.volume || 0
       const density = material.density || 0
       const mass = volume * density
 
       return {
-        gwp: acc.gwp + mass * (material.kbobMatchId.GWP || 0),
-        ubp: acc.ubp + mass * (material.kbobMatchId.UBP || 0),
-        penre: acc.penre + mass * (material.kbobMatchId.PENRE || 0),
+        gwp: acc.gwp + mass * (material.ec3MatchId?.gwp || 0),
+        ubp: acc.ubp + mass * (material.ec3MatchId.ubp || 0),
+        penre: acc.penre + mass * (material.ec3MatchId.penre || 0),
       }
     },
     { gwp: 0, ubp: 0, penre: 0 }

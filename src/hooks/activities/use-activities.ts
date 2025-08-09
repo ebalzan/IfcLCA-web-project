@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { toast } from '@/hooks/use-toast'
 import { logger } from '@/lib/logger'
-import { ActivityService } from '@/lib/services/activities/activity-service'
+import { ActivityService } from '@/lib/services/activity-service'
 import { Queries } from '@/queries'
 
 export function useActivities() {

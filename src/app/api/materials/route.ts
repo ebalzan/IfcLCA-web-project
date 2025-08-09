@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
+import { IEC3Match } from '@/interfaces/materials/IEC3Match'
 import IMaterialDB, { IMaterialVirtuals } from '@/interfaces/materials/IMaterialDB'
-import IOpenEPDProduct from '@/interfaces/materials/IOpenEPDProduct'
 import IProjectDB from '@/interfaces/projects/IProjectDB'
 import { AuthenticatedRequest, getUserId, withAuthAndDB } from '@/lib/api-middleware'
 import { Material, Project } from '@/models'
@@ -17,12 +17,12 @@ async function getMaterials(request: AuthenticatedRequest) {
     projectId: { $in: projectIds },
   })
     .lean<(IMaterialDB & IMaterialVirtuals)[]>({ virtuals: true })
-    .populate<{ openEPDMatchId: IOpenEPDProduct }>('openEPDMatchId')
+    .populate<{ ec3MatchId: IEC3Match }>('ec3MatchId')
 
   const transformedMaterials: IMaterialVirtuals[] = materials.map(material => ({
     ...material,
     totalVolume: material.totalVolume,
-    openEPDMatchId: material.openEPDMatchId,
+    ec3MatchId: material.ec3MatchId,
   }))
 
   return NextResponse.json(transformedMaterials)

@@ -1,7 +1,7 @@
 // Configuration for route protection
 export const PUBLIC_ROUTES = ['/', '/sign-in', '/sign-up', '/terms', '/privacy', '/cookies']
 
-export const PUBLIC_API_ROUTES = ['/api/accept-terms', '/api/kbob']
+export const PUBLIC_API_ROUTES = ['/api/accept-terms', '/api/ec3']
 
 export const PROTECTED_ROUTES = ['/dashboard', '/projects', '/materials', '/settings', '/reports']
 
