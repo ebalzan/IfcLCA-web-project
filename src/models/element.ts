@@ -1,8 +1,8 @@
 import { Model, Schema, model, models } from 'mongoose'
 import mongooseLeanGetters from 'mongoose-lean-getters'
 import mongooseLeanVirtuals from 'mongoose-lean-virtuals'
-import IElementDB, { IElementVirtuals } from '@/interfaces/elements/IElementDB'
-import IMaterialLayer from '@/interfaces/elements/IMaterialLayer'
+import { IElementDB, IElementVirtuals } from '@/interfaces/elements/IElementDB'
+import { IMaterialLayer } from '@/interfaces/elements/IMaterialLayer'
 
 type IElementModelType = Model<IElementDB, {}, {}, IElementVirtuals>
 
@@ -10,6 +10,10 @@ const materialLayerSchema = new Schema<IMaterialLayer>({
   material: {
     type: Schema.Types.ObjectId,
     ref: 'Material',
+    required: true,
+  },
+  materialName: {
+    type: String,
     required: true,
   },
   volume: {
@@ -26,10 +30,21 @@ const materialLayerSchema = new Schema<IMaterialLayer>({
     required: true,
     min: 0,
     max: 1,
+    default: null,
+    nullable: true,
   },
   thickness: {
     type: Number,
+    required: true,
     min: 0,
+    default: null,
+    nullable: true,
+  },
+  indicators: {
+    type: Object,
+    required: true,
+    default: null,
+    nullable: true,
   },
 })
 

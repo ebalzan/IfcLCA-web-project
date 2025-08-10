@@ -1,5 +1,5 @@
 import { Types } from 'mongoose'
-import { IEC3Material } from './ec3/IEC3Material'
+import { IEC3Material } from './IEC3Material'
 
 interface IMaterialChange {
   materialId: Types.ObjectId

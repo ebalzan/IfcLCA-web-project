@@ -6,19 +6,15 @@ import {
   validatePathParams,
   withAuthAndValidation,
 } from '@/lib/validation-middleware'
+import { idParamSchema } from '@/schemas/api/general'
 import {
-  idParamSchema,
-  CreateMaterialMatchRequest,
-  createMaterialMatchRequestSchema,
-} from '@/schemas/api/requests'
-import {
-  CreateMaterialMatchResponse,
-  ErrorResponse,
-  SuccessResponse,
-} from '@/schemas/api/responses'
+  CreateEC3MatchRequest,
+  createEC3MatchRequestSchema,
+} from '@/schemas/api/materials/materialRequests'
+import { CreateEC3MatchResponse } from '@/schemas/api/materials/materialResponses'
 
-async function createMaterialMatch(
-  request: AuthenticatedValidationRequest<CreateMaterialMatchRequest>,
+async function createEC3Match(
+  request: AuthenticatedValidationRequest<CreateEC3MatchRequest>,
   context: { params: Promise<{ [key: string]: string }> }
 ) {
   const validatedParams = await validatePathParams(idParamSchema, context.params)
@@ -27,18 +23,20 @@ async function createMaterialMatch(
   const { data } = request.validatedData
 
   try {
-    const result = await MaterialService.createMaterialMatch({
-      materialId: new Types.ObjectId(materialId),
-      data,
+    const result = await MaterialService.createEC3Match({
+      data: {
+        materialId: new Types.ObjectId(materialId),
+        updates: data.updates,
+      },
     })
 
-    return NextResponse.json<SuccessResponse<CreateMaterialMatchResponse>>({
+    return NextResponse.json<CreateEC3MatchResponse>({
       success: true,
       message: 'Material matched with EC3 product successfully',
-      data: result,
+      data: result.data,
     })
   } catch (error: unknown) {
-    return NextResponse.json<ErrorResponse>({
+    return NextResponse.json({
       success: false,
       error: 'Failed to match material with EC3 product',
       code: 'MATCH_MATERIAL_WITH_EC3_FAILED',
@@ -49,4 +47,4 @@ async function createMaterialMatch(
   }
 }
 
-export const POST = withAuthAndValidation(createMaterialMatchRequestSchema, createMaterialMatch)
+export const POST = withAuthAndValidation(createEC3MatchRequestSchema, createEC3Match)

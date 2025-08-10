@@ -1,56 +1,9 @@
+import { WASMParseResult, Pyodide } from '@/interfaces/ifc'
 import { logger } from '@/lib/logger'
 
-export interface APIElement {
-  id: string
-  type: string
-  object_type: string
-  properties: {
-    name?: string
-    level?: string
-    loadBearing?: boolean
-    isExternal?: boolean
-  }
-  volume?: number
-  area?: number
-  materials?: string[]
-  material_volumes?: {
-    [key: string]: {
-      volume: number
-      fraction: number
-    }
-  }
-}
+let pyodideLoading: Promise<Pyodide> | null = null
 
-export interface IFCParseResult {
-  elements: APIElement[]
-  debug: Array<{
-    id: string
-    type: string
-    has_associations: boolean
-    materials_found: number
-    material_volumes_found: number
-    materials: string[]
-    material_volumes: { [key: string]: { volume: number; fraction: number } }
-    material_type?: string
-    constituent_count?: number
-    layer_count?: number
-    layer_set_type?: string
-  }>
-  total_elements: number
-  total_materials_found: number
-  total_material_volumes_found: number
-}
-
-interface PyodideInterface {
-  loadPackage: (packages: string[]) => Promise<void>
-  pyimport: (name: string) => any
-  globals: { set: (name: string, value: unknown) => void }
-  runPythonAsync: (code: string) => Promise<string>
-}
-
-let pyodideLoading: Promise<PyodideInterface> | null = null
-
-async function loadPyodideAndIfcOpenShell(): Promise<PyodideInterface> {
+async function loadPyodideAndIfcOpenShell(): Promise<Pyodide> {
   if (pyodideLoading) return pyodideLoading
   pyodideLoading = new Promise(async (resolve, reject) => {
     try {
@@ -60,7 +13,7 @@ async function loadPyodideAndIfcOpenShell(): Promise<PyodideInterface> {
         script.async = true
         script.onload = async () => {
           try {
-            const pyodide: PyodideInterface = await (window as any).loadPyodide({
+            const pyodide: Pyodide = await (window as any).loadPyodide({
               indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/',
             })
             await pyodide.loadPackage(['micropip', 'numpy'])
@@ -76,7 +29,7 @@ async function loadPyodideAndIfcOpenShell(): Promise<PyodideInterface> {
         script.onerror = reject
         document.head.appendChild(script)
       } else {
-        const pyodide: PyodideInterface = await (window as any).loadPyodide({
+        const pyodide: Pyodide = await (window as any).loadPyodide({
           indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/',
         })
         await pyodide.loadPackage(['micropip', 'numpy'])
@@ -93,7 +46,7 @@ async function loadPyodideAndIfcOpenShell(): Promise<PyodideInterface> {
   return pyodideLoading
 }
 
-export async function parseIfcWithWasm(file: File): Promise<IFCParseResult> {
+export async function parseIfcWithWasm(file: File): Promise<WASMParseResult> {
   try {
     const pyodide = await loadPyodideAndIfcOpenShell()
     const buffer = new Uint8Array(await file.arrayBuffer())

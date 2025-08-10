@@ -1,49 +1,48 @@
-import { IEC3Material } from '@/interfaces/materials/ec3/IEC3Material'
+import { IMaterialLayer } from '@/interfaces/elements/IMaterialLayer'
+import { IEC3Material } from '@/interfaces/materials/IEC3Material'
 import { EC3MatchError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
-import { Element, Material, Project } from '@/models'
-import { ApplyAutomaticMaterialMatchesRequest } from '@/schemas/api/requests'
-import { ApplyAutomaticMaterialMatchesResponse } from '@/schemas/api/responses'
-import { ProcessElementsAndMaterialsFromIFCProps } from './ProcessElementsAndMaterialsFromIFC'
-import { MaterialService } from '../../material-service'
+import { Element, Material } from '@/models'
+import {
+  ApplyAutomaticMaterialMatchesRequest,
+  ApplyAutomaticMaterialMatchesResponse,
+  ProcessElementsAndMaterialsFromIFCRequest,
+  ProcessElementsAndMaterialsFromIFCResponse,
+} from '@/schemas/api/ifc'
+import { MaterialService } from '../material-service'
 
 export class IFCProcessingService {
   /**
    * Process elements from Ifc file with existing material matches
    */
   static async processElementsAndMaterialsFromIFC({
-    projectId,
-    elements,
-    uploadId,
-  }: ProcessElementsAndMaterialsFromIFCProps) {
+    data: { projectId, elements, uploadId },
+    session,
+  }: ProcessElementsAndMaterialsFromIFCRequest): Promise<ProcessElementsAndMaterialsFromIFCResponse> {
     try {
-      if (!elements?.length) {
-        throw new Error('No elements provided for processing')
-      }
-
       logger.debug('Starting Ifc element processing', {
         elementCount: elements.length,
         projectId,
         uploadId,
       })
 
-      // First, process all materials
-      const uniqueMaterialNames = new Set(
+      // 1. Get all material names
+      const materialNames = new Set<string>(
         elements.flatMap(element => {
           const directMaterials = element.materials?.map(material => material.name) || []
           const layerMaterials =
-            element.materialLayers?.map(layer => layer.layers.map(material => material.name)) || []
+            element.materialLayers?.layers?.map(layer => layer.materialName) || []
           return [...directMaterials, ...layerMaterials]
         })
       )
 
-      logger.debug('Unique materials found', {
-        count: uniqueMaterialNames.size,
-        materials: Array.from(uniqueMaterialNames),
+      logger.debug('Materials found', {
+        count: materialNames.size,
+        materials: Array.from(materialNames),
       })
 
-      // Create or update materials first
-      const materialOps = Array.from(uniqueMaterialNames).map(name => ({
+      // 2. Create or update materials
+      const materialOps = Array.from(materialNames).map(name => ({
         updateOne: {
           filter: {
             name,
@@ -62,7 +61,6 @@ export class IFCProcessingService {
           upsert: true,
         },
       }))
-
       const materialResult = await Material.bulkWrite(materialOps)
 
       logger.debug('Material creation result', {
@@ -71,18 +69,18 @@ export class IFCProcessingService {
         matchedCount: materialResult.matchedCount,
       })
 
-      // Get all materials with their matches
+      // 3. Get all materials
       const materials = await Material.find({
-        name: { $in: Array.from(uniqueMaterialNames) },
+        name: { $in: Array.from(materialNames) },
         projectId,
       })
         .populate<{ ec3MatchId: IEC3Material }>('ec3MatchId')
         .lean()
 
-      // Create map for quick lookups
-      const materialMatchMap = new Map(materials.map(mat => [mat.name, mat]))
+      // 4. Create map for quick lookups
+      const materialMap = new Map(materials.map(mat => [mat.name, mat]))
 
-      // Process elements in batches
+      // 5. Process elements in batches
       const BATCH_SIZE = 50
       let processedCount = 0
 
@@ -90,82 +88,74 @@ export class IFCProcessingService {
         const batch = elements.slice(i, i + BATCH_SIZE)
 
         const bulkOps = batch.map(element => {
-          const processedMaterials = []
+          const processedMaterials: IMaterialLayer[] = []
 
           // Process direct materials
           if (element.materials?.length) {
             processedMaterials.push(
               ...element.materials
-                .map(material => {
-                  const match = materialMatchMap.get(material.name)
-                  if (!match) {
-                    logger.warn(`Material not found: ${material.name}`)
+                .map(materialLayer => {
+                  const material = materialMap.get(materialLayer.name)
+
+                  if (!material) {
+                    logger.warn(`Material not found: ${materialLayer.name}`)
                     return null
                   }
+
                   return {
-                    material: match._id,
-                    name: material.name,
-                    volume: material.volume,
-                    indicators: match.ec3MatchId
-                      ? MaterialService.calculateIndicators(
-                          material.volume,
-                          match.density,
-                          match.ec3MatchId
-                        )
-                      : {
-                          gwp: 0,
-                          ubp: 0,
-                          penre: 0,
-                        },
+                    material: material._id,
+                    materialName: materialLayer.name,
+                    volume: materialLayer.volume ?? 0,
+                    fraction: materialLayer.fraction ?? null,
+                    thickness: null,
+                    indicators: null,
                   }
                 })
-                .filter(Boolean)
+                .filter((item): item is NonNullable<typeof item> => item !== null)
             )
           }
 
           // Process material layers
-          if (element.materialLayers?.length) {
+          if (element.materialLayers?.layers.length) {
             const totalVolume = element.volume || 0
-            const layers = element.materialLayers.flatMap(l => l.layers)
+            const layers = element.materialLayers.layers
 
             processedMaterials.push(
               ...layers
                 .map(layer => {
-                  const match = materialMatchMap.get(layer.name)
-                  if (!match) {
-                    logger.warn(`Material not found: ${layer.name}`)
+                  const material = materialMap.get(layer.materialName)
+
+                  if (!material) {
+                    logger.warn(`Material not found: ${layer.materialName}`)
                     return null
                   }
+
                   return {
-                    material: match._id,
-                    name: layer.name,
+                    material: material._id,
+                    materialName: material.name,
                     volume: layer.volume || totalVolume / layers.length,
-                    indicators: match.ec3MatchId
-                      ? MaterialService.calculateIndicators(
-                          layer.volume || totalVolume / layers.length,
-                          match.density,
-                          match.ec3MatchId
-                        )
-                      : undefined,
+                    fraction: null,
+                    thickness: null,
+                    indicators: null,
                   }
                 })
-                .filter(Boolean)
+                .filter((item): item is NonNullable<typeof item> => item !== null)
             )
           }
 
           return {
             updateOne: {
               filter: {
-                guid: element.guid,
+                guid: element.globalId,
                 projectId,
               },
               update: {
                 $set: {
                   name: element.name,
                   type: element.type,
-                  volume: element.volume,
-                  loadBearing: element.properties?.loadBearing || false,
-                  isExternal: element.properties?.isExternal || false,
+                  volume: element.volume ?? 0,
+                  loadBearing: element.properties.loadBearing || false,
+                  isExternal: element.properties.isExternal || false,
                   materials: processedMaterials,
                   updatedAt: new Date(),
                 },
@@ -179,7 +169,6 @@ export class IFCProcessingService {
             },
           }
         })
-
         const result = await Element.bulkWrite(bulkOps)
         processedCount += result.upsertedCount + result.modifiedCount
 
@@ -191,43 +180,13 @@ export class IFCProcessingService {
         })
       }
 
-      // Update project emissions if there are matched materials
-      const matchedMaterials = materials.filter(m => m.ec3MatchId)
-      if (matchedMaterials.length > 0) {
-        try {
-          const totals = await MaterialService.calculateProjectEmissions(projectId)
-
-          await Project.updateOne(
-            { _id: projectId },
-            {
-              $set: {
-                emissions: {
-                  gwp: totals.totalGWP,
-                  ubp: totals.totalUBP,
-                  penre: totals.totalPENRE,
-                  lastCalculated: new Date(),
-                },
-              },
-            }
-          )
-
-          logger.debug('Updated project emissions', {
-            projectId,
-            totals,
-          })
-        } catch (error: unknown) {
-          logger.error('Failed to update project emissions', {
-            error,
-            projectId,
-          })
-        }
-      }
-
-      await MaterialService.calculateProjectEmissions(projectId)
-
       return {
-        elementCount: processedCount,
-        materialCount: uniqueMaterialNames.size,
+        success: true,
+        data: {
+          elementCount: processedCount,
+          materialCount: materials.length,
+        },
+        message: 'Elements and materials processed successfully',
       }
     } catch (error: unknown) {
       logger.error('Error processing elements', { error })
@@ -239,8 +198,8 @@ export class IFCProcessingService {
    * Apply automatic matches to materials
    */
   static async applyAutomaticMaterialMatches({
-    projectId,
-    materialIds,
+    data: { materialIds, projectId },
+    session,
   }: ApplyAutomaticMaterialMatchesRequest): Promise<ApplyAutomaticMaterialMatchesResponse> {
     try {
       logger.debug('Starting automatic material matching', {
@@ -290,22 +249,26 @@ export class IFCProcessingService {
       })
 
       if (hasValidMatches) {
-        const matchResult = await MaterialService.createMaterialBulkMatch({
-          materialIds: validMatches.map(match => match.material._id),
-          data: validMatches.map(match => ({
-            ...match.ec3Match,
-            ec3MatchId: match.ec3Match.id,
-            score: match.score,
-          })),
-        })
-
-        logger.debug('Material matching update result', {
-          materialsAffected: matchResult.materialsAffected,
-          data: matchResult.data,
+        await MaterialService.createEC3BulkMatch({
+          data: {
+            materialIds: validMatches.map(match => match.material._id),
+            updates: validMatches.map(match => ({
+              ...match.ec3Match,
+              ec3MatchId: match.ec3Match.id,
+              score: match.score,
+            })),
+          },
+          session,
         })
       }
 
-      return { matchedCount: validMatches.length }
+      return {
+        success: true,
+        data: {
+          matchedCount: validMatches.length,
+        },
+        message: 'Automatic material matches applied',
+      }
     } catch (error: unknown) {
       throw new EC3MatchError(error instanceof Error ? error.message : 'Unknown error')
     }

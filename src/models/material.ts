@@ -64,9 +64,6 @@ const materialSchema = new Schema<IMaterialDB, IMaterialModelType, {}, IMaterial
     'max density': {
       type: Number,
     },
-    lastCalculated: {
-      type: Date,
-    },
   },
   {
     timestamps: true,

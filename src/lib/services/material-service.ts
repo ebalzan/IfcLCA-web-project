@@ -1,21 +1,32 @@
-import { ClientSession, startSession, Types } from 'mongoose'
-import { IEC3Material } from '@/interfaces/materials/ec3/IEC3Material'
+import { ClientSession, Types } from 'mongoose'
+import { IEC3Material } from '@/interfaces/materials/IEC3Material'
 import IMaterialDB from '@/interfaces/materials/IMaterialDB'
 import { MaterialNotFoundError, MaterialUpdateError, DatabaseError, isAppError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { Material, EC3Match, Element, MaterialDeletion } from '@/models'
 import {
-  CreateMaterialBulkMatchRequest,
-  CreateMaterialMatchRequest,
+  CreateEC3BulkMatchRequest,
+  CreateEC3MatchRequest,
+  CreateMaterialBulkRequest,
+  CreateMaterialRequest,
+  DeleteMaterialRequest,
+  GetMaterialBulkRequest,
+  GetMaterialRequest,
+  UpdateMaterialBulkRequest,
   UpdateMaterialRequest,
-  UpdateMultipleMaterialsRequest,
-} from '@/schemas/api/requests'
+} from '@/schemas/api/materials/materialRequests'
 import {
-  CreateMaterialBulkMatchResponse,
-  CreateMaterialMatchResponse,
+  CreateMaterialBulkResponse,
+  CreateEC3BulkMatchResponse,
+  CreateEC3MatchResponse,
+  CreateMaterialResponse,
   DeleteMaterialResponse,
-  UpdateMultipleMaterialsResponse,
-} from '@/schemas/api/responses'
+  UpdateMaterialBulkResponse,
+  UpdateMaterialResponse,
+  GetMaterialResponse,
+  GetMaterialBulkResponse,
+} from '@/schemas/api/materials/materialResponses'
+import { withTransaction } from '@/utils/withTransaction'
 import { api } from '../fetch'
 
 // updateProjectEmissions && calculateProjectTotals && recalculateElementsForMaterials ONLY
@@ -36,42 +47,374 @@ export class MaterialService {
   private static materialCache = new Map<string, any>()
   private static cacheTimeout = 5 * 60 * 1000 // 5 minutes
 
-  // Utility methods
-  private static async withTransaction<T>(
-    callback: (session: ClientSession) => Promise<T>,
-    existingSession?: ClientSession,
-    operationName?: string
-  ): Promise<T> {
-    const session = existingSession || (await startSession())
-    const isNewSession = !existingSession
-    const operation = operationName || 'database operation'
-
-    if (isNewSession) {
-      session.startTransaction()
-      logger.debug(`🚀 Started transaction for: ${operation}`)
-    }
-
+  /**
+   * Creates a new material
+   */
+  static async createMaterial({
+    data: { name, projectId, ...material },
+    session,
+  }: CreateMaterialRequest): Promise<CreateMaterialResponse> {
     try {
-      const result = await callback(session)
+      const createResult = await Material.create([{ ...material, name, projectId }], {
+        session: session,
+      })
 
-      if (isNewSession) {
-        await session.commitTransaction()
-        logger.debug(`✅ Transaction committed successfully: ${operation}`)
+      return {
+        success: true,
+        data: createResult[0],
+        message: 'Material created successfully',
       }
-
-      return result
     } catch (error: unknown) {
-      if (isNewSession) {
-        await session.abortTransaction()
-        logger.error(`❌ Transaction aborted for ${operation}:`, { error })
-      }
+      logger.error('❌ [Material Service] Error in createMaterial:', error)
       throw error
-    } finally {
-      if (isNewSession) {
-        await session.endSession()
-        logger.debug(`🧹 Session ended for: ${operation}`)
-      }
     }
+  }
+
+  /**
+   * Creates multiple materials
+   */
+  static async createMaterialBulk({
+    data: { materials },
+    session,
+  }: CreateMaterialBulkRequest): Promise<CreateMaterialBulkResponse> {
+    try {
+      const createResult = await Material.insertMany(materials, { session })
+
+      return {
+        success: true,
+        data: createResult,
+        message: 'Materials created successfully',
+      }
+    } catch (error: unknown) {
+      logger.error('❌ [Material Service] Error in createMaterialBulk:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Create a single material match
+   */
+  static async createEC3Match({
+    data: { materialId, updates },
+    session,
+  }: CreateEC3MatchRequest): Promise<CreateEC3MatchResponse> {
+    return withTransaction(async useSession => {
+      try {
+        // 1. Check if material exists
+        const material = await Material.findById(materialId).session(useSession).lean()
+
+        if (!material) {
+          throw new MaterialNotFoundError(materialId.toString())
+        }
+
+        // 2. Check if material is already matched
+        const existingMatch = await EC3Match.findOne({ materialId }).session(useSession).lean()
+
+        if (existingMatch) {
+          return {
+            success: false,
+            data: null,
+            message: 'Material already matched to EC3',
+          }
+        }
+
+        // 3. Update material
+        await this.updateMaterial({ data: { materialId, updates }, session: useSession })
+
+        // 3. Create EC3 match record
+        await EC3Match.create(
+          [
+            {
+              ec3MatchId: updates.ec3MatchId,
+              materialId,
+              score: updates.score,
+            },
+          ],
+          { session: useSession }
+        )
+
+        // 4. Update elements
+        // const elementsAffected = await this.updateElementsForMaterialMatches([materialId], useSession)
+
+        return {
+          success: true,
+          data: {
+            ec3MatchId: updates.ec3MatchId,
+            materialId: materialId.toString(),
+            score: updates.score,
+          },
+          message: 'Material matched to EC3 successfully',
+        }
+      } catch (error: unknown) {
+        logger.error('❌ [Material Service] Error in createEC3Match:', error)
+        throw error
+      }
+    }, session)
+  }
+
+  /**
+   * Create multiple material matches in bulk
+   */
+  static async createEC3BulkMatch({
+    data: { materialIds, updates },
+    session,
+  }: CreateEC3BulkMatchRequest): Promise<CreateEC3BulkMatchResponse> {
+    return withTransaction(async useSession => {
+      try {
+        // 1. Check if the materials are already matched to EC3
+        const existingMatches = await EC3Match.find({
+          materialId: { $in: materialIds },
+        })
+          .session(useSession)
+          .lean()
+
+        if (existingMatches.length > 0) {
+          return {
+            success: true,
+            data: [],
+            message: 'Materials already matched to EC3',
+          }
+        }
+
+        // 2. Update materials with EC3 matches
+        await this.updateMaterialBulk({ data: { materialIds, updates }, session: useSession })
+
+        // 3. Create EC3 matches
+        const bulkOperations = materialIds.map((materialId, index) => ({
+          insertOne: {
+            document: {
+              ec3MatchId: updates[index].ec3MatchId,
+              materialId,
+              score: updates[index].score,
+            },
+          },
+        }))
+        await EC3Match.bulkWrite(bulkOperations, { session: useSession })
+
+        // 4. Update elements
+        // await this.updateElementsForMaterialMatches(materialIds, useSession)
+
+        return {
+          success: true,
+          data: updates.map((material, index) => ({
+            ec3MatchId: material.ec3MatchId,
+            materialId: materialIds[index].toString(),
+            score: updates[index].score,
+          })),
+          message: 'Materials matched to EC3 successfully',
+        }
+      } catch (error: unknown) {
+        logger.error('❌ [Material Service] Error in createEC3BulkMatch:', error)
+        throw error
+      }
+    }, session)
+  }
+
+  /**
+   * Get a material by its ID
+   */
+  static async getMaterial({
+    data: { materialId, ec3MatchId },
+  }: GetMaterialRequest): Promise<GetMaterialResponse> {
+    try {
+      const material = await Material.findOne({
+        _id: materialId,
+        ec3MatchId,
+      }).lean()
+
+      if (!material) {
+        throw new MaterialNotFoundError(materialId.toString())
+      }
+
+      return {
+        success: true,
+        data: material,
+        message: 'Material fetched successfully',
+      }
+    } catch (error: unknown) {
+      logger.error('❌ [Material Service] Error in getMaterial:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Get multiple materials by their EC3 match IDs
+   */
+  static async getMaterialBulk({
+    data: { materialIds },
+  }: GetMaterialBulkRequest): Promise<GetMaterialBulkResponse> {
+    try {
+      const material = await Material.find({ _id: { $in: materialIds } }).lean()
+
+      if (!material) {
+        throw new MaterialNotFoundError(materialIds.toString())
+      }
+
+      return {
+        success: true,
+        data: material,
+        message: 'Materials fetched successfully',
+      }
+    } catch (error: unknown) {
+      logger.error('❌ [Material Service] Error in getMaterialBulk:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Update multiple materials with EC3 matches in bulk
+   */
+  static async updateMaterial({
+    data: { materialId, updates },
+    session,
+  }: UpdateMaterialRequest): Promise<UpdateMaterialResponse> {
+    try {
+      // 1. Check if material exists
+      const material = await Material.findById(materialId)
+        .session(session || null)
+        .lean()
+
+      if (!material) {
+        throw new MaterialNotFoundError(materialId.toString())
+      }
+
+      // 2. Update material
+      const updateResult = await Material.findOneAndUpdate(
+        { _id: materialId },
+        {
+          $set: {
+            ...updates,
+            updatedAt: new Date(),
+          },
+        },
+        { session, upsert: false }
+      )
+
+      if (!updateResult) {
+        throw new MaterialUpdateError(`Failed to update material: ${materialId}`)
+      }
+
+      return {
+        success: true,
+        data: updateResult,
+        message: 'Material updated successfully',
+      }
+    } catch (error: unknown) {
+      logger.error('❌ [Material Service] Error in updateMaterial:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Update multiple materials with EC3 matches in bulk
+   */
+  static async updateMaterialBulk({
+    data: { materialIds, updates },
+    session,
+  }: UpdateMaterialBulkRequest): Promise<UpdateMaterialBulkResponse> {
+    const materialUpdatePromises = materialIds.map(async materialId => {
+      try {
+        // 1. Check if material exists
+        const material = await Material.findById(materialId)
+          .session(session || null)
+          .lean()
+
+        if (!material) {
+          throw new MaterialNotFoundError(materialId.toString())
+        }
+
+        // 2. Update material
+        const updateResult = await Material.updateMany(
+          { _id: materialId },
+          {
+            $set: {
+              ...updates,
+              updatedAt: new Date(),
+            },
+          },
+          { session, upsert: false }
+        )
+
+        if (updateResult.modifiedCount === 0) {
+          throw new MaterialUpdateError(`Failed to update material: ${materialId}`)
+        }
+
+        // 3. Fetch updated material (for response)
+        const updatedMaterial = await Material.findById(materialId)
+          .session(session || null)
+          .lean()
+
+        if (!updatedMaterial) {
+          throw new MaterialNotFoundError(materialId.toString())
+        }
+
+        return updatedMaterial
+      } catch (error: unknown) {
+        logger.error('❌ [Material Service] Error in updateMaterialBulk:', error)
+        throw error
+      }
+    })
+
+    const materials = await Promise.all(materialUpdatePromises)
+
+    return {
+      success: true,
+      data: materials,
+      message: 'Materials updated successfully',
+    }
+  }
+
+  /**
+   * Deletes a material and creates a material deletion record
+   */
+  static async deleteMaterial({
+    data: { materialId },
+    session,
+  }: DeleteMaterialRequest): Promise<DeleteMaterialResponse> {
+    return withTransaction(async useSession => {
+      try {
+        // 1. Check if material exists
+        const material = await Material.findById(materialId).session(useSession).lean()
+
+        if (!material) {
+          throw new MaterialNotFoundError(materialId.toString())
+        }
+
+        // 2. Delete the material
+        const deleteResult = await Material.findByIdAndDelete(materialId).session(useSession)
+
+        if (!deleteResult) {
+          throw new MaterialUpdateError('Failed to delete material')
+        }
+
+        // 3. Create a material deletion record
+        await MaterialDeletion.create(
+          [
+            {
+              projectId: material.projectId,
+              materialName: material.name,
+              reason: 'Material deleted by user',
+            },
+          ],
+          { session: useSession }
+        )
+
+        return {
+          success: true,
+          data: material,
+          message: 'Material deleted successfully',
+        }
+      } catch (error: unknown) {
+        if (isAppError(error)) {
+          throw error
+        }
+
+        throw new DatabaseError(
+          error instanceof Error ? error.message : 'Unknown database error',
+          'delete'
+        )
+      }
+    }, session)
   }
 
   // static calculateDensityFromEC3(ec3Material: IEC3Material): number {
@@ -208,42 +551,6 @@ export class MaterialService {
   // }
 
   /**
-   * Calculates LCA indicators
-   */
-  // static calculateIndicators(
-  //   volume: number,
-  //   density: number | undefined,
-  //   ec3Material: IEC3Material | null
-  // ): ILCAIndicators {
-  //   if (!ec3Material || !density || density <= 0 || !volume || isNaN(volume)) {
-  //     return {
-  //       gwp: 0,
-  //       ubp: 0,
-  //       penre: 0,
-  //     }
-  //   }
-
-  //   if (
-  //     typeof ec3Material.gwp !== 'number' ||
-  //     typeof ec3Material.ubp !== 'number' ||
-  //     typeof ec3Material.penre !== 'number'
-  //   ) {
-  //     return {
-  //       gwp: 0,
-  //       ubp: 0,
-  //       penre: 0,
-  //     }
-  //   }
-
-  //   const mass = volume * density
-  //   return {
-  //     gwp: mass * ec3Material.gwp,
-  //     ubp: mass * ec3Material.ubp,
-  //     penre: mass * ec3Material.penre,
-  //   }
-  // }
-
-  /**
    * Finds existing material match across all projects
    */
   // static async getMaterialByNameInUserProjects(
@@ -300,150 +607,131 @@ export class MaterialService {
   /**
    * Processes materials after Ifc upload with validation
    */
-  static async processMaterials(
-    projectId: Types.ObjectId,
-    elements: Array<{
-      globalId: string
-      type: string
-      name: string
-      netVolume?: number | { net: number; gross: number }
-      grossVolume?: number | { net: number; gross: number }
-      materialLayers?: {
-        layers: Array<{
-          materialName: string
-          thickness: number
-        }>
-        layerSetName?: string
-      }
-      properties?: {
-        loadBearing?: boolean
-        isExternal?: boolean
-      }
-    }>,
-    uploadId: Types.ObjectId,
-    session: ClientSession
-  ) {
-    try {
-      const materialVolumes = new Map<string, number>()
-      const elementOps = []
+  // static async processMaterials(
+  //   projectId: Types.ObjectId,
+  //   elements: Array<{
+  //     globalId: string
+  //     type: string
+  //     name: string
+  //     netVolume?: number | { net: number; gross: number }
+  //     grossVolume?: number | { net: number; gross: number }
+  //     materialLayers?: {
+  //       layers: Array<{
+  //         materialName: string
+  //         thickness: number
+  //       }>
+  //       layerSetName?: string
+  //     }
+  //     properties?: {
+  //       loadBearing?: boolean
+  //       isExternal?: boolean
+  //     }
+  //   }>,
+  //   uploadId: Types.ObjectId,
+  //   session: ClientSession
+  // ) {
+  //   try {
+  //     const materialVolumes = new Map<string, number>()
+  //     const elementOps = []
 
-      // First pass: Calculate total volumes per material
-      for (const element of elements) {
-        const elementVolume = this.calculateElementVolume(element)
+  //     // First pass: Calculate total volumes per material
+  //     for (const element of elements) {
+  //       // const elementVolume = this.calculateIFCElementVolume(element)
 
-        if (element.materialLayers?.layers) {
-          const totalThickness = element.materialLayers.layers.reduce(
-            (sum, layer) => sum + (layer.thickness || 0),
-            0
-          )
+  //       if (element.materialLayers?.layers) {
+  //         const totalThickness = element.materialLayers.layers.reduce(
+  //           (sum, layer) => sum + (layer.thickness || 0),
+  //           0
+  //         )
 
-          for (const layer of element.materialLayers.layers) {
-            if (layer.materialName) {
-              const volumeFraction =
-                totalThickness > 0
-                  ? (layer.thickness || 0) / totalThickness
-                  : 1 / element.materialLayers.layers.length
+  //         for (const layer of element.materialLayers.layers) {
+  //           if (layer.materialName) {
+  //             const volumeFraction =
+  //               totalThickness > 0
+  //                 ? (layer.thickness || 0) / totalThickness
+  //                 : 1 / element.materialLayers.layers.length
 
-              const materialVolume = elementVolume * volumeFraction
-              materialVolumes.set(
-                layer.materialName,
-                (materialVolumes.get(layer.materialName) || 0) + materialVolume
-              )
-            }
-          }
-        }
+  //             const materialVolume = elementVolume * volumeFraction
+  //             materialVolumes.set(
+  //               layer.materialName,
+  //               (materialVolumes.get(layer.materialName) || 0) + materialVolume
+  //             )
+  //           }
+  //         }
+  //       }
 
-        // Create element operation
-        elementOps.push({
-          updateOne: {
-            filter: { guid: element.globalId, projectId },
-            update: {
-              $set: {
-                name: element.name,
-                type: element.type,
-                volume: elementVolume,
-                loadBearing: element.properties?.loadBearing || false,
-                isExternal: element.properties?.isExternal || false,
-                updatedAt: new Date(),
-              },
-              $setOnInsert: {
-                projectId,
-                guid: element.globalId,
-                createdAt: new Date(),
-              },
-            },
-            upsert: true,
-          },
-        })
-      }
+  //       // Create element operation
+  //       elementOps.push({
+  //         updateOne: {
+  //           filter: { guid: element.globalId, projectId },
+  //           update: {
+  //             $set: {
+  //               name: element.name,
+  //               type: element.type,
+  //               volume: elementVolume,
+  //               loadBearing: element.properties?.loadBearing || false,
+  //               isExternal: element.properties?.isExternal || false,
+  //               updatedAt: new Date(),
+  //             },
+  //             $setOnInsert: {
+  //               projectId,
+  //               guid: element.globalId,
+  //               createdAt: new Date(),
+  //             },
+  //           },
+  //           upsert: true,
+  //         },
+  //       })
+  //     }
 
-      // Second pass: Update materials with accumulated volumes
-      const materialOps = Array.from(materialVolumes.entries()).map(([name, volume]) => ({
-        updateOne: {
-          filter: { name, projectId },
-          update: {
-            $set: {
-              volume,
-              updatedAt: new Date(),
-            },
-            $setOnInsert: {
-              name,
-              projectId,
-              createdAt: new Date(),
-            },
-          },
-          upsert: true,
-        },
-      }))
+  //     // Second pass: Update materials with accumulated volumes
+  //     const materialOps = Array.from(materialVolumes.entries()).map(([name, volume]) => ({
+  //       updateOne: {
+  //         filter: { name, projectId },
+  //         update: {
+  //           $set: {
+  //             volume,
+  //             updatedAt: new Date(),
+  //           },
+  //           $setOnInsert: {
+  //             name,
+  //             projectId,
+  //             createdAt: new Date(),
+  //           },
+  //         },
+  //         upsert: true,
+  //       },
+  //     }))
 
-      // Execute operations
-      const [elementResult, materialResult] = await Promise.all([
-        Element.bulkWrite(elementOps, { session }),
-        Material.bulkWrite(materialOps, { session }),
-      ])
+  //     // Execute operations
+  //     const [elementResult, materialResult] = await Promise.all([
+  //       Element.bulkWrite(elementOps, { session }),
+  //       Material.bulkWrite(materialOps, { session }),
+  //     ])
 
-      logger.debug('Processing results', {
-        elements: {
-          matched: elementResult.matchedCount,
-          modified: elementResult.modifiedCount,
-          upserted: elementResult.upsertedCount,
-        },
-        materials: {
-          matched: materialResult.matchedCount,
-          modified: materialResult.modifiedCount,
-          upserted: materialResult.upsertedCount,
-        },
-      })
+  //     logger.debug('Processing results', {
+  //       elements: {
+  //         matched: elementResult.matchedCount,
+  //         modified: elementResult.modifiedCount,
+  //         upserted: elementResult.upsertedCount,
+  //       },
+  //       materials: {
+  //         matched: materialResult.matchedCount,
+  //         modified: materialResult.modifiedCount,
+  //         upserted: materialResult.upsertedCount,
+  //       },
+  //     })
 
-      return {
-        success: true,
-        elementCount: elementResult.modifiedCount + elementResult.upsertedCount,
-        materialCount: materialResult.modifiedCount + materialResult.upsertedCount,
-      }
-    } catch (error: unknown) {
-      logger.error('Error in material processing', { error })
-      throw error
-    }
-  }
-
-  /**
-   * Calculates element volume
-   */
-  private static calculateElementVolume(element: any): number {
-    if (typeof element.netVolume === 'object') {
-      return element.netVolume.net || 0
-    }
-    if (typeof element.netVolume === 'number') {
-      return element.netVolume
-    }
-    if (typeof element.grossVolume === 'object') {
-      return element.grossVolume.net || 0
-    }
-    if (typeof element.grossVolume === 'number') {
-      return element.grossVolume
-    }
-    return 0
-  }
+  //     return {
+  //       success: true,
+  //       elementCount: elementResult.modifiedCount + elementResult.upsertedCount,
+  //       materialCount: materialResult.modifiedCount + materialResult.upsertedCount,
+  //     }
+  //   } catch (error: unknown) {
+  //     logger.error('Error in material processing', { error })
+  //     throw error
+  //   }
+  // }
 
   /**
    * Calculates emissions for a project using aggregation
@@ -656,140 +944,6 @@ export class MaterialService {
   // }
 
   /**
-   * Deletes a material and creates a material deletion record
-   */
-  static async deleteMaterial(
-    materialId: Types.ObjectId,
-    userId: string,
-    session?: ClientSession
-  ): Promise<DeleteMaterialResponse> {
-    return this.withTransaction(async useSession => {
-      try {
-        // 1. Check if material exists
-        const material = await Material.findById(materialId).session(useSession).lean()
-
-        if (!material) {
-          throw new MaterialNotFoundError(materialId.toString())
-        }
-
-        // 2. Delete the material
-        const deleteResult = await Material.findByIdAndDelete(materialId).session(useSession)
-
-        if (!deleteResult) {
-          throw new MaterialUpdateError('Failed to delete material')
-        }
-
-        // 3. Create a material deletion record
-        await MaterialDeletion.create(
-          [
-            {
-              projectId: material.projectId,
-              userId,
-              materialName: material.name,
-              reason: 'Material deleted by user',
-            },
-          ],
-          { session: useSession }
-        )
-
-        return { id: materialId.toString(), message: 'Material deleted successfully' }
-      } catch (error: unknown) {
-        if (isAppError(error)) {
-          throw error
-        }
-
-        throw new DatabaseError(
-          error instanceof Error ? error.message : 'Unknown database error',
-          'delete'
-        )
-      }
-    }, session)
-  }
-
-  /**
-   * Update multiple materials with EC3 matches in bulk
-   */
-  static async updateMultipleMaterials(
-    { materialIds, updates }: UpdateMultipleMaterialsRequest,
-    session: ClientSession
-  ): Promise<UpdateMultipleMaterialsResponse> {
-    const materialUpdatePromises = materialIds.map(async materialId => {
-      // 1. Check if material exists
-      const material = await Material.findById(materialId).session(session).lean()
-
-      if (!material) {
-        throw new MaterialNotFoundError(materialId.toString())
-      }
-
-      // 2. Update material
-      const updateResult = await Material.updateMany(
-        { _id: materialId },
-        {
-          $set: {
-            ...updates,
-            updatedAt: new Date(),
-          },
-        },
-        { session, upsert: false }
-      )
-
-      if (updateResult.modifiedCount === 0) {
-        throw new MaterialUpdateError(`Failed to update material: ${materialId}`)
-      }
-
-      // 3. Fetch updated material (for response)
-      const updatedMaterial = await Material.findById(materialId).session(session).lean()
-
-      if (!updatedMaterial) {
-        throw new MaterialNotFoundError(materialId.toString())
-      }
-
-      return updatedMaterial
-    })
-
-    const materials = await Promise.all(materialUpdatePromises)
-
-    return {
-      materialsAffected: materials.length,
-      data: materials,
-      message: 'Materials updated successfully',
-    }
-  }
-
-  /**
-   * Update multiple materials with EC3 matches in bulk
-   */
-  static async updateMaterial(
-    { materialId, updates }: UpdateMaterialRequest,
-    session: ClientSession
-  ): Promise<IMaterialDB> {
-    // 1. Check if material exists
-    const material = await Material.findById(materialId).session(session).lean()
-
-    if (!material) {
-      throw new MaterialNotFoundError(materialId.toString())
-    }
-
-    // 2. Update material
-    const updateResult = await Material.findOneAndUpdate(
-      { _id: materialId },
-      {
-        $set: {
-          ...updates,
-          updatedAt: new Date(),
-        },
-      },
-      { session, upsert: false }
-    )
-
-    if (!updateResult) {
-      throw new MaterialUpdateError(`Failed to update material: ${materialId}`)
-    }
-
-    return updateResult
-  }
-
-  /**
    * Update elements for multiple materials with EC3 matches
    */
   // static async updateElementsForMaterialMatches(
@@ -811,112 +965,6 @@ export class MaterialService {
 
   //   return processedCount
   // }
-
-  /**
-   * Create multiple material matches in bulk
-   */
-  static async createMaterialBulkMatch(
-    { materialIds, data }: CreateMaterialBulkMatchRequest,
-    session?: ClientSession
-  ): Promise<CreateMaterialBulkMatchResponse> {
-    return this.withTransaction(async useSession => {
-      // 1. Check if the materials are already matched to EC3
-      const existingMatches = await EC3Match.find({
-        materialId: { $in: materialIds },
-      })
-        .session(useSession)
-        .lean()
-
-      if (existingMatches.length > 0) {
-        return {
-          materialsAffected: 0,
-          data: [],
-          message: 'Materials already matched to EC3',
-        }
-      }
-
-      // 2. Update materials with EC3 matches
-      const updatedMaterials = await this.updateMultipleMaterials(
-        { materialIds, updates: data },
-        useSession
-      )
-
-      // 3. Create EC3 matches
-      const bulkOperations = materialIds.map((materialId, index) => ({
-        insertOne: {
-          document: {
-            ec3MatchId: data[index].ec3MatchId,
-            materialId,
-            score: data[index].score,
-          },
-        },
-      }))
-      await EC3Match.bulkWrite(bulkOperations, { session: useSession })
-
-      // 4. Update elements
-      // await this.updateElementsForMaterialMatches(materialIds, useSession)
-
-      return {
-        materialsAffected: updatedMaterials.materialsAffected,
-        data: data.map((material, index) => ({
-          ec3MatchId: material.ec3MatchId,
-          materialId: materialIds[index].toString(),
-          score: data[index].score,
-        })),
-        message: 'Materials matched to EC3 successfully',
-      }
-    }, session)
-  }
-
-  /**
-   * Create a single material match
-   */
-  static async createMaterialMatch(
-    { materialId, data }: CreateMaterialMatchRequest,
-    session?: ClientSession
-  ): Promise<CreateMaterialMatchResponse> {
-    return this.withTransaction(async useSession => {
-      // 1. Check if material exists
-      const material = await Material.findById(materialId).session(useSession).lean()
-
-      if (!material) {
-        throw new MaterialNotFoundError(materialId.toString())
-      }
-
-      // 2. Check if material is already matched
-      const existingMatch = await EC3Match.findOne({ materialId }).session(useSession).lean()
-
-      if (existingMatch) {
-        return {
-          data: null,
-          message: 'Material already matched to EC3',
-        }
-      }
-
-      // 3. Update material
-      await this.updateMaterial({ materialId, updates: data }, useSession)
-
-      // 3. Create EC3 match record
-      await EC3Match.create(
-        [
-          {
-            ec3MatchId: data.ec3MatchId,
-            materialId,
-            score: data.score,
-          },
-        ],
-        { session: useSession }
-      )
-
-      // 4. Update elements
-      // const elementsAffected = await this.updateElementsForMaterialMatches([materialId], useSession)
-
-      return {
-        data: { ec3MatchId: data.ec3MatchId, materialId: materialId.toString(), score: data.score },
-        message: 'Material matched to EC3 successfully',
-      }
-    }, session)
-  }
 
   /**
    * Get a material by name

@@ -2,33 +2,31 @@ import { NextResponse } from 'next/server'
 import { MaterialService } from '@/lib/services/material-service'
 import { AuthenticatedValidationRequest, withAuthAndValidation } from '@/lib/validation-middleware'
 import {
-  CreateMaterialBulkMatchRequest,
-  createMaterialBulkMatchRequestSchema,
-} from '@/schemas/api/requests'
-import {
-  CreateMaterialBulkMatchResponse,
-  ErrorResponse,
-  SuccessResponse,
-} from '@/schemas/api/responses'
+  CreateEC3BulkMatchRequest,
+  createEC3BulkMatchRequestSchema,
+} from '@/schemas/api/materials/materialRequests'
+import { CreateEC3BulkMatchResponse } from '@/schemas/api/materials/materialResponses'
 
-async function createBulkMaterialMatches(
-  request: AuthenticatedValidationRequest<CreateMaterialBulkMatchRequest>
+async function createEC3BulkMatch(
+  request: AuthenticatedValidationRequest<CreateEC3BulkMatchRequest>
 ) {
-  const { materialIds, data } = request.validatedData
+  const { materialIds, updates } = request.validatedData.data
 
   try {
-    const results = await MaterialService.createMaterialBulkMatch({
-      materialIds,
-      data,
+    const results = await MaterialService.createEC3BulkMatch({
+      data: {
+        materialIds,
+        updates,
+      },
     })
 
-    return NextResponse.json<SuccessResponse<CreateMaterialBulkMatchResponse>>({
+    return NextResponse.json<CreateEC3BulkMatchResponse>({
       success: true,
       message: 'Materials matched successfully',
-      data: results,
+      data: results.data,
     })
   } catch (error: unknown) {
-    return NextResponse.json<ErrorResponse>({
+    return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to create bulk material matches',
       code: 'BULK_MATCH_MATERIALS_FAILED',
@@ -39,7 +37,4 @@ async function createBulkMaterialMatches(
   }
 }
 
-export const POST = withAuthAndValidation(
-  createMaterialBulkMatchRequestSchema,
-  createBulkMaterialMatches
-)
+export const POST = withAuthAndValidation(createEC3BulkMatchRequestSchema, createEC3BulkMatch)

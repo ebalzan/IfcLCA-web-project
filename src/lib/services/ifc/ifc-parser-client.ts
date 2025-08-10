@@ -1,15 +1,7 @@
+import { APIElement, IFCParseResult, WASMParseResult } from '@/interfaces/ifc'
 import { api } from '@/lib/fetch'
 import { logger } from '@/lib/logger'
-import { CheckMatchesResponse, CreateUploadResponse } from '@/schemas/api/responses'
-import { parseIfcWithWasm, IFCParseResult as WASMParseResult, APIElement } from './ifc-wasm-parser'
-
-export interface IFCParseResult {
-  uploadId: string
-  elementCount: number
-  materialCount: number
-  unmatchedMaterialCount: number
-  shouldRedirectToLibrary: boolean
-}
+import { parseIfcWithWasm } from './ifc-wasm-parser'
 
 export async function parseIFCFile(file: File, projectId: string): Promise<IFCParseResult> {
   try {
@@ -22,6 +14,7 @@ export async function parseIFCFile(file: File, projectId: string): Promise<IFCPa
 
     // Create upload record
     logger.debug('Creating upload record...')
+
     const uploadResponse = await api.post<CreateUploadResponse>(
       `/api/projects/${projectId}/upload`,
       {
@@ -30,14 +23,17 @@ export async function parseIFCFile(file: File, projectId: string): Promise<IFCPa
     )
     logger.debug('Upload response status:', uploadResponse.data.status)
     logger.debug('Upload response data:', uploadResponse)
+
     if (!uploadResponse.data._id) {
       throw new Error('Failed to create upload record')
     }
 
     // Parse the Ifc file locally using IfcOpenShell WASM
     logger.debug('Parsing Ifc file locally using IfcOpenShell WASM')
+
     const parseResult: WASMParseResult = await parseIfcWithWasm(file)
     const elements = parseResult.elements
+
     // Debug: Log the parse result structure
     logger.debug('WASM Parse Result', {
       totalElements: parseResult.total_elements,
@@ -45,6 +41,7 @@ export async function parseIFCFile(file: File, projectId: string): Promise<IFCPa
       totalMaterialVolumesFound: parseResult.total_material_volumes_found,
       debugInfo: parseResult.debug,
     })
+
     // Debug: Log the structure of the first few elements
     logger.debug('Parsed elements structure', {
       elementCount: elements.length,
@@ -113,6 +110,7 @@ export async function parseIFCFile(file: File, projectId: string): Promise<IFCPa
         })
       }
     })
+
     logger.debug('Material extraction summary', {
       totalUniqueMaterials: materials.size,
       directMaterialReferences: directMaterialCount,
@@ -211,8 +209,6 @@ export async function parseIFCFile(file: File, projectId: string): Promise<IFCPa
   } catch (error: unknown) {
     if (error instanceof Error) {
       logger.error('Error in parseIFCFile', { error: error.message })
-    } else {
-      logger.error('Error in parseIFCFile', { error: String(error) })
     }
     throw error
   }

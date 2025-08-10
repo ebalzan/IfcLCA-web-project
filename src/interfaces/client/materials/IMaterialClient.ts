@@ -1,4 +1,4 @@
-import { IEC3Material } from '@/interfaces/materials/ec3/IEC3Material'
+import { IEC3Material } from '@/interfaces/materials/IEC3Material'
 import ILCAIndicators from '@/interfaces/materials/ILCAIndicators'
 import IElementClient from '../elements/IElementClient'
 

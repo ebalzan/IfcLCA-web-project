@@ -106,9 +106,39 @@ export class MaterialNotFoundError extends NotFoundError {
   }
 }
 
+/**
+ * Material update error
+ */
 export class MaterialUpdateError extends BusinessLogicError {
   constructor(message: string) {
     super(message, 'MATERIAL_UPDATE_ERROR')
+  }
+}
+
+/**
+ * Element not found error
+ */
+export class ElementNotFoundError extends NotFoundError {
+  constructor(elementId?: string) {
+    super('Element', elementId)
+  }
+}
+
+/**
+ * Element update error
+ */
+export class ElementUpdateError extends BusinessLogicError {
+  constructor(message: string) {
+    super(message, 'ELEMENT_UPDATE_ERROR')
+  }
+}
+
+/**
+ * Element delete error
+ */
+export class ElementDeleteError extends BusinessLogicError {
+  constructor(message: string) {
+    super(message, 'ELEMENT_DELETE_ERROR')
   }
 }
 
