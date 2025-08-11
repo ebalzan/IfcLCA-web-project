@@ -22,3 +22,4 @@ export type UpdateMaterialBulkResponse = DefaultResponse<IMaterialDB[]>
 
 // Delete material types
 export type DeleteMaterialResponse = DefaultResponse<IMaterialDB>
+export type DeleteMaterialBulkResponse = DefaultResponse<IMaterialDB[]>

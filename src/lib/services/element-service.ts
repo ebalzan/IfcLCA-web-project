@@ -1,15 +1,24 @@
-import { Element, MaterialDeletion } from '@/models'
+import { FilterQuery } from 'mongoose'
+import { IElementDB } from '@/interfaces/elements/IElementDB'
+import { Element } from '@/models/element'
+import { ElementDeletion } from '@/models/element-deletion'
 import {
   CreateElementBulkRequest,
   CreateElementRequest,
+  DeleteElementBulkRequest,
   DeleteElementRequest,
+  GetElementBulkRequest,
+  GetElementRequest,
   UpdateElementBulkRequest,
   UpdateElementRequest,
 } from '@/schemas/api/elements/elementRequests'
 import {
   CreateElementBulkResponse,
   CreateElementResponse,
+  DeleteElementBulkResponse,
   DeleteElementResponse,
+  GetElementBulkResponse,
+  GetElementResponse,
   UpdateElementBulkResponse,
   UpdateElementResponse,
 } from '@/schemas/api/elements/elementResponses'
@@ -19,13 +28,14 @@ import {
   ElementDeleteError,
   ElementNotFoundError,
   ElementUpdateError,
+  ElementCreateError,
   isAppError,
 } from '../errors'
 import { logger } from '../logger'
 
 export class ElementService {
   // Cache configuration
-  private static materialCache = new Map<string, any>()
+  private static elementCache = new Map<string, any>()
   private static cacheTimeout = 5 * 60 * 1000 // 5 minutes
 
   /**
@@ -36,16 +46,23 @@ export class ElementService {
     session,
   }: CreateElementRequest): Promise<CreateElementResponse> {
     try {
-      const newElement = await Element.create([element], { session: session || null })
+      const newElement = await Element.insertOne(element, { session: session || null })
 
       return {
         success: true,
-        data: newElement[0],
+        data: newElement,
         message: 'Element created successfully',
       }
     } catch (error: unknown) {
       logger.error('Error creating element', { error })
-      throw error
+
+      if (isAppError(error)) {
+        throw error
+      }
+
+      throw new ElementCreateError(
+        error instanceof Error ? error.message : 'Failed to create element'
+      )
     }
   }
 
@@ -53,20 +70,122 @@ export class ElementService {
    * Creates multiple elements
    */
   static async createElementBulk({
-    data: { elements },
+    data: { elements, projectId },
     session,
   }: CreateElementBulkRequest): Promise<CreateElementBulkResponse> {
+    return withTransaction(
+      async useSession => {
+        try {
+          const newElements = await Element.insertMany(
+            elements.map(element => ({
+              ...element,
+              projectId: projectId || element.projectId,
+            })),
+            { session: useSession }
+          )
+
+          return {
+            success: true,
+            data: newElements,
+            message: 'Elements created successfully',
+          }
+        } catch (error: unknown) {
+          logger.error('Error creating elements', { error })
+
+          if (isAppError(error)) {
+            throw error
+          }
+
+          throw new ElementCreateError(
+            error instanceof Error ? error.message : 'Failed to create elements'
+          )
+        }
+      },
+      session,
+      'createElementBulk'
+    )
+  }
+
+  /**
+   * Get a material by its ID
+   */
+  static async getElement({
+    data: { elementId, ec3MatchId },
+    session,
+  }: GetElementRequest): Promise<GetElementResponse> {
     try {
-      const newElements = await Element.insertMany(elements, { session: session || null })
+      const element = await Element.findOne({
+        _id: elementId,
+        ec3MatchId,
+      })
+        .session(session || null)
+        .lean()
+
+      if (!element) {
+        throw new ElementNotFoundError(elementId.toString())
+      }
 
       return {
         success: true,
-        data: newElements,
-        message: 'Elements created successfully',
+        data: element,
+        message: 'Element fetched successfully',
       }
     } catch (error: unknown) {
-      logger.error('Error creating elements', { error })
-      throw error
+      logger.error('❌ [Element Service] Error in getElement:', error)
+
+      if (isAppError(error)) {
+        throw error
+      }
+
+      throw new DatabaseError(
+        error instanceof Error ? error.message : 'Failed to fetch element',
+        'read'
+      )
+    }
+  }
+
+  /**
+   * Get multiple materials by their EC3 match IDs
+   */
+  static async getElementBulk({
+    data: { elementIds, projectId },
+    session,
+  }: GetElementBulkRequest): Promise<GetElementBulkResponse> {
+    try {
+      // 1. Build query
+      const query: FilterQuery<IElementDB> = {
+        _id: { $in: elementIds },
+      }
+      if (projectId) {
+        query.projectId = projectId
+      }
+
+      // 2. Fetch materials
+      const elements = await Element.find(query)
+        .session(session || null)
+        .lean()
+
+      // 3. Check if materials exist
+      if (!elements) {
+        throw new ElementNotFoundError(elementIds.toString())
+      }
+
+      return {
+        success: true,
+        data: elements,
+        message: 'Elements fetched successfully',
+      }
+    } catch (error: unknown) {
+      logger.error('❌ [Element Service] Error in getElementBulk:', error)
+
+      if (isAppError(error)) {
+        throw error
+      }
+
+      throw new DatabaseError(
+        error instanceof Error ? error.message : 'Failed to fetch elements',
+        'read'
+      )
     }
   }
 
@@ -104,7 +223,14 @@ export class ElementService {
       }
     } catch (error: unknown) {
       logger.error('Error updating element', { error })
-      throw error
+
+      if (isAppError(error)) {
+        throw error
+      }
+
+      throw new ElementUpdateError(
+        error instanceof Error ? error.message : 'Failed to update element'
+      )
     }
   }
 
@@ -112,86 +238,92 @@ export class ElementService {
    * Updates multiple elements
    */
   static async updateElementBulk({
-    data: { elementIds, updates },
+    data: { elementIds, updates, projectId },
     session,
   }: UpdateElementBulkRequest): Promise<UpdateElementBulkResponse> {
-    const elementUpdatePromises = elementIds.map(async elementId => {
-      try {
-        // 1. Check if element exists
-        const element = await Element.findById(elementId)
-          .session(session || null)
-          .lean()
+    return withTransaction(
+      async useSession => {
+        // 1. Build query
+        const query: FilterQuery<IElementDB> = { _id: { $in: elementIds } }
 
-        if (!element) {
-          throw new ElementNotFoundError(elementId.toString())
+        if (projectId) {
+          query.projectId = projectId
         }
 
-        // 2. Update material
-        const updateResult = await Element.updateMany(
-          { _id: elementId },
-          {
-            $set: {
-              ...updates,
-              updatedAt: new Date(),
-            },
-          },
-          { session, upsert: false }
-        )
+        // 2. Update elements
+        const elementUpdatePromises = elementIds.map(async (elementId, index) => {
+          try {
+            const element = await Element.findOne(query).session(useSession).lean()
 
-        if (updateResult.modifiedCount === 0) {
-          throw new ElementUpdateError(`Failed to update element: ${elementId}`)
+            if (!element) {
+              throw new ElementNotFoundError(elementId.toString())
+            }
+
+            // 2. Update element individually
+            const updatedElement = await Element.findByIdAndUpdate(
+              elementId,
+              {
+                $set: {
+                  ...updates[index],
+                  updatedAt: new Date(),
+                },
+              },
+              {
+                new: true,
+                session: useSession,
+                runValidators: true,
+              }
+            )
+
+            if (!updatedElement) {
+              throw new ElementUpdateError(`Failed to update element: ${elementId}`)
+            }
+
+            return updatedElement
+          } catch (error: unknown) {
+            logger.error('❌ [Element Service] Error in updateElementBulk:', error)
+            throw error
+          }
+        })
+
+        const elements = await Promise.all(elementUpdatePromises)
+
+        return {
+          success: true,
+          data: elements,
+          message: 'Elements updated successfully',
         }
-
-        // 3. Fetch updated material (for response)
-        const updatedElement = await Element.findById(elementId)
-          .session(session || null)
-          .lean()
-
-        if (!updatedElement) {
-          throw new ElementNotFoundError(elementId.toString())
-        }
-
-        return updatedElement
-      } catch (error: unknown) {
-        logger.error('❌ [Element Service] Error in updateElementBulk:', error)
-        throw error
-      }
-    })
-
-    const elements = await Promise.all(elementUpdatePromises)
-
-    return {
-      success: true,
-      data: elements,
-      message: 'Elements updated successfully',
-    }
+      },
+      session,
+      'updateElementBulk'
+    )
   }
 
   /**
    * Deletes an element
    */
   static async deleteElement({
-    data: { id: elementId },
+    data: { elementId },
     session,
   }: DeleteElementRequest): Promise<DeleteElementResponse> {
     return withTransaction(async useSession => {
       try {
-        // 1. Check if material exists
+        // 1. Check if element exists
         const element = await Element.findById(elementId).session(useSession).lean()
 
         if (!element) {
           throw new ElementNotFoundError(elementId.toString())
         }
 
-        // 2. Delete the material
+        // 2. Delete the element
         const deleteResult = await Element.findByIdAndDelete(elementId).session(useSession)
 
         if (!deleteResult) {
           throw new ElementDeleteError('Failed to delete element')
         }
 
-        // 3. Create a material deletion record
-        await MaterialDeletion.create(
+        // 3. Create a element deletion record
+        await ElementDeletion.create(
           [
             {
               projectId: element.projectId,
@@ -206,6 +338,63 @@ export class ElementService {
           success: true,
           data: element,
           message: 'Element deleted successfully',
+        }
+      } catch (error: unknown) {
+        if (isAppError(error)) {
+          throw error
+        }
+
+        throw new DatabaseError(
+          error instanceof Error ? error.message : 'Unknown database error',
+          'delete'
+        )
+      }
+    }, session)
+  }
+
+  /**
+   * Deletes multiple elements
+   */
+  static async deleteElementBulk({
+    data: { elementIds, projectId },
+    session,
+  }: DeleteElementBulkRequest): Promise<DeleteElementBulkResponse> {
+    return withTransaction(async useSession => {
+      try {
+        // 1. Check if elements exist
+        const query: FilterQuery<IElementDB> = {
+          _id: { $in: elementIds },
+        }
+        if (projectId) {
+          query.projectId = projectId
+        }
+        const elements = await Element.find(query).session(useSession).lean()
+
+        if (!elements) {
+          throw new ElementNotFoundError(elementIds.toString())
+        }
+
+        // 2. Delete the elements
+        const deleteResult = await Element.deleteMany(query).session(useSession)
+
+        if (deleteResult.deletedCount !== elementIds.length) {
+          throw new ElementDeleteError('Failed to delete elements')
+        }
+
+        // 3. Create element deletion records
+        await ElementDeletion.insertMany(
+          elements.map(element => ({
+            projectId: element.projectId,
+            elementName: element.name,
+            reason: 'Element deleted by user',
+          })),
+          { session: useSession }
+        )
+
+        return {
+          success: true,
+          data: elements,
+          message: 'Elements deleted successfully',
         }
       } catch (error: unknown) {
         if (isAppError(error)) {

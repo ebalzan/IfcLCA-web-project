@@ -1,5 +1,5 @@
 import IProjectDB from './IProjectDB'
-import IElementDB, { IElementVirtuals } from '../elements/IElementDB'
+import { IElementDB, IElementVirtuals } from '../elements/IElementDB'
 import ILCAIndicators from '../materials/ILCAIndicators'
 import IMaterialDB from '../materials/IMaterialDB'
 import IUploadDB from '../uploads/IUploadDB'

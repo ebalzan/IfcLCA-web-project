@@ -1,28 +1,31 @@
-import { NextResponse } from 'next/server'
 import { Types } from 'mongoose'
+import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
 import { MaterialService } from '@/lib/services/material-service'
 import {
   AuthenticatedValidationRequest,
   validatePathParams,
   withAuthAndValidation,
 } from '@/lib/validation-middleware'
-import { idParamSchema } from '@/schemas/api/general'
+import { idParamSchema, IdParamSchema } from '@/schemas/api/general'
 import {
   CreateEC3MatchRequest,
   createEC3MatchRequestSchema,
 } from '@/schemas/api/materials/materialRequests'
-import { CreateEC3MatchResponse } from '@/schemas/api/materials/materialResponses'
 
 async function createEC3Match(
   request: AuthenticatedValidationRequest<CreateEC3MatchRequest>,
-  context: { params: Promise<{ [key: string]: string }> }
+  context: { params: Promise<IdParamSchema> }
 ) {
-  const validatedParams = await validatePathParams(idParamSchema, context.params)
-  const materialId = validatedParams.id
-
-  const { data } = request.validatedData
-
   try {
+    const { id: materialId } = await validatePathParams(idParamSchema, context.params)
+    const { data } = request.validatedData
+
+    if (!Types.ObjectId.isValid(materialId)) {
+      return sendApiErrorResponse(new Error('Invalid material ID'), request, {
+        resource: 'material',
+      })
+    }
+
     const result = await MaterialService.createEC3Match({
       data: {
         materialId: new Types.ObjectId(materialId),
@@ -30,20 +33,13 @@ async function createEC3Match(
       },
     })
 
-    return NextResponse.json<CreateEC3MatchResponse>({
-      success: true,
-      message: 'Material matched with EC3 product successfully',
-      data: result.data,
-    })
+    return sendApiSuccessResponse(
+      result.data,
+      'Material matched with EC3 product successfully',
+      request
+    )
   } catch (error: unknown) {
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to match material with EC3 product',
-      code: 'MATCH_MATERIAL_WITH_EC3_FAILED',
-      meta: {
-        timestamp: new Date(),
-      },
-    })
+    return sendApiErrorResponse(error, request, { operation: 'match', resource: 'material' })
   }
 }
 

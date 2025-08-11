@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z, ZodError } from 'zod'
+import { IdParamSchema } from '@/schemas/api/general'
+import { formatValidationError } from './api-error-response'
 import { AuthenticatedRequest, withAuthAndDBParams } from './api-middleware'
 
 export interface ValidationRequest<T> extends NextRequest {
@@ -36,23 +38,12 @@ export const withValidation = <T>(
           code: err.code,
         }))
 
-        return NextResponse.json(
-          {
-            error: 'Validation failed',
-            details: formattedErrors,
-            message: 'Request data validation failed',
-          },
-          { status: 400 }
-        )
+        const errorResponse = formatValidationError(formattedErrors)
+        return NextResponse.json(errorResponse, { status: 400 })
       }
 
-      return NextResponse.json(
-        {
-          error: 'Invalid request',
-          message: 'Failed to parse request body',
-        },
-        { status: 400 }
-      )
+      const errorResponse = formatValidationError([], 'request body')
+      return NextResponse.json(errorResponse, { status: 400 })
     }
   }
 }
@@ -79,10 +70,10 @@ export const withAuthAndValidation = <T>(
   schema: z.ZodSchema<T>,
   handler: (
     request: AuthenticatedValidationRequest<T>,
-    context: { params: Promise<Record<string, string>> }
+    context: { params: Promise<IdParamSchema> }
   ) => Promise<NextResponse>
 ) => {
-  return withAuthAndDBParams<Record<string, string>>(async (authRequest, context) => {
+  return withAuthAndDBParams<IdParamSchema>(async (authRequest, context) => {
     const validationHandler = withValidation<T>(schema, validationRequest => {
       const mergedRequest = {
         ...authRequest,

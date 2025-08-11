@@ -1,75 +1,102 @@
 import { Types } from 'mongoose'
 import { z } from 'zod'
-import { DefaultRequest } from '@/interfaces/DefaultRequest'
 import IMaterialDB from '@/interfaces/materials/IMaterialDB'
+import { defaultRequestSchema } from '../general'
 
 // Create material
-export const createMaterialRequestSchema = z.custom<Omit<IMaterialDB, 'id' | 'ec3MatchId'>>()
-export const createMaterialBulkRequestSchema = z.object({
-  materials: z.array(createMaterialRequestSchema),
-})
+export const createMaterialRequestSchema = defaultRequestSchema(
+  z.custom<Omit<IMaterialDB, '_id' | 'ec3MatchId'>>()
+)
+export const createMaterialBulkRequestSchema = defaultRequestSchema(
+  z.object({
+    materials: z.array(z.custom<Omit<IMaterialDB, '_id' | 'ec3MatchId'>>()),
+    projectId: z.custom<Types.ObjectId>().optional(),
+  })
+)
 
 // Create EC3 match
-export const createEC3MatchRequestSchema = z.object({
-  materialId: z.custom<Types.ObjectId>(),
-  updates: z.custom<
-    Partial<Omit<IMaterialDB, 'id' | 'ec3MatchId'>> & { score: number; ec3MatchId: string }
-  >(),
-})
-export const createEC3BulkMatchRequestSchema = z.object({
-  materialIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one material ID is required'),
-  updates: z
-    .array(createEC3MatchRequestSchema.shape.updates)
-    .min(1, 'At least one update is required'),
-})
+export const createEC3MatchRequestSchema = defaultRequestSchema(
+  z.object({
+    materialId: z.custom<Types.ObjectId>(),
+    updates: z.custom<
+      Partial<Omit<IMaterialDB, 'id' | 'ec3MatchId'>> & { score: number; ec3MatchId: string }
+    >(),
+  })
+)
+export const createEC3BulkMatchRequestSchema = defaultRequestSchema(
+  z.object({
+    materialIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one material ID is required'),
+    updates: z
+      .array(
+        z.custom<
+          Partial<Omit<IMaterialDB, 'id' | 'ec3MatchId'>> & { score: number; ec3MatchId: string }
+        >()
+      )
+      .min(1, 'At least one update is required'),
+    projectId: z.custom<Types.ObjectId>().optional(),
+  })
+)
 
 // Get material
-export const getMaterialRequestSchema = z.object({
-  materialId: z.custom<Types.ObjectId>(),
-  ec3MatchId: z.string().optional(),
-})
-export const getMaterialBulkRequestSchema = z.object({
-  materialIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one material ID is required'),
-})
+export const getMaterialRequestSchema = defaultRequestSchema(
+  z.object({
+    materialId: z.custom<Types.ObjectId>(),
+    ec3MatchId: z.string().optional(),
+  })
+)
+export const getMaterialBulkRequestSchema = defaultRequestSchema(
+  z.object({
+    materialIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one material ID is required'),
+    projectId: z.custom<Types.ObjectId>().optional(),
+  })
+)
 
 // Update material
-export const updateMaterialRequestSchema = z.object({
-  materialId: z.custom<Types.ObjectId>(),
-  updates: z.custom<Partial<Omit<IMaterialDB, 'id'>>>(),
-})
-export const updateMaterialBulkRequestSchema = z.object({
-  materialIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one material ID is required'),
-  updates: z
-    .array(updateMaterialRequestSchema.shape.updates)
-    .min(1, 'At least one update is required'),
-})
+export const updateMaterialRequestSchema = defaultRequestSchema(
+  z.object({
+    materialId: z.custom<Types.ObjectId>(),
+    updates: z.custom<Partial<Omit<IMaterialDB, 'id'>>>(),
+  })
+)
+export const updateMaterialBulkRequestSchema = defaultRequestSchema(
+  z.object({
+    materialIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one material ID is required'),
+    updates: z
+      .array(z.custom<Partial<Omit<IMaterialDB, 'id'>>>())
+      .min(1, 'At least one update is required'),
+    projectId: z.custom<Types.ObjectId>().optional(),
+  })
+)
 
 // Delete material
-export const deleteMaterialRequestSchema = z.object({
-  materialId: z.custom<Types.ObjectId>(),
-})
+export const deleteMaterialRequestSchema = defaultRequestSchema(
+  z.object({
+    materialId: z.custom<Types.ObjectId>(),
+  })
+)
+export const deleteMaterialBulkRequestSchema = defaultRequestSchema(
+  z.object({
+    materialIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one material ID is required'),
+    projectId: z.custom<Types.ObjectId>().optional(),
+  })
+)
 
 // Create material types
-export type CreateMaterialRequest = DefaultRequest<z.infer<typeof createMaterialRequestSchema>>
-export type CreateMaterialBulkRequest = DefaultRequest<
-  z.infer<typeof createMaterialBulkRequestSchema>
->
+export type CreateMaterialRequest = z.infer<typeof createMaterialRequestSchema>
+export type CreateMaterialBulkRequest = z.infer<typeof createMaterialBulkRequestSchema>
 
 // Create EC3 match types
-export type CreateEC3MatchRequest = DefaultRequest<z.infer<typeof createEC3MatchRequestSchema>>
-export type CreateEC3BulkMatchRequest = DefaultRequest<
-  z.infer<typeof createEC3BulkMatchRequestSchema>
->
+export type CreateEC3MatchRequest = z.infer<typeof createEC3MatchRequestSchema>
+export type CreateEC3BulkMatchRequest = z.infer<typeof createEC3BulkMatchRequestSchema>
 
 // Get material types
-export type GetMaterialRequest = DefaultRequest<z.infer<typeof getMaterialRequestSchema>>
-export type GetMaterialBulkRequest = DefaultRequest<z.infer<typeof getMaterialBulkRequestSchema>>
+export type GetMaterialRequest = z.infer<typeof getMaterialRequestSchema>
+export type GetMaterialBulkRequest = z.infer<typeof getMaterialBulkRequestSchema>
 
 // Update material types
-export type UpdateMaterialRequest = DefaultRequest<z.infer<typeof updateMaterialRequestSchema>>
-export type UpdateMaterialBulkRequest = DefaultRequest<
-  z.infer<typeof updateMaterialBulkRequestSchema>
->
+export type UpdateMaterialRequest = z.infer<typeof updateMaterialRequestSchema>
+export type UpdateMaterialBulkRequest = z.infer<typeof updateMaterialBulkRequestSchema>
 
 // Delete material types
-export type DeleteMaterialRequest = DefaultRequest<z.infer<typeof deleteMaterialRequestSchema>>
+export type DeleteMaterialRequest = z.infer<typeof deleteMaterialRequestSchema>
+export type DeleteMaterialBulkRequest = z.infer<typeof deleteMaterialBulkRequestSchema>

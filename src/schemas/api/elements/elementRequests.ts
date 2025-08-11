@@ -1,42 +1,74 @@
 import { Types } from 'mongoose'
 import { z } from 'zod'
-import { DefaultRequest } from '@/interfaces/DefaultRequest'
 import { IElementDB } from '@/interfaces/elements/IElementDB'
+import { defaultRequestSchema } from '../general'
 
 // Create element
-export const createElementRequestSchema = z.custom<Omit<IElementDB, 'id'>>()
-export const createElementBulkRequestSchema = z.object({
-  elements: z.array(createElementRequestSchema),
-})
+export const createElementRequestSchema = defaultRequestSchema(z.custom<Omit<IElementDB, '_id'>>())
+export const createElementBulkRequestSchema = defaultRequestSchema(
+  z.object({
+    elements: z.array(createElementRequestSchema.shape.data),
+    projectId: z.custom<Types.ObjectId>().optional(),
+  })
+)
+
+export const getElementRequestSchema = defaultRequestSchema(
+  z.object({
+    elementId: z.custom<Types.ObjectId>(),
+    ec3MatchId: z.string().optional(),
+  })
+)
+
+export const getElementBulkRequestSchema = defaultRequestSchema(
+  z.object({
+    elementIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one element ID is required'),
+    projectId: z.custom<Types.ObjectId>().optional(),
+  })
+)
 
 // Update element
-export const updateElementRequestSchema = z.object({
-  elementId: z.custom<Types.ObjectId>(),
-  updates: z.custom<Partial<Omit<IElementDB, 'id'>>>(),
-})
-export const updateElementBulkRequestSchema = z.object({
-  elementIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one element ID is required'),
-  updates: z
-    .array(updateElementRequestSchema.shape.updates)
-    .min(1, 'At least one update is required'),
-})
+export const updateElementRequestSchema = defaultRequestSchema(
+  z.object({
+    elementId: z.custom<Types.ObjectId>(),
+    updates: z.custom<Partial<Omit<IElementDB, 'id'>>>(),
+  })
+)
+export const updateElementBulkRequestSchema = defaultRequestSchema(
+  z.object({
+    elementIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one element ID is required'),
+    updates: z
+      .array(z.custom<Partial<Omit<IElementDB, 'id'>>>())
+      .min(1, 'At least one update is required'),
+    projectId: z.custom<Types.ObjectId>().optional(),
+  })
+)
 
 // Delete element
-export const deleteElementRequestSchema = z.object({
-  id: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid element ID format'),
-})
+export const deleteElementRequestSchema = defaultRequestSchema(
+  z.object({
+    elementId: z.custom<Types.ObjectId>(),
+  })
+)
+
+export const deleteElementBulkRequestSchema = defaultRequestSchema(
+  z.object({
+    elementIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one element ID is required'),
+    projectId: z.custom<Types.ObjectId>().optional(),
+  })
+)
 
 // Create element types
-export type CreateElementRequest = DefaultRequest<z.infer<typeof createElementRequestSchema>>
-export type CreateElementBulkRequest = DefaultRequest<
-  z.infer<typeof createElementBulkRequestSchema>
->
+export type CreateElementRequest = z.infer<typeof createElementRequestSchema>
+export type CreateElementBulkRequest = z.infer<typeof createElementBulkRequestSchema>
+
+// Get element types
+export type GetElementRequest = z.infer<typeof getElementRequestSchema>
+export type GetElementBulkRequest = z.infer<typeof getElementBulkRequestSchema>
 
 // Update element types
-export type UpdateElementRequest = DefaultRequest<z.infer<typeof updateElementRequestSchema>>
-export type UpdateElementBulkRequest = DefaultRequest<
-  z.infer<typeof updateElementBulkRequestSchema>
->
+export type UpdateElementRequest = z.infer<typeof updateElementRequestSchema>
+export type UpdateElementBulkRequest = z.infer<typeof updateElementBulkRequestSchema>
 
 // Delete element types
-export type DeleteElementRequest = DefaultRequest<z.infer<typeof deleteElementRequestSchema>>
+export type DeleteElementRequest = z.infer<typeof deleteElementRequestSchema>
+export type DeleteElementBulkRequest = z.infer<typeof deleteElementBulkRequestSchema>

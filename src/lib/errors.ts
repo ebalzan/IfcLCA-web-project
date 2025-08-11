@@ -98,6 +98,48 @@ export class BusinessLogicError extends AppError {
 }
 
 /**
+ * Project-specific errors
+ */
+export class ProjectNotFoundError extends NotFoundError {
+  constructor(projectId?: string) {
+    super('Project', projectId)
+  }
+}
+
+export class ProjectAccessError extends ForbiddenError {
+  constructor(message: string = 'You do not have access to this project') {
+    super(message)
+  }
+}
+
+/**
+ * Project update error
+ */
+export class ProjectUpdateError extends BusinessLogicError {
+  constructor(message: string) {
+    super(message, 'PROJECT_UPDATE_ERROR')
+  }
+}
+
+/**
+ * Project delete error
+ */
+export class ProjectDeleteError extends BusinessLogicError {
+  constructor(message: string) {
+    super(message, 'PROJECT_DELETE_ERROR')
+  }
+}
+
+/**
+ * Project create error
+ */
+export class ProjectCreateError extends BusinessLogicError {
+  constructor(message: string) {
+    super(message, 'PROJECT_CREATE_ERROR')
+  }
+}
+
+/**
  * Material-specific errors
  */
 export class MaterialNotFoundError extends NotFoundError {
@@ -112,6 +154,24 @@ export class MaterialNotFoundError extends NotFoundError {
 export class MaterialUpdateError extends BusinessLogicError {
   constructor(message: string) {
     super(message, 'MATERIAL_UPDATE_ERROR')
+  }
+}
+
+/**
+ * Material create error
+ */
+export class MaterialCreateError extends BusinessLogicError {
+  constructor(message: string) {
+    super(message, 'MATERIAL_CREATE_ERROR')
+  }
+}
+
+/**
+ * Material delete error
+ */
+export class MaterialDeleteError extends BusinessLogicError {
+  constructor(message: string) {
+    super(message, 'MATERIAL_DELETE_ERROR')
   }
 }
 
@@ -134,6 +194,15 @@ export class ElementUpdateError extends BusinessLogicError {
 }
 
 /**
+ * Element create error
+ */
+export class ElementCreateError extends BusinessLogicError {
+  constructor(message: string) {
+    super(message, 'ELEMENT_CREATE_ERROR')
+  }
+}
+
+/**
  * Element delete error
  */
 export class ElementDeleteError extends BusinessLogicError {
@@ -143,26 +212,38 @@ export class ElementDeleteError extends BusinessLogicError {
 }
 
 /**
- * Project-specific errors
- */
-export class ProjectNotFoundError extends NotFoundError {
-  constructor(projectId?: string) {
-    super('Project', projectId)
-  }
-}
-
-export class ProjectAccessError extends ForbiddenError {
-  constructor(message: string = 'You do not have access to this project') {
-    super(message)
-  }
-}
-
-/**
  * EC3-specific errors
  */
 export class EC3MatchError extends BusinessLogicError {
   constructor(message: string) {
     super(message, 'EC3_MATCH_ERROR')
+  }
+}
+
+/**
+ * EC3 create match error
+ */
+export class EC3CreateMatchError extends BusinessLogicError {
+  constructor(message: string) {
+    super(message, 'EC3_CREATE_MATCH_ERROR')
+  }
+}
+
+/**
+ * Upload-specific errors
+ */
+export class UploadError extends BusinessLogicError {
+  constructor(message: string) {
+    super(message, 'UPLOAD_ERROR')
+  }
+}
+
+/**
+ * Processing error
+ */
+export class ProcessingError extends BusinessLogicError {
+  constructor(message: string) {
+    super(message, 'PROCESSING_ERROR')
   }
 }
 
