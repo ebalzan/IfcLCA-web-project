@@ -1,12 +1,6 @@
-import { Types } from 'mongoose'
 import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
 import { MaterialService } from '@/lib/services/material-service'
-import {
-  AuthenticatedValidationRequest,
-  validatePathParams,
-  withAuthAndValidation,
-} from '@/lib/validation-middleware'
-import { IdParamSchema, idParamSchema } from '@/schemas/api/general'
+import { AuthenticatedValidationRequest, withAuthAndValidation } from '@/lib/validation-middleware'
 import {
   CreateMaterialBulkRequest,
   createMaterialBulkRequestSchema,
@@ -16,7 +10,7 @@ import {
   getMaterialBulkRequestSchema,
   UpdateMaterialBulkRequest,
   updateMaterialBulkRequestSchema,
-} from '@/schemas/api/materials/materialRequests'
+} from '@/schemas/api/materials/material-requests'
 
 async function createMaterialBulk(
   request: AuthenticatedValidationRequest<CreateMaterialBulkRequest>
@@ -34,21 +28,12 @@ async function createMaterialBulk(
   }
 }
 
-async function getMaterialBulk(
-  request: AuthenticatedValidationRequest<GetMaterialBulkRequest>,
-  context: { params: Promise<IdParamSchema> }
-) {
+async function getMaterialBulk(request: AuthenticatedValidationRequest<GetMaterialBulkRequest>) {
   try {
-    const { id: materialId } = await validatePathParams(idParamSchema, context.params)
-
-    if (!Types.ObjectId.isValid(materialId)) {
-      return sendApiErrorResponse(new Error('Invalid material ID'), request, {
-        resource: 'material',
-      })
-    }
+    const { materialIds } = request.validatedData.data
 
     const material = await MaterialService.getMaterialBulk({
-      data: { materialIds: [new Types.ObjectId(materialId)] },
+      data: { materialIds },
     })
 
     return sendApiSuccessResponse(material.data, 'Material fetched successfully', request)

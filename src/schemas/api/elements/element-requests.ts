@@ -15,7 +15,6 @@ export const createElementBulkRequestSchema = defaultRequestSchema(
 export const getElementRequestSchema = defaultRequestSchema(
   z.object({
     elementId: z.custom<Types.ObjectId>(),
-    ec3MatchId: z.string().optional(),
   })
 )
 

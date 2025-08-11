@@ -10,16 +10,16 @@ export interface AuthenticatedRequest extends NextRequest {
 
 export type ApiHandler = (request: AuthenticatedRequest) => Promise<NextResponse>
 
-export type ApiHandlerWithParams<T> = (
+export type ApiHandlerWithParams<P, Q> = (
   request: AuthenticatedRequest,
-  context: { params: Promise<T> }
+  context: { pathParams: Promise<P>; queryParams: Promise<Q> }
 ) => Promise<NextResponse>
 
 export type PublicApiHandler = (request: NextRequest) => Promise<NextResponse>
 
-export type PublicApiHandlerWithParams<T> = (
+export type PublicApiHandlerWithParams<P, Q> = (
   request: NextRequest,
-  context: { params: Promise<T> }
+  context: { pathParams: Promise<P>; queryParams: Promise<Q> }
 ) => Promise<NextResponse>
 
 /**
@@ -51,8 +51,13 @@ export function withAuthAndDB(handler: ApiHandler): ApiHandler {
 /**
  * API middleware for routes with dynamic parameters
  */
-export function withAuthAndDBParams<T>(handler: ApiHandlerWithParams<T>): ApiHandlerWithParams<T> {
-  return async (request: NextRequest, context: { params: Promise<T> }) => {
+export function withAuthAndDBParams<P, Q>(
+  handler: ApiHandlerWithParams<P, Q>
+): ApiHandlerWithParams<P, Q> {
+  return async (
+    request: NextRequest,
+    context: { pathParams: Promise<P>; queryParams: Promise<Q> }
+  ) => {
     try {
       const { userId } = await auth()
       if (!userId) {
@@ -92,10 +97,13 @@ export function withDB(handler: PublicApiHandler): PublicApiHandler {
 /**
  * Middleware wrapper for public API routes with dynamic parameters
  */
-export function withDBParams<T>(
-  handler: PublicApiHandlerWithParams<T>
-): PublicApiHandlerWithParams<T> {
-  return async (request: NextRequest, context: { params: Promise<T> }) => {
+export function withDBParams<P, Q>(
+  handler: PublicApiHandlerWithParams<P, Q>
+): PublicApiHandlerWithParams<P, Q> {
+  return async (
+    request: NextRequest,
+    context: { pathParams: Promise<P>; queryParams: Promise<Q> }
+  ) => {
     try {
       await connectToDatabase()
       return await handler(request, context)

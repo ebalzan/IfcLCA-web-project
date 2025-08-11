@@ -8,7 +8,7 @@ export interface IElementWithMaterialRefs extends IElementDB, IElementVirtuals {
   materialRefs: IMaterialDB[]
 }
 
-interface IProjectWithStats extends IProjectDB {
+export interface IProjectWithNestedData extends IProjectDB {
   elements: IElementWithMaterialRefs[]
   materials: IMaterialDB[]
   uploads: IUploadDB[]
@@ -20,5 +20,3 @@ interface IProjectWithStats extends IProjectDB {
     materials: number
   }
 }
-
-export default IProjectWithStats

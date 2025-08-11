@@ -8,7 +8,7 @@ export const validateFileUpload = async (request: NextRequest, schema: z.ZodSche
 
     const validatedData = schema.parse(data)
     return { success: true, data: validatedData }
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       const formattedErrors = error.errors.map(err => ({
         field: err.path.join('.'),
@@ -54,7 +54,7 @@ export const validateQueryWithDefaults = <T extends z.ZodSchema>(
     const queryWithDefaults = { ...defaults, ...queryObject }
 
     return { success: true, data: schema.parse(queryWithDefaults) }
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       const formattedErrors = error.errors.map(err => ({
         field: err.path.join('.'),
@@ -98,7 +98,7 @@ export const validatePathWithDefaults = async <T extends z.ZodSchema>(
     const paramsWithDefaults = { ...defaults, ...pathParams }
 
     return { success: true, data: schema.parse(paramsWithDefaults) }
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       const formattedErrors = error.errors.map(err => ({
         field: err.path.join('.'),

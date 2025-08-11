@@ -12,6 +12,12 @@ const materialSchema = new Schema<IMaterialDB, IMaterialModelType, {}, IMaterial
       ref: 'Project',
       required: true,
     },
+    ec3MatchId: {
+      type: String,
+      required: true,
+      default: null,
+      nullable: true,
+    },
     name: {
       type: String,
       required: true,
@@ -39,12 +45,6 @@ const materialSchema = new Schema<IMaterialDB, IMaterialModelType, {}, IMaterial
     },
     density: {
       type: Number,
-    },
-    ec3MatchId: {
-      type: String,
-      required: true,
-      default: null,
-      nullable: true,
     },
     declaredUnit: {
       type: String,
@@ -76,6 +76,10 @@ const materialSchema = new Schema<IMaterialDB, IMaterialModelType, {}, IMaterial
 materialSchema.index({ projectId: 1, name: 1 }, { unique: true })
 materialSchema.index({ ec3MatchId: 1 })
 
+// Plugins
+materialSchema.plugin(mongooseLeanVirtuals)
+materialSchema.plugin(mongooseLeanGetters)
+
 // Virtual for elements using this material
 materialSchema.virtual('elements', {
   ref: 'Element',
@@ -83,7 +87,7 @@ materialSchema.virtual('elements', {
   foreignField: 'materials.material',
 })
 
-// Virtual for total volume across all elements
+// Virtual for total volume
 materialSchema.virtual('totalVolume').get(async function () {
   const result = await model('Element').aggregate<Pick<IMaterialVirtuals, 'totalVolume'>>([
     { $match: { 'materials.material': this._id } },
@@ -95,9 +99,4 @@ materialSchema.virtual('totalVolume').get(async function () {
   return result[0]?.totalVolume || 0
 })
 
-// Plugins
-materialSchema.plugin(mongooseLeanVirtuals)
-materialSchema.plugin(mongooseLeanGetters)
-
-// Check if model already exists before creating
 export const Material: IMaterialModelType = models.Material || model('Material', materialSchema)

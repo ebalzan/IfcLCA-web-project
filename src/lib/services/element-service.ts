@@ -11,7 +11,7 @@ import {
   GetElementRequest,
   UpdateElementBulkRequest,
   UpdateElementRequest,
-} from '@/schemas/api/elements/elementRequests'
+} from '@/schemas/api/elements/element-requests'
 import {
   CreateElementBulkResponse,
   CreateElementResponse,
@@ -21,7 +21,7 @@ import {
   GetElementResponse,
   UpdateElementBulkResponse,
   UpdateElementResponse,
-} from '@/schemas/api/elements/elementResponses'
+} from '@/schemas/api/elements/element-responses'
 import { withTransaction } from '@/utils/withTransaction'
 import {
   DatabaseError,
@@ -107,16 +107,15 @@ export class ElementService {
   }
 
   /**
-   * Get a material by its ID
+   * Get an element by its ID
    */
   static async getElement({
-    data: { elementId, ec3MatchId },
+    data: { elementId },
     session,
   }: GetElementRequest): Promise<GetElementResponse> {
     try {
       const element = await Element.findOne({
         _id: elementId,
-        ec3MatchId,
       })
         .session(session || null)
         .lean()
@@ -145,7 +144,7 @@ export class ElementService {
   }
 
   /**
-   * Get multiple materials by their EC3 match IDs
+   * Get multiple elements by their IDs
    */
   static async getElementBulk({
     data: { elementIds, projectId },
@@ -160,12 +159,12 @@ export class ElementService {
         query.projectId = projectId
       }
 
-      // 2. Fetch materials
+      // 2. Fetch elements
       const elements = await Element.find(query)
         .session(session || null)
         .lean()
 
-      // 3. Check if materials exist
+      // 3. Check if elements exist
       if (!elements) {
         throw new ElementNotFoundError(elementIds.toString())
       }

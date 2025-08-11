@@ -86,16 +86,16 @@ const elementSchema = new Schema<IElementDB, IElementModelType, {}, IElementVirt
 elementSchema.index({ projectId: 1, guid: 1 }, { unique: true })
 elementSchema.index({ 'materials.material': 1 })
 
-// Virtuals
+// Plugins
 elementSchema.plugin(mongooseLeanVirtuals)
 elementSchema.plugin(mongooseLeanGetters)
 
-// Virtual for total volume
+// Virtuals
 elementSchema.virtual('totalVolume').get(function () {
   return this.materials.reduce((sum, materialLayer) => sum + (materialLayer.volume || 0), 0)
 })
 
-// Virtual for emissions (calculated on-the-fly)
+// Virtual for emissions
 elementSchema.virtual('emissions').get(function () {
   return this.materials.reduce(
     (acc, materialLayer) => {

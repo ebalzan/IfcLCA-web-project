@@ -31,6 +31,20 @@ export const getProjectBulkRequestSchema = defaultRequestSchema(
   })
 )
 
+// Get project with nested data
+export const getProjectWithNestedDataRequestSchema = defaultRequestSchema(
+  z.object({
+    projectId: z.custom<Types.ObjectId>(),
+    userId: z.string(),
+  })
+)
+export const getProjectWithNestedDataBulkRequestSchema = defaultRequestSchema(
+  z.object({
+    projectIds: z.array(z.custom<Types.ObjectId>()),
+    userId: z.string(),
+  })
+)
+
 // Update project
 export const updateProjectRequestSchema = defaultRequestSchema(
   z.object({
@@ -68,6 +82,12 @@ export type CreateProjectBulkRequest = z.infer<typeof createProjectBulkRequestSc
 // Get project types
 export type GetProjectRequest = z.infer<typeof getProjectRequestSchema>
 export type GetProjectBulkRequest = z.infer<typeof getProjectBulkRequestSchema>
+
+// Get project with nested data types
+export type GetProjectWithNestedDataRequest = z.infer<typeof getProjectWithNestedDataRequestSchema>
+export type GetProjectWithNestedDataBulkRequest = z.infer<
+  typeof getProjectWithNestedDataBulkRequestSchema
+>
 
 // Update project types
 export type UpdateProjectRequest = z.infer<typeof updateProjectRequestSchema>

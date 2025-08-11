@@ -1,341 +1,100 @@
-import { NextResponse } from 'next/server'
 import { Types } from 'mongoose'
-import IProjectWithStats from '@/interfaces/projects/IProjectWithStats'
+import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
 import { AuthenticatedRequest, getUserId, withAuthAndDBParams } from '@/lib/api-middleware'
-import { Element, Material, Project, Upload } from '@/models'
+import { ProjectService } from '@/lib/services/project-service'
+import {
+  AuthenticatedValidationRequest,
+  validatePathParams,
+  withAuthAndValidation,
+  withAuthAndValidationParams,
+} from '@/lib/validation-middleware'
+import { idParamSchema, IdParamSchema } from '@/schemas/api/general'
+import {
+  CreateProjectRequest,
+  createProjectRequestSchema,
+  UpdateProjectRequest,
+  updateProjectRequestSchema,
+} from '@/schemas/api/projects/project-requests'
 
 export const runtime = 'nodejs'
 
-async function getProjectWithStats(projectId: Types.ObjectId) {
-  const [project] = await Project.aggregate<IProjectWithStats>([
-    {
-      $match: { _id: projectId },
-    },
-    {
-      $lookup: {
-        from: 'uploads',
-        localField: '_id',
-        foreignField: 'projectId',
-        as: 'uploads',
-      },
-    },
-    {
-      $lookup: {
-        from: 'elements',
-        localField: '_id',
-        foreignField: 'projectId',
-        as: 'elements',
-        pipeline: [
-          {
-            $lookup: {
-              from: 'materials',
-              localField: 'materials.material',
-              foreignField: '_id',
-              as: 'materialRefs',
-              pipeline: [
-                {
-                  $lookup: {
-                    from: 'indicatorsKBOB',
-                    localField: 'kbobMatchId',
-                    foreignField: '_id',
-                    as: 'kbobMatch',
-                  },
-                },
-                {
-                  $unwind: {
-                    path: '$kbobMatch',
-                    preserveNullAndEmptyArrays: true,
-                  },
-                },
-              ],
-            },
-          },
-          {
-            $addFields: {
-              materials: {
-                $map: {
-                  input: '$materials',
-                  as: 'mat',
-                  in: {
-                    $mergeObjects: [
-                      '$$mat',
-                      {
-                        material: {
-                          $arrayElemAt: [
-                            {
-                              $filter: {
-                                input: '$materialRefs',
-                                cond: {
-                                  $eq: ['$$this._id', '$$mat.material'],
-                                },
-                              },
-                            },
-                            0,
-                          ],
-                        },
-                      },
-                    ],
-                  },
-                },
-              },
-              totalVolume: { $sum: '$materials.volume' },
-              emissions: {
-                $reduce: {
-                  input: '$materials',
-                  initialValue: { gwp: 0, ubp: 0, penre: 0 },
-                  in: {
-                    gwp: {
-                      $add: [
-                        '$$value.gwp',
-                        {
-                          $multiply: [
-                            '$$this.volume',
-                            { $ifNull: ['$$this.material.density', 0] },
-                            { $ifNull: ['$$this.material.kbobMatch.GWP', 0] },
-                          ],
-                        },
-                      ],
-                    },
-                    ubp: {
-                      $add: [
-                        '$$value.ubp',
-                        {
-                          $multiply: [
-                            '$$this.volume',
-                            { $ifNull: ['$$this.material.density', 0] },
-                            { $ifNull: ['$$this.material.kbobMatch.UBP', 0] },
-                          ],
-                        },
-                      ],
-                    },
-                    penre: {
-                      $add: [
-                        '$$value.penre',
-                        {
-                          $multiply: [
-                            '$$this.volume',
-                            { $ifNull: ['$$this.material.density', 0] },
-                            {
-                              $ifNull: ['$$this.material.kbobMatch.PENRE', 0],
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                  },
-                },
-              },
-            },
-          },
-        ],
-      },
-    },
-    {
-      $lookup: {
-        from: 'materials',
-        localField: '_id',
-        foreignField: 'projectId',
-        as: 'materials',
-        pipeline: [
-          {
-            $lookup: {
-              from: 'indicatorsKBOB',
-              localField: 'kbobMatchId',
-              foreignField: '_id',
-              as: 'kbobMatch',
-            },
-          },
-          {
-            $unwind: {
-              path: '$kbobMatch',
-              preserveNullAndEmptyArrays: true,
-            },
-          },
-          {
-            $lookup: {
-              from: 'elements',
-              let: { materialId: '$_id' },
-              pipeline: [
-                {
-                  $match: {
-                    $expr: {
-                      $in: ['$$materialId', '$materials.material'],
-                    },
-                  },
-                },
-                {
-                  $unwind: '$materials',
-                },
-                {
-                  $match: {
-                    $expr: {
-                      $eq: ['$materials.material', '$$materialId'],
-                    },
-                  },
-                },
-                {
-                  $group: {
-                    _id: null,
-                    totalVolume: { $sum: '$materials.volume' },
-                  },
-                },
-              ],
-              as: 'volumeData',
-            },
-          },
-          {
-            $addFields: {
-              volume: {
-                $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
-              },
-              gwp: {
-                $multiply: [
-                  {
-                    $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
-                  },
-                  { $ifNull: ['$density', 0] },
-                  { $ifNull: ['$kbobMatch.GWP', 0] },
-                ],
-              },
-              ubp: {
-                $multiply: [
-                  {
-                    $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
-                  },
-                  { $ifNull: ['$density', 0] },
-                  { $ifNull: ['$kbobMatch.UBP', 0] },
-                ],
-              },
-              penre: {
-                $multiply: [
-                  {
-                    $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
-                  },
-                  { $ifNull: ['$density', 0] },
-                  { $ifNull: ['$kbobMatch.PENRE', 0] },
-                ],
-              },
-            },
-          },
-          {
-            $project: {
-              volumeData: 0,
-            },
-          },
-        ],
-      },
-    },
-    {
-      $addFields: {
-        lastActivityAt: {
-          $max: [
-            '$updatedAt',
-            { $max: '$uploads.createdAt' },
-            { $max: '$elements.createdAt' },
-            { $max: '$materials.createdAt' },
-          ],
-        },
-        _count: {
-          elements: { $size: '$elements' },
-          uploads: { $size: '$uploads' },
-          materials: { $size: '$materials' },
-        },
-        totalEmissions: {
-          $reduce: {
-            input: '$elements',
-            initialValue: { gwp: 0, ubp: 0, penre: 0 },
-            in: {
-              gwp: { $add: ['$$value.gwp', '$$this.emissions.gwp'] },
-              ubp: { $add: ['$$value.ubp', '$$this.emissions.ubp'] },
-              penre: { $add: ['$$value.penre', '$$this.emissions.penre'] },
-            },
-          },
-        },
-      },
-    },
-  ])
+async function createProject(request: AuthenticatedValidationRequest<CreateProjectRequest>) {
+  try {
+    const userId = getUserId(request)
+    const { project } = request.validatedData.data
 
-  return project
+    const result = await ProjectService.createProject({
+      data: { project, userId },
+    })
+
+    return sendApiSuccessResponse(result.data, 'Project created successfully', request)
+  } catch (error: unknown) {
+    return sendApiErrorResponse(error, request, { operation: 'create', resource: 'project' })
+  }
 }
 
 async function getProject(
   request: AuthenticatedRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { pathParams: Promise<IdParamSchema> }
 ) {
-  const params = await context.params
+  try {
+    const userId = getUserId(request)
+    const { id: projectId } = await validatePathParams(idParamSchema, context.pathParams)
 
-  if (!Types.ObjectId.isValid(params.id)) {
-    return NextResponse.json({ error: 'Invalid project ID' }, { status: 400 })
+    if (!Types.ObjectId.isValid(projectId)) {
+      return sendApiErrorResponse(new Error('Invalid project ID'), request, {
+        resource: 'project',
+      })
+    }
+
+    const project = await ProjectService.getProject({
+      data: { projectId: new Types.ObjectId(projectId), userId },
+    })
+
+    return sendApiSuccessResponse(project.data, 'Project fetched successfully', request)
+  } catch (error: unknown) {
+    return sendApiErrorResponse(error, request, { operation: 'fetch', resource: 'project' })
   }
-
-  const projectId = new Types.ObjectId(params.id)
-
-  const { searchParams } = new URL(request.url)
-  const withStats = searchParams.get('withStats') === 'true'
-
-  const project = withStats
-    ? await getProjectWithStats(projectId)
-    : await Project.findById(projectId)
-
-  if (!project) {
-    return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-  }
-
-  return NextResponse.json(project)
 }
 
 async function updateProject(
-  request: AuthenticatedRequest,
-  context: { params: Promise<{ id: string }> }
+  request: AuthenticatedValidationRequest<UpdateProjectRequest>,
+  context: { pathParams: Promise<IdParamSchema> }
 ) {
-  const userId = getUserId(request)
-  const params = await context.params
+  try {
+    const userId = getUserId(request)
+    const { id: projectId } = await validatePathParams(idParamSchema, context.pathParams)
+    const { updates } = request.validatedData.data
 
-  const body: { name: string; description: string } = await request.json()
+    const editedProject = await ProjectService.updateProject({
+      data: { projectId: new Types.ObjectId(projectId), updates, userId },
+    })
 
-  const project = await Project.findOneAndUpdate(
-    { _id: params.id, userId },
-    { $set: body },
-    { new: true }
-  ).lean()
-
-  if (!project) {
-    return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    return sendApiSuccessResponse(editedProject.data, 'Project updated successfully', request)
+  } catch (error: unknown) {
+    return sendApiErrorResponse(error, request, { operation: 'update', resource: 'project' })
   }
-
-  const editedProject = await getProjectWithStats(new Types.ObjectId(params.id))
-
-  return NextResponse.json<IProjectWithStats>(editedProject)
 }
 
 export async function deleteProject(
   request: AuthenticatedRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { pathParams: Promise<IdParamSchema> }
 ) {
-  const userId = getUserId(request)
-  const params = await context.params
+  try {
+    const userId = getUserId(request)
+    const { id: projectId } = await validatePathParams(idParamSchema, context.pathParams)
 
-  // Verify project exists and belongs to user
-  const project = await Project.findOne({
-    _id: params.id,
-    userId,
-  })
+    const result = await ProjectService.deleteProject({
+      data: { projectId: new Types.ObjectId(projectId), userId },
+    })
 
-  if (!project) {
-    return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    return sendApiSuccessResponse(result.data, 'Project deleted successfully', request)
+  } catch (error: unknown) {
+    return sendApiErrorResponse(error, request, { operation: 'delete', resource: 'project' })
   }
-
-  // Delete all associated data in order
-  await Upload.deleteMany({ projectId: params.id })
-  await Element.deleteMany({ projectId: params.id })
-  await Material.deleteMany({ projectId: params.id })
-
-  // Finally delete the project
-  await Project.deleteOne({ _id: params.id })
-
-  return NextResponse.json({ success: true })
 }
 
-export const DELETE = withAuthAndDBParams(deleteProject)
+export const POST = withAuthAndValidation(createProjectRequestSchema, createProject)
 export const GET = withAuthAndDBParams(getProject)
-export const PATCH = withAuthAndDBParams(updateProject)
+export const PUT = withAuthAndValidationParams(updateProjectRequestSchema, updateProject)
+export const DELETE = withAuthAndDBParams(deleteProject)

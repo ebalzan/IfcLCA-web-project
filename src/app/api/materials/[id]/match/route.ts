@@ -4,21 +4,21 @@ import { MaterialService } from '@/lib/services/material-service'
 import {
   AuthenticatedValidationRequest,
   validatePathParams,
-  withAuthAndValidation,
+  withAuthAndValidationParams,
 } from '@/lib/validation-middleware'
 import { idParamSchema, IdParamSchema } from '@/schemas/api/general'
 import {
   CreateEC3MatchRequest,
   createEC3MatchRequestSchema,
-} from '@/schemas/api/materials/materialRequests'
+} from '@/schemas/api/materials/material-requests'
 
 async function createEC3Match(
   request: AuthenticatedValidationRequest<CreateEC3MatchRequest>,
-  context: { params: Promise<IdParamSchema> }
+  context: { pathParams: Promise<IdParamSchema> }
 ) {
   try {
-    const { id: materialId } = await validatePathParams(idParamSchema, context.params)
-    const { data } = request.validatedData
+    const { id: materialId } = await validatePathParams(idParamSchema, context.pathParams)
+    const { updates } = request.validatedData.data
 
     if (!Types.ObjectId.isValid(materialId)) {
       return sendApiErrorResponse(new Error('Invalid material ID'), request, {
@@ -29,7 +29,7 @@ async function createEC3Match(
     const result = await MaterialService.createEC3Match({
       data: {
         materialId: new Types.ObjectId(materialId),
-        updates: data.updates,
+        updates,
       },
     })
 
@@ -43,4 +43,4 @@ async function createEC3Match(
   }
 }
 
-export const POST = withAuthAndValidation(createEC3MatchRequestSchema, createEC3Match)
+export const POST = withAuthAndValidationParams(createEC3MatchRequestSchema, createEC3Match)

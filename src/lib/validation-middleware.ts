@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z, ZodError } from 'zod'
-import { IdParamSchema } from '@/schemas/api/general'
 import { formatValidationError } from './api-error-response'
-import { AuthenticatedRequest, withAuthAndDBParams } from './api-middleware'
+import { AuthenticatedRequest, withAuthAndDB, withAuthAndDBParams } from './api-middleware'
 
 export interface ValidationRequest<T> extends NextRequest {
   validatedData: T
@@ -60,7 +59,7 @@ export const validateQueryParams = <T extends z.ZodSchema>(
 
 export const validatePathParams = async <T extends z.ZodSchema>(
   schema: T,
-  params: Promise<Record<string, string>>
+  params: Promise<z.infer<T>>
 ): Promise<z.infer<T>> => {
   const data = await params
   return schema.parse(data)
@@ -68,12 +67,30 @@ export const validatePathParams = async <T extends z.ZodSchema>(
 
 export const withAuthAndValidation = <T>(
   schema: z.ZodSchema<T>,
+  handler: (request: AuthenticatedValidationRequest<T>) => Promise<NextResponse>
+) => {
+  return withAuthAndDB(async authRequest => {
+    const validationHandler = withValidation<T>(schema, validationRequest => {
+      const mergedRequest = {
+        ...authRequest,
+        ...validationRequest,
+      } as AuthenticatedValidationRequest<T>
+
+      return handler(mergedRequest)
+    })
+
+    return validationHandler(authRequest)
+  })
+}
+
+export const withAuthAndValidationParams = <T, P, Q>(
+  schema: z.ZodSchema<T>,
   handler: (
     request: AuthenticatedValidationRequest<T>,
-    context: { params: Promise<IdParamSchema> }
+    context: { pathParams: Promise<P>; queryParams: Promise<Q> }
   ) => Promise<NextResponse>
 ) => {
-  return withAuthAndDBParams<IdParamSchema>(async (authRequest, context) => {
+  return withAuthAndDBParams<P, Q>(async (authRequest, context) => {
     const validationHandler = withValidation<T>(schema, validationRequest => {
       const mergedRequest = {
         ...authRequest,

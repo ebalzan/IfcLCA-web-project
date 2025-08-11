@@ -24,7 +24,7 @@ import {
   GetMaterialRequest,
   UpdateMaterialBulkRequest,
   UpdateMaterialRequest,
-} from '@/schemas/api/materials/materialRequests'
+} from '@/schemas/api/materials/material-requests'
 import {
   CreateMaterialBulkResponse,
   CreateEC3BulkMatchResponse,
@@ -36,7 +36,7 @@ import {
   GetMaterialResponse,
   GetMaterialBulkResponse,
   DeleteMaterialBulkResponse,
-} from '@/schemas/api/materials/materialResponses'
+} from '@/schemas/api/materials/material-responses'
 import { withTransaction } from '@/utils/withTransaction'
 import { api } from '../fetch'
 
@@ -264,13 +264,12 @@ export class MaterialService {
    * Get a material by its ID
    */
   static async getMaterial({
-    data: { materialId, ec3MatchId },
+    data: { materialId },
     session,
   }: GetMaterialRequest): Promise<GetMaterialResponse> {
     try {
       const material = await Material.findOne({
         _id: materialId,
-        ec3MatchId,
       })
         .session(session || null)
         .lean()
@@ -299,7 +298,7 @@ export class MaterialService {
   }
 
   /**
-   * Get multiple materials by their EC3 match IDs
+   * Get multiple materials by their IDs
    */
   static async getMaterialBulk({
     data: { materialIds, projectId },
@@ -344,7 +343,7 @@ export class MaterialService {
   }
 
   /**
-   * Update multiple materials with EC3 matches in bulk
+   * Update a material
    */
   static async updateMaterial({
     data: { materialId, updates },
@@ -399,7 +398,7 @@ export class MaterialService {
   }
 
   /**
-   * Update multiple materials with EC3 matches in bulk
+   * Update multiple materials
    */
   static async updateMaterialBulk({
     data: { materialIds, updates, projectId },
@@ -471,7 +470,7 @@ export class MaterialService {
   }
 
   /**
-   * Deletes a material and creates a material deletion record
+   * Deletes a material
    */
   static async deleteMaterial({
     data: { materialId },
@@ -525,7 +524,7 @@ export class MaterialService {
   }
 
   /**
-   * Delete multiple materials in bulk
+   * Delete multiple materials
    */
   static async deleteMaterialBulk({
     data: { materialIds, projectId },

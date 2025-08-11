@@ -2,11 +2,11 @@ import { NextResponse } from 'next/server'
 import IProjectWithStatsClient from '@/interfaces/client/projects/IProjectWithStatsClient'
 import IProjectDB from '@/interfaces/projects/IProjectDB'
 import { ProjectsWithStatsResponse } from '@/interfaces/projects/ProjectsResponse'
-import { AuthenticatedRequest, getUserId, withAuthAndDB } from '@/lib/api-middleware'
+import { AuthenticatedRequest, getUserId, withAuthAndDBParams } from '@/lib/api-middleware'
 import {
   AuthenticatedValidationRequest,
   validateQueryParams,
-  withAuthAndValidation,
+  withAuthAndValidationParams,
 } from '@/lib/validation-middleware'
 import { Project } from '@/models'
 import { CreateProjectRequest, createProjectSchema } from '@/schemas/api'
@@ -306,5 +306,5 @@ async function createProject(
   return NextResponse.json(project)
 }
 
-export const GET = withAuthAndDB(getProjects)
-export const POST = withAuthAndValidation(createProjectSchema, createProject)
+export const GET = withAuthAndDBParams(getProjects)
+export const POST = withAuthAndValidationParams(createProjectSchema, createProject)

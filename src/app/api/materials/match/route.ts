@@ -4,7 +4,7 @@ import { AuthenticatedValidationRequest, withAuthAndValidation } from '@/lib/val
 import {
   CreateEC3BulkMatchRequest,
   createEC3BulkMatchRequestSchema,
-} from '@/schemas/api/materials/materialRequests'
+} from '@/schemas/api/materials/material-requests'
 
 async function createEC3BulkMatch(
   request: AuthenticatedValidationRequest<CreateEC3BulkMatchRequest>

@@ -1,6 +1,12 @@
 import IProjectDB from '@/interfaces/projects/IProjectDB'
-import { Project } from '@/models'
-import { CreateProjectRequest, GetProjectRequest } from '@/schemas/api/projects/project-requests'
+import { IProjectWithNestedData } from '@/interfaces/projects/IProjectWithNestedData'
+import { Project, Upload, Material, Element } from '@/models'
+import {
+  CreateProjectRequest,
+  GetProjectRequest,
+  GetProjectWithNestedDataBulkRequest,
+  GetProjectWithNestedDataRequest,
+} from '@/schemas/api/projects/project-requests'
 import {
   CreateProjectBulkRequest,
   GetProjectBulkRequest,
@@ -18,6 +24,8 @@ import {
   UpdateProjectBulkResponse,
   DeleteProjectResponse,
   DeleteProjectBulkResponse,
+  GetProjectWithNestedDataResponse,
+  GetProjectWithNestedDataBulkResponse,
 } from '@/schemas/api/projects/project-responses'
 import { withTransaction } from '@/utils/withTransaction'
 import {
@@ -177,6 +185,332 @@ export class ProjectService {
   }
 
   /**
+   * Get a project with nested data
+   */
+  static async getProjectWithNestedData({
+    data: { projectId, userId },
+    session,
+  }: GetProjectWithNestedDataRequest): Promise<GetProjectWithNestedDataResponse> {
+    try {
+      const project = await Project.findOne({ _id: projectId, userId })
+        .session(session || null)
+        .lean()
+
+      if (!project) {
+        throw new ProjectNotFoundError(projectId.toString())
+      }
+      const [projectWithNestedData] = await Project.aggregate<IProjectWithNestedData>([
+        {
+          $match: { _id: projectId },
+        },
+        {
+          $lookup: {
+            from: 'uploads',
+            localField: '_id',
+            foreignField: 'projectId',
+            as: 'uploads',
+          },
+        },
+        {
+          $lookup: {
+            from: 'elements',
+            localField: '_id',
+            foreignField: 'projectId',
+            as: 'elements',
+            pipeline: [
+              {
+                $lookup: {
+                  from: 'materials',
+                  localField: 'materials.material',
+                  foreignField: '_id',
+                  as: 'materialRefs',
+                  pipeline: [
+                    {
+                      $lookup: {
+                        from: 'EC3Matches',
+                        localField: 'ec3MatchId',
+                        foreignField: '_id',
+                        as: 'ec3Match',
+                      },
+                    },
+                    {
+                      $unwind: {
+                        path: '$ec3Match',
+                        preserveNullAndEmptyArrays: true,
+                      },
+                    },
+                  ],
+                },
+              },
+              {
+                $addFields: {
+                  materials: {
+                    $map: {
+                      input: '$materials',
+                      as: 'mat',
+                      in: {
+                        $mergeObjects: [
+                          '$$mat',
+                          {
+                            material: {
+                              $arrayElemAt: [
+                                {
+                                  $filter: {
+                                    input: '$materialRefs',
+                                    cond: {
+                                      $eq: ['$$this._id', '$$mat.material'],
+                                    },
+                                  },
+                                },
+                                0,
+                              ],
+                            },
+                          },
+                        ],
+                      },
+                    },
+                  },
+                  totalVolume: { $sum: '$materials.volume' },
+                  emissions: {
+                    $reduce: {
+                      input: '$materials',
+                      initialValue: { gwp: 0, ubp: 0, penre: 0 },
+                      in: {
+                        gwp: {
+                          $add: [
+                            '$$value.gwp',
+                            {
+                              $multiply: [
+                                '$$this.volume',
+                                { $ifNull: ['$$this.material.density', 0] },
+                                { $ifNull: ['$$this.material.kbobMatch.GWP', 0] },
+                              ],
+                            },
+                          ],
+                        },
+                        ubp: {
+                          $add: [
+                            '$$value.ubp',
+                            {
+                              $multiply: [
+                                '$$this.volume',
+                                { $ifNull: ['$$this.material.density', 0] },
+                                { $ifNull: ['$$this.material.kbobMatch.UBP', 0] },
+                              ],
+                            },
+                          ],
+                        },
+                        penre: {
+                          $add: [
+                            '$$value.penre',
+                            {
+                              $multiply: [
+                                '$$this.volume',
+                                { $ifNull: ['$$this.material.density', 0] },
+                                {
+                                  $ifNull: ['$$this.material.kbobMatch.PENRE', 0],
+                                },
+                              ],
+                            },
+                          ],
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        },
+        {
+          $lookup: {
+            from: 'materials',
+            localField: '_id',
+            foreignField: 'projectId',
+            as: 'materials',
+            pipeline: [
+              {
+                $lookup: {
+                  from: 'EC3Matches',
+                  localField: 'ec3MatchId',
+                  foreignField: 'ec3MatchId',
+                  as: 'ec3Match',
+                },
+              },
+              {
+                $unwind: {
+                  path: '$ec3Match',
+                  preserveNullAndEmptyArrays: true,
+                },
+              },
+              {
+                $lookup: {
+                  from: 'elements',
+                  let: { materialId: '$_id' },
+                  pipeline: [
+                    {
+                      $match: {
+                        $expr: {
+                          $in: ['$$materialId', '$materials.material'],
+                        },
+                      },
+                    },
+                    {
+                      $unwind: '$materials',
+                    },
+                    {
+                      $match: {
+                        $expr: {
+                          $eq: ['$materials.material', '$$materialId'],
+                        },
+                      },
+                    },
+                    {
+                      $group: {
+                        _id: null,
+                        totalVolume: { $sum: '$materials.volume' },
+                      },
+                    },
+                  ],
+                  as: 'volumeData',
+                },
+              },
+              {
+                $addFields: {
+                  volume: {
+                    $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
+                  },
+                  gwp: {
+                    $multiply: [
+                      {
+                        $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
+                      },
+                      { $ifNull: ['$density', 0] },
+                      { $ifNull: ['$ec3Match.gwp', 0] },
+                    ],
+                  },
+                  ubp: {
+                    $multiply: [
+                      {
+                        $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
+                      },
+                      { $ifNull: ['$density', 0] },
+                      { $ifNull: ['$ec3Match.ubp', 0] },
+                    ],
+                  },
+                  penre: {
+                    $multiply: [
+                      {
+                        $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
+                      },
+                      { $ifNull: ['$density', 0] },
+                      { $ifNull: ['$ec3Match.penre', 0] },
+                    ],
+                  },
+                },
+              },
+              {
+                $project: {
+                  volumeData: 0,
+                },
+              },
+            ],
+          },
+        },
+        {
+          $addFields: {
+            lastActivityAt: {
+              $max: [
+                '$updatedAt',
+                { $max: '$uploads.createdAt' },
+                { $max: '$elements.createdAt' },
+                { $max: '$materials.createdAt' },
+              ],
+            },
+            _count: {
+              elements: { $size: '$elements' },
+              uploads: { $size: '$uploads' },
+              materials: { $size: '$materials' },
+            },
+            totalEmissions: {
+              $reduce: {
+                input: '$elements',
+                initialValue: { gwp: 0, ubp: 0, penre: 0 },
+                in: {
+                  gwp: { $add: ['$$value.gwp', '$$this.emissions.gwp'] },
+                  ubp: { $add: ['$$value.ubp', '$$this.emissions.ubp'] },
+                  penre: { $add: ['$$value.penre', '$$this.emissions.penre'] },
+                },
+              },
+            },
+          },
+        },
+      ])
+
+      return {
+        success: true,
+        data: projectWithNestedData,
+        message: 'Project fetched successfully',
+      }
+    } catch (error: unknown) {
+      logger.error('❌ [Project Service] Error in getProjectWithNestedData:', error)
+
+      if (isAppError(error)) {
+        throw error
+      }
+
+      throw new DatabaseError(
+        error instanceof Error ? error.message : 'Failed to fetch project with nested data',
+        'read'
+      )
+    }
+  }
+
+  /**
+   * Get multiple projects with nested data
+   */
+  static async getProjectWithNestedDataBulk({
+    data: { projectIds, userId },
+    session,
+  }: GetProjectWithNestedDataBulkRequest): Promise<GetProjectWithNestedDataBulkResponse> {
+    try {
+      const projects = await Project.find({ _id: { $in: projectIds }, userId })
+        .session(session || null)
+        .lean()
+
+      if (!projects || projects.length === 0) {
+        throw new ProjectNotFoundError(projectIds.join(', '))
+      }
+
+      const projectsWithNestedData = await Promise.all(
+        projects.map(async project => {
+          const projectWithNestedData = await this.getProjectWithNestedData({
+            data: { projectId: project._id, userId },
+            session,
+          })
+          return projectWithNestedData.data
+        })
+      )
+
+      return {
+        success: true,
+        data: projectsWithNestedData,
+        message: 'Projects fetched successfully',
+      }
+    } catch (error: unknown) {
+      logger.error('❌ [Project Service] Error in getProjectWithNestedDataBulk:', error)
+
+      if (isAppError(error)) {
+        throw error
+      }
+
+      throw new DatabaseError(
+        error instanceof Error ? error.message : 'Failed to fetch projects',
+        'read'
+      )
+    }
+  }
+  /**
    * Updates a project
    */
   static async updateProject({
@@ -313,6 +647,11 @@ export class ProjectService {
           throw new ProjectNotFoundError(projectId.toString())
         }
 
+        // Delete all associated data in order
+        await Upload.deleteMany({ projectId })
+        await Element.deleteMany({ projectId })
+        await Material.deleteMany({ projectId })
+
         const deleteResult = await Project.findOneAndDelete({ _id: projectId, userId })
           .session(useSession)
           .lean()
@@ -355,6 +694,11 @@ export class ProjectService {
         if (!projects || projects.length === 0) {
           throw new ProjectNotFoundError(projectIds.join(', '))
         }
+
+        // Delete all associated data in order
+        await Upload.deleteMany({ projectId: { $in: projectIds } })
+        await Element.deleteMany({ projectId: { $in: projectIds } })
+        await Material.deleteMany({ projectId: { $in: projectIds } })
 
         const deleteResult = await Project.deleteMany({ _id: { $in: projectIds }, userId })
           .session(useSession)
