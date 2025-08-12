@@ -49,20 +49,55 @@ export const withValidation = <T>(
 
 export const validateQueryParams = <T extends z.ZodSchema>(
   schema: T,
-  request: NextRequest
+  request: NextRequest,
+  defaults?: Partial<z.infer<T>>
 ): z.infer<T> => {
   const { searchParams } = new URL(request.url)
-  const queryObject = Object.fromEntries(searchParams.entries())
+  const queryObject: z.infer<T> = Object.fromEntries(searchParams.entries())
 
-  return schema.parse(queryObject)
+  const dataToValidate = defaults ? { ...defaults, ...queryObject } : queryObject
+  return schema.parse(dataToValidate)
 }
 
 export const validatePathParams = async <T extends z.ZodSchema>(
   schema: T,
-  params: Promise<z.infer<T>>
+  params: Promise<{ [key: string]: string }>,
+  defaults?: Partial<z.infer<T>>
 ): Promise<z.infer<T>> => {
-  const data = await params
-  return schema.parse(data)
+  const pathParams = await params
+  const dataToValidate = defaults ? { ...defaults, ...pathParams } : pathParams
+  return schema.parse(dataToValidate)
+}
+
+export const validateFileUpload = async <T extends z.ZodSchema>(
+  schema: T,
+  request: NextRequest
+): Promise<{ success: true; data: z.infer<T> } | { success: false; error: NextResponse }> => {
+  try {
+    const formData = await request.formData()
+    const data = Object.fromEntries(formData.entries())
+    const validatedData = schema.parse(data)
+    return { success: true, data: validatedData }
+  } catch (error: unknown) {
+    if (error instanceof ZodError) {
+      const formattedErrors = error.errors.map(err => ({
+        field: err.path.join('.'),
+        message: err.message,
+        code: err.code,
+      }))
+      return {
+        success: false,
+        error: NextResponse.json(
+          { error: 'File validation failed', details: formattedErrors },
+          { status: 400 }
+        ),
+      }
+    }
+    return {
+      success: false,
+      error: NextResponse.json({ error: 'Invalid file upload' }, { status: 400 }),
+    }
+  }
 }
 
 export const withAuthAndValidation = <T>(
@@ -83,14 +118,14 @@ export const withAuthAndValidation = <T>(
   })
 }
 
-export const withAuthAndValidationParams = <T, P, Q>(
+export const withAuthAndValidationWithParams = <T, P>(
   schema: z.ZodSchema<T>,
   handler: (
     request: AuthenticatedValidationRequest<T>,
-    context: { pathParams: Promise<P>; queryParams: Promise<Q> }
+    context: { pathParams: Promise<P> }
   ) => Promise<NextResponse>
 ) => {
-  return withAuthAndDBParams<P, Q>(async (authRequest, context) => {
+  return withAuthAndDBParams<P>(async (authRequest, context) => {
     const validationHandler = withValidation<T>(schema, validationRequest => {
       const mergedRequest = {
         ...authRequest,

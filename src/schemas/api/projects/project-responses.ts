@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import IProjectDB from '@/interfaces/projects/IProjectDB'
 import { IProjectWithNestedData } from '@/interfaces/projects/IProjectWithNestedData'
-import { defaultResponseSchema } from '../general'
+import { defaultResponseSchema, paginationResponseSchema } from '../general'
 
 // Create project
 export const createProjectResponseSchema = defaultResponseSchema(z.custom<IProjectDB>())
@@ -11,14 +11,22 @@ export const createProjectBulkResponseSchema = defaultResponseSchema(
 
 // Get project
 export const getProjectResponseSchema = defaultResponseSchema(z.custom<IProjectDB>())
-export const getProjectBulkResponseSchema = defaultResponseSchema(z.array(z.custom<IProjectDB>()))
+export const getProjectBulkResponseSchema = defaultResponseSchema(
+  z.object({
+    projects: z.array(z.custom<IProjectDB>()),
+    pagination: paginationResponseSchema,
+  })
+)
 
 // Get project with nested data
 export const getProjectWithNestedDataResponseSchema = defaultResponseSchema(
   z.custom<IProjectWithNestedData>()
 )
 export const getProjectWithNestedDataBulkResponseSchema = defaultResponseSchema(
-  z.array(z.custom<IProjectWithNestedData>())
+  z.object({
+    projects: z.array(z.custom<IProjectWithNestedData>()),
+    pagination: paginationResponseSchema,
+  })
 )
 
 // Update project

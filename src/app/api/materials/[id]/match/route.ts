@@ -4,7 +4,7 @@ import { MaterialService } from '@/lib/services/material-service'
 import {
   AuthenticatedValidationRequest,
   validatePathParams,
-  withAuthAndValidationParams,
+  withAuthAndValidationWithParams,
 } from '@/lib/validation-middleware'
 import { idParamSchema, IdParamSchema } from '@/schemas/api/general'
 import {
@@ -43,4 +43,4 @@ async function createEC3Match(
   }
 }
 
-export const POST = withAuthAndValidationParams(createEC3MatchRequestSchema, createEC3Match)
+export const POST = withAuthAndValidationWithParams(createEC3MatchRequestSchema, createEC3Match)

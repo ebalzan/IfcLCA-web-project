@@ -1,17 +1,20 @@
 import { Types } from 'mongoose'
 import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
-import { AuthenticatedRequest, withAuthAndDBParams } from '@/lib/api-middleware'
 import { MaterialService } from '@/lib/services/material-service'
 import {
   AuthenticatedValidationRequest,
   validatePathParams,
   withAuthAndValidation,
-  withAuthAndValidationParams,
+  withAuthAndValidationWithParams,
 } from '@/lib/validation-middleware'
 import { IdParamSchema, idParamSchema } from '@/schemas/api/general'
 import {
   CreateMaterialRequest,
   createMaterialRequestSchema,
+  deleteMaterialRequestSchema,
+  DeleteMaterialRequest,
+  GetMaterialRequest,
+  getMaterialRequestSchema,
   UpdateMaterialRequest,
   updateMaterialRequestSchema,
 } from '@/schemas/api/materials/material-requests'
@@ -31,11 +34,12 @@ async function createMaterial(request: AuthenticatedValidationRequest<CreateMate
 }
 
 async function getMaterial(
-  request: AuthenticatedRequest,
+  request: AuthenticatedValidationRequest<GetMaterialRequest>,
   context: { pathParams: Promise<IdParamSchema> }
 ) {
   try {
     const { id: materialId } = await validatePathParams(idParamSchema, context.pathParams)
+    const { projectId } = request.validatedData.data
 
     if (!Types.ObjectId.isValid(materialId)) {
       return sendApiErrorResponse(new Error('Invalid material ID'), request, {
@@ -44,7 +48,7 @@ async function getMaterial(
     }
 
     const material = await MaterialService.getMaterial({
-      data: { materialId: new Types.ObjectId(materialId) },
+      data: { materialId: new Types.ObjectId(materialId), projectId },
     })
 
     return sendApiSuccessResponse(material.data, 'Material fetched successfully', request)
@@ -59,7 +63,7 @@ async function updateMaterial(
 ) {
   try {
     const { id: materialId } = await validatePathParams(idParamSchema, context.pathParams)
-    const { updates } = request.validatedData.data
+    const { updates, projectId } = request.validatedData.data
 
     if (!Types.ObjectId.isValid(materialId)) {
       return sendApiErrorResponse(new Error('Invalid material ID'), request, {
@@ -71,6 +75,7 @@ async function updateMaterial(
       data: {
         materialId: new Types.ObjectId(materialId),
         updates,
+        projectId,
       },
     })
 
@@ -81,11 +86,12 @@ async function updateMaterial(
 }
 
 async function deleteMaterial(
-  request: AuthenticatedRequest,
+  request: AuthenticatedValidationRequest<DeleteMaterialRequest>,
   context: { pathParams: Promise<IdParamSchema> }
 ) {
   try {
     const { id: materialId } = await validatePathParams(idParamSchema, context.pathParams)
+    const { projectId } = request.validatedData.data
 
     if (!Types.ObjectId.isValid(materialId)) {
       return sendApiErrorResponse(new Error('Invalid material ID'), request, {
@@ -94,7 +100,7 @@ async function deleteMaterial(
     }
 
     const result = await MaterialService.deleteMaterial({
-      data: { materialId: new Types.ObjectId(materialId) },
+      data: { materialId: new Types.ObjectId(materialId), projectId },
     })
 
     return sendApiSuccessResponse(result.data, 'Material deleted successfully', request)
@@ -104,6 +110,6 @@ async function deleteMaterial(
 }
 
 export const POST = withAuthAndValidation(createMaterialRequestSchema, createMaterial)
-export const GET = withAuthAndDBParams(getMaterial)
-export const PUT = withAuthAndValidationParams(updateMaterialRequestSchema, updateMaterial)
-export const DELETE = withAuthAndDBParams(deleteMaterial)
+export const GET = withAuthAndValidationWithParams(getMaterialRequestSchema, getMaterial)
+export const PUT = withAuthAndValidationWithParams(updateMaterialRequestSchema, updateMaterial)
+export const DELETE = withAuthAndValidationWithParams(deleteMaterialRequestSchema, deleteMaterial)

@@ -1,4 +1,3 @@
-import IProjectDB from '@/interfaces/projects/IProjectDB'
 import { IProjectWithNestedData } from '@/interfaces/projects/IProjectWithNestedData'
 import { Project, Upload, Material, Element } from '@/models'
 import {
@@ -27,6 +26,12 @@ import {
   GetProjectWithNestedDataResponse,
   GetProjectWithNestedDataBulkResponse,
 } from '@/schemas/api/projects/project-responses'
+import {
+  QueryConditions,
+  SearchProjectsRequest,
+  SearchProjectsResponse,
+  SortObject,
+} from '@/schemas/api/projects/search'
 import { withTransaction } from '@/utils/withTransaction'
 import {
   DatabaseError,
@@ -53,9 +58,7 @@ export class ProjectService {
     try {
       const newProject = await Project.insertOne(
         { ...project, userId },
-        {
-          session: session || null,
-        }
+        { session: session || null }
       )
 
       return {
@@ -90,9 +93,7 @@ export class ProjectService {
             ...project,
             userId,
           })),
-          {
-            session: useSession,
-          }
+          { session: useSession }
         )
 
         return {
@@ -153,21 +154,34 @@ export class ProjectService {
    * Get multiple projects by their IDs
    */
   static async getProjectBulk({
-    data: { projectIds, userId },
+    data: { projectIds, userId, pagination },
     session,
   }: GetProjectBulkRequest): Promise<GetProjectBulkResponse> {
     try {
-      const projects = await Project.find({ _id: { $in: projectIds }, userId })
+      const { page, size } = pagination
+      const skip = (page - 1) * size
+
+      const query = projectIds.length > 0 ? { _id: { $in: projectIds }, userId } : { userId }
+
+      const projects = await Project.find(query)
         .session(session || null)
+        .skip(skip)
+        .limit(size)
         .lean()
 
       if (!projects || projects.length === 0) {
         throw new ProjectNotFoundError(projectIds.join(', '))
       }
 
+      const totalCount = await Project.countDocuments(query).session(session || null)
+      const hasMore = page * size < totalCount
+
       return {
         success: true,
-        data: projects,
+        data: {
+          projects,
+          pagination: { page, size, totalCount, hasMore, totalPages: Math.ceil(totalCount / size) },
+        },
         message: 'Projects fetched successfully',
       }
     } catch (error: unknown) {
@@ -199,6 +213,7 @@ export class ProjectService {
       if (!project) {
         throw new ProjectNotFoundError(projectId.toString())
       }
+
       const [projectWithNestedData] = await Project.aggregate<IProjectWithNestedData>([
         {
           $match: { _id: projectId },
@@ -470,31 +485,291 @@ export class ProjectService {
    * Get multiple projects with nested data
    */
   static async getProjectWithNestedDataBulk({
-    data: { projectIds, userId },
+    data: { projectIds, userId, pagination },
     session,
   }: GetProjectWithNestedDataBulkRequest): Promise<GetProjectWithNestedDataBulkResponse> {
     try {
-      const projects = await Project.find({ _id: { $in: projectIds }, userId })
+      const { page, size } = pagination
+      const skip = (page - 1) * size
+
+      const query = projectIds.length > 0 ? { _id: { $in: projectIds }, userId } : { userId }
+
+      const projects = await Project.find(query)
         .session(session || null)
+        .skip(skip)
+        .limit(size)
         .lean()
 
       if (!projects || projects.length === 0) {
         throw new ProjectNotFoundError(projectIds.join(', '))
       }
 
-      const projectsWithNestedData = await Promise.all(
-        projects.map(async project => {
-          const projectWithNestedData = await this.getProjectWithNestedData({
-            data: { projectId: project._id, userId },
-            session,
-          })
-          return projectWithNestedData.data
-        })
-      )
+      const projectsWithNestedData = await Project.aggregate<IProjectWithNestedData>([
+        {
+          $match: query,
+        },
+        {
+          $lookup: {
+            from: 'uploads',
+            localField: '_id',
+            foreignField: 'projectId',
+            as: 'uploads',
+          },
+        },
+        {
+          $lookup: {
+            from: 'elements',
+            localField: '_id',
+            foreignField: 'projectId',
+            as: 'elements',
+            pipeline: [
+              {
+                $lookup: {
+                  from: 'materials',
+                  localField: 'materials.material',
+                  foreignField: '_id',
+                  as: 'materialRefs',
+                  pipeline: [
+                    {
+                      $lookup: {
+                        from: 'EC3Matches',
+                        localField: 'ec3MatchId',
+                        foreignField: '_id',
+                        as: 'ec3Match',
+                      },
+                    },
+                    {
+                      $unwind: {
+                        path: '$ec3Match',
+                        preserveNullAndEmptyArrays: true,
+                      },
+                    },
+                  ],
+                },
+              },
+              {
+                $addFields: {
+                  materials: {
+                    $map: {
+                      input: '$materials',
+                      as: 'mat',
+                      in: {
+                        $mergeObjects: [
+                          '$$mat',
+                          {
+                            material: {
+                              $arrayElemAt: [
+                                {
+                                  $filter: {
+                                    input: '$materialRefs',
+                                    cond: {
+                                      $eq: ['$$this._id', '$$mat.material'],
+                                    },
+                                  },
+                                },
+                                0,
+                              ],
+                            },
+                          },
+                        ],
+                      },
+                    },
+                  },
+                  totalVolume: { $sum: '$materials.volume' },
+                  emissions: {
+                    $reduce: {
+                      input: '$materials',
+                      initialValue: { gwp: 0, ubp: 0, penre: 0 },
+                      in: {
+                        gwp: {
+                          $add: [
+                            '$$value.gwp',
+                            {
+                              $multiply: [
+                                '$$this.volume',
+                                { $ifNull: ['$$this.material.density', 0] },
+                                { $ifNull: ['$$this.material.kbobMatch.GWP', 0] },
+                              ],
+                            },
+                          ],
+                        },
+                        ubp: {
+                          $add: [
+                            '$$value.ubp',
+                            {
+                              $multiply: [
+                                '$$this.volume',
+                                { $ifNull: ['$$this.material.density', 0] },
+                                { $ifNull: ['$$this.material.kbobMatch.UBP', 0] },
+                              ],
+                            },
+                          ],
+                        },
+                        penre: {
+                          $add: [
+                            '$$value.penre',
+                            {
+                              $multiply: [
+                                '$$this.volume',
+                                { $ifNull: ['$$this.material.density', 0] },
+                                {
+                                  $ifNull: ['$$this.material.kbobMatch.PENRE', 0],
+                                },
+                              ],
+                            },
+                          ],
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        },
+        {
+          $lookup: {
+            from: 'materials',
+            localField: '_id',
+            foreignField: 'projectId',
+            as: 'materials',
+            pipeline: [
+              {
+                $lookup: {
+                  from: 'EC3Matches',
+                  localField: 'ec3MatchId',
+                  foreignField: 'ec3MatchId',
+                  as: 'ec3Match',
+                },
+              },
+              {
+                $unwind: {
+                  path: '$ec3Match',
+                  preserveNullAndEmptyArrays: true,
+                },
+              },
+              {
+                $lookup: {
+                  from: 'elements',
+                  let: { materialId: '$_id' },
+                  pipeline: [
+                    {
+                      $match: {
+                        $expr: {
+                          $in: ['$$materialId', '$materials.material'],
+                        },
+                      },
+                    },
+                    {
+                      $unwind: '$materials',
+                    },
+                    {
+                      $match: {
+                        $expr: {
+                          $eq: ['$materials.material', '$$materialId'],
+                        },
+                      },
+                    },
+                    {
+                      $group: {
+                        _id: null,
+                        totalVolume: { $sum: '$materials.volume' },
+                      },
+                    },
+                  ],
+                  as: 'volumeData',
+                },
+              },
+              {
+                $addFields: {
+                  volume: {
+                    $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
+                  },
+                  gwp: {
+                    $multiply: [
+                      {
+                        $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
+                      },
+                      { $ifNull: ['$density', 0] },
+                      { $ifNull: ['$ec3Match.gwp', 0] },
+                    ],
+                  },
+                  ubp: {
+                    $multiply: [
+                      {
+                        $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
+                      },
+                      { $ifNull: ['$density', 0] },
+                      { $ifNull: ['$ec3Match.ubp', 0] },
+                    ],
+                  },
+                  penre: {
+                    $multiply: [
+                      {
+                        $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
+                      },
+                      { $ifNull: ['$density', 0] },
+                      { $ifNull: ['$ec3Match.penre', 0] },
+                    ],
+                  },
+                },
+              },
+              {
+                $project: {
+                  volumeData: 0,
+                },
+              },
+            ],
+          },
+        },
+        {
+          $addFields: {
+            lastActivityAt: {
+              $max: [
+                '$updatedAt',
+                { $max: '$uploads.createdAt' },
+                { $max: '$elements.createdAt' },
+                { $max: '$materials.createdAt' },
+              ],
+            },
+            _count: {
+              elements: { $size: '$elements' },
+              uploads: { $size: '$uploads' },
+              materials: { $size: '$materials' },
+            },
+            totalEmissions: {
+              $reduce: {
+                input: '$elements',
+                initialValue: { gwp: 0, ubp: 0, penre: 0 },
+                in: {
+                  gwp: { $add: ['$$value.gwp', '$$this.emissions.gwp'] },
+                  ubp: { $add: ['$$value.ubp', '$$this.emissions.ubp'] },
+                  penre: { $add: ['$$value.penre', '$$this.emissions.penre'] },
+                },
+              },
+            },
+          },
+        },
+      ])
+        .session(session || null)
+        .skip(skip)
+        .limit(size)
+
+      const totalCount = await Project.countDocuments(query).session(session || null)
+      const hasMore = page * size < totalCount
 
       return {
         success: true,
-        data: projectsWithNestedData,
+        data: {
+          projects: projectsWithNestedData,
+          pagination: {
+            size,
+            page,
+            hasMore,
+            totalCount,
+            totalPages: Math.ceil(totalCount / size),
+          },
+        },
         message: 'Projects fetched successfully',
       }
     } catch (error: unknown) {
@@ -729,26 +1004,79 @@ export class ProjectService {
   /**
    * Search projects by name or description
    */
-  static async searchProjects(
-    userId: string,
-    searchTerm: string,
-    limit: number = 10,
-    session?: any
-  ): Promise<IProjectDB[]> {
+  static async searchProjects({
+    data: { userId, searchTerm, all, dateFrom, dateTo, sortBy, sortOrder, pagination },
+    session,
+  }: SearchProjectsRequest): Promise<SearchProjectsResponse> {
     try {
-      const projects = await Project.find({
+      const { page, size } = pagination
+
+      // Build query conditions with proper typing
+      const queryConditions: QueryConditions = {
         userId,
-        $or: [
-          { name: { $regex: searchTerm, $options: 'i' } },
-          { description: { $regex: searchTerm, $options: 'i' } },
-        ],
-      })
-        .sort({ updatedAt: -1 })
-        .limit(limit)
+      }
+
+      // Add search condition if not fetching all projects and searchTerm is provided
+      if (!all && searchTerm && searchTerm.trim()) {
+        try {
+          queryConditions.$text = { $search: searchTerm }
+        } catch {
+          queryConditions.$or = [
+            { name: { $regex: searchTerm, $options: 'i' } },
+            { description: { $regex: searchTerm, $options: 'i' } },
+          ]
+        }
+      }
+
+      // Add date range filtering
+      if (dateFrom || dateTo) {
+        queryConditions.createdAt = {}
+        if (dateFrom) {
+          queryConditions.createdAt.$gte = new Date(dateFrom)
+        }
+        if (dateTo) {
+          queryConditions.createdAt.$lte = new Date(dateTo)
+        }
+      }
+
+      // Build sort object with proper typing
+      const sortObject: SortObject = {
+        [sortBy || 'name']: sortOrder === 'desc' ? -1 : 1,
+      }
+
+      // Calculate pagination
+      const skip = (page - 1) * size
+
+      // Get total count for pagination
+      const total = await Project.countDocuments(queryConditions).session(session || null)
+
+      // Get paginated results
+      const projects = await Project.find(queryConditions)
+        .select('name description _id userId emissions createdAt updatedAt')
+        .sort(sortObject)
+        .skip(skip)
+        .limit(size)
         .session(session || null)
         .lean()
 
-      return projects
+      // Calculate pagination metadata
+      const totalPages = Math.ceil(total / size)
+      const hasMore = page < totalPages
+
+      return {
+        success: true,
+        data: {
+          projects,
+          pagination: {
+            size,
+            page,
+            hasMore,
+            totalCount: total,
+            totalPages,
+          },
+        },
+        message: 'Projects searched successfully',
+      }
     } catch (error: unknown) {
       logger.error('❌ [Project Service] Error in searchProjects:', error)
 

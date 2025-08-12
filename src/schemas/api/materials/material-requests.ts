@@ -1,7 +1,7 @@
 import { Types } from 'mongoose'
 import { z } from 'zod'
 import IMaterialDB from '@/interfaces/materials/IMaterialDB'
-import { defaultRequestSchema } from '../general'
+import { defaultRequestSchema, paginationRequestSchema } from '../general'
 
 // Create material
 export const createMaterialRequestSchema = defaultRequestSchema(
@@ -41,13 +41,14 @@ export const createEC3BulkMatchRequestSchema = defaultRequestSchema(
 export const getMaterialRequestSchema = defaultRequestSchema(
   z.object({
     materialId: z.custom<Types.ObjectId>(),
-    ec3MatchId: z.string().optional(),
+    projectId: z.custom<Types.ObjectId>().optional(),
   })
 )
 export const getMaterialBulkRequestSchema = defaultRequestSchema(
   z.object({
     materialIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one material ID is required'),
     projectId: z.custom<Types.ObjectId>().optional(),
+    pagination: paginationRequestSchema,
   })
 )
 
@@ -56,6 +57,7 @@ export const updateMaterialRequestSchema = defaultRequestSchema(
   z.object({
     materialId: z.custom<Types.ObjectId>(),
     updates: z.custom<Partial<Omit<IMaterialDB, 'id'>>>(),
+    projectId: z.custom<Types.ObjectId>().optional(),
   })
 )
 export const updateMaterialBulkRequestSchema = defaultRequestSchema(
@@ -72,6 +74,7 @@ export const updateMaterialBulkRequestSchema = defaultRequestSchema(
 export const deleteMaterialRequestSchema = defaultRequestSchema(
   z.object({
     materialId: z.custom<Types.ObjectId>(),
+    projectId: z.custom<Types.ObjectId>().optional(),
   })
 )
 export const deleteMaterialBulkRequestSchema = defaultRequestSchema(

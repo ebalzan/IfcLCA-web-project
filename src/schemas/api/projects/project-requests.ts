@@ -1,7 +1,7 @@
 import { Types } from 'mongoose'
 import { z } from 'zod'
 import IProjectDB from '@/interfaces/projects/IProjectDB'
-import { defaultRequestSchema } from '../general'
+import { defaultRequestSchema, paginationRequestSchema } from '../general'
 
 // Create project
 export const createProjectRequestSchema = defaultRequestSchema(
@@ -28,6 +28,7 @@ export const getProjectBulkRequestSchema = defaultRequestSchema(
   z.object({
     projectIds: z.array(z.custom<Types.ObjectId>()),
     userId: z.string(),
+    pagination: paginationRequestSchema,
   })
 )
 
@@ -42,6 +43,7 @@ export const getProjectWithNestedDataBulkRequestSchema = defaultRequestSchema(
   z.object({
     projectIds: z.array(z.custom<Types.ObjectId>()),
     userId: z.string(),
+    pagination: paginationRequestSchema,
   })
 )
 

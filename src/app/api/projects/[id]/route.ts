@@ -6,7 +6,7 @@ import {
   AuthenticatedValidationRequest,
   validatePathParams,
   withAuthAndValidation,
-  withAuthAndValidationParams,
+  withAuthAndValidationWithParams,
 } from '@/lib/validation-middleware'
 import { idParamSchema, IdParamSchema } from '@/schemas/api/general'
 import {
@@ -15,8 +15,6 @@ import {
   UpdateProjectRequest,
   updateProjectRequestSchema,
 } from '@/schemas/api/projects/project-requests'
-
-export const runtime = 'nodejs'
 
 async function createProject(request: AuthenticatedValidationRequest<CreateProjectRequest>) {
   try {
@@ -96,5 +94,5 @@ export async function deleteProject(
 
 export const POST = withAuthAndValidation(createProjectRequestSchema, createProject)
 export const GET = withAuthAndDBParams(getProject)
-export const PUT = withAuthAndValidationParams(updateProjectRequestSchema, updateProject)
+export const PUT = withAuthAndValidationWithParams(updateProjectRequestSchema, updateProject)
 export const DELETE = withAuthAndDBParams(deleteProject)

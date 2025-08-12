@@ -42,11 +42,14 @@ export class ElementService {
    * Creates a new element
    */
   static async createElement({
-    data: element,
+    data: { projectId, ...element },
     session,
   }: CreateElementRequest): Promise<CreateElementResponse> {
     try {
-      const newElement = await Element.insertOne(element, { session: session || null })
+      const newElement = await Element.insertOne(
+        { ...element, projectId },
+        { session: session || null }
+      )
 
       return {
         success: true,
@@ -110,16 +113,24 @@ export class ElementService {
    * Get an element by its ID
    */
   static async getElement({
-    data: { elementId },
+    data: { elementId, projectId },
     session,
   }: GetElementRequest): Promise<GetElementResponse> {
     try {
-      const element = await Element.findOne({
+      // 1. Build query
+      const query: FilterQuery<IElementDB> = {
         _id: elementId,
-      })
+      }
+      if (projectId) {
+        query.projectId = projectId
+      }
+
+      // 2. Fetch element
+      const element = await Element.findOne(query)
         .session(session || null)
         .lean()
 
+      // 3. Check if element exists
       if (!element) {
         throw new ElementNotFoundError(elementId.toString())
       }
@@ -147,10 +158,13 @@ export class ElementService {
    * Get multiple elements by their IDs
    */
   static async getElementBulk({
-    data: { elementIds, projectId },
+    data: { elementIds, projectId, pagination },
     session,
   }: GetElementBulkRequest): Promise<GetElementBulkResponse> {
     try {
+      const { page, size } = pagination
+      const skip = (page - 1) * size
+
       // 1. Build query
       const query: FilterQuery<IElementDB> = {
         _id: { $in: elementIds },
@@ -162,16 +176,25 @@ export class ElementService {
       // 2. Fetch elements
       const elements = await Element.find(query)
         .session(session || null)
+        .limit(size)
+        .skip(skip)
         .lean()
 
       // 3. Check if elements exist
-      if (!elements) {
+      if (!elements || elements.length === 0) {
         throw new ElementNotFoundError(elementIds.toString())
       }
 
+      // 4. Get total count for pagination metadata
+      const totalCount = await Element.countDocuments(query).session(session || null)
+      const hasMore = page * size < totalCount
+
       return {
         success: true,
-        data: elements,
+        data: {
+          elements,
+          pagination: { page, size, totalCount, hasMore, totalPages: Math.ceil(totalCount / size) },
+        },
         message: 'Elements fetched successfully',
       }
     } catch (error: unknown) {
@@ -192,45 +215,68 @@ export class ElementService {
    * Updates an element
    */
   static async updateElement({
-    data: { elementId, updates },
+    data: { elementId, updates, projectId },
     session,
   }: UpdateElementRequest): Promise<UpdateElementResponse> {
-    try {
-      // 1. Check if element exists
-      const element = await Element.findById(elementId)
-        .session(session || null)
-        .lean()
+    return withTransaction(
+      async useSession => {
+        try {
+          // 1. Build query
+          const query: FilterQuery<IElementDB> = {
+            _id: elementId,
+          }
+          if (projectId) {
+            query.projectId = projectId
+          }
 
-      if (!element) {
-        throw new ElementNotFoundError(elementId.toString())
-      }
+          // 2. Check if element exists
+          const element = await Element.findOne(query).session(useSession).lean()
 
-      // 2. Update element
-      const updatedResult = await Element.findByIdAndUpdate(elementId, updates, {
-        new: true,
-        session: session || null,
-      })
+          if (!element) {
+            throw new ElementNotFoundError(elementId.toString())
+          }
 
-      if (!updatedResult) {
-        throw new ElementUpdateError(`Failed to update element: ${elementId}`)
-      }
+          // 3. Update element
+          const updatedResult = await Element.findOneAndUpdate(
+            query,
+            {
+              $set: {
+                ...updates,
+                updatedAt: new Date(),
+              },
+            },
+            {
+              session: useSession,
+              upsert: false,
+              new: true,
+            }
+          )
 
-      return {
-        success: true,
-        data: updatedResult,
-        message: 'Element updated successfully',
-      }
-    } catch (error: unknown) {
-      logger.error('Error updating element', { error })
+          // 4. Check if update was successful
+          if (!updatedResult) {
+            throw new ElementUpdateError(`Failed to update element: ${elementId}`)
+          }
 
-      if (isAppError(error)) {
-        throw error
-      }
+          return {
+            success: true,
+            data: updatedResult,
+            message: 'Element updated successfully',
+          }
+        } catch (error: unknown) {
+          logger.error('Error updating element', { error })
 
-      throw new ElementUpdateError(
-        error instanceof Error ? error.message : 'Failed to update element'
-      )
-    }
+          if (isAppError(error)) {
+            throw error
+          }
+
+          throw new ElementUpdateError(
+            error instanceof Error ? error.message : 'Failed to update element'
+          )
+        }
+      },
+      session,
+      'updateElement'
+    )
   }
 
   /**
@@ -252,15 +298,21 @@ export class ElementService {
         // 2. Update elements
         const elementUpdatePromises = elementIds.map(async (elementId, index) => {
           try {
+            // 1. Check if element exists and belongs to project (if projectId provided)
+            const elementQuery: FilterQuery<IElementDB> = { _id: elementId }
+            if (projectId) {
+              elementQuery.projectId = projectId
+            }
+
             const element = await Element.findOne(query).session(useSession).lean()
 
             if (!element) {
               throw new ElementNotFoundError(elementId.toString())
             }
 
-            // 2. Update element individually
-            const updatedElement = await Element.findByIdAndUpdate(
-              elementId,
+            // 3. Update element
+            const updatedElement = await Element.findOneAndUpdate(
+              elementQuery,
               {
                 $set: {
                   ...updates[index],
@@ -268,12 +320,13 @@ export class ElementService {
                 },
               },
               {
-                new: true,
                 session: useSession,
-                runValidators: true,
+                upsert: false,
+                new: true,
               }
             )
 
+            // 4. Check if update was successful
             if (!updatedElement) {
               throw new ElementUpdateError(`Failed to update element: ${elementId}`)
             }
@@ -285,6 +338,7 @@ export class ElementService {
           }
         })
 
+        // 3. Check if updates were successful
         const elements = await Promise.all(elementUpdatePromises)
 
         return {
@@ -302,26 +356,32 @@ export class ElementService {
    * Deletes an element
    */
   static async deleteElement({
-    data: { elementId },
+    data: { elementId, projectId },
     session,
   }: DeleteElementRequest): Promise<DeleteElementResponse> {
     return withTransaction(async useSession => {
       try {
-        // 1. Check if element exists
-        const element = await Element.findById(elementId).session(useSession).lean()
+        // 1. Build query
+        const query: FilterQuery<IElementDB> = { _id: elementId }
+        if (projectId) {
+          query.projectId = projectId
+        }
+
+        // 2. Check if element exists
+        const element = await Element.findOne(query).session(useSession).lean()
 
         if (!element) {
           throw new ElementNotFoundError(elementId.toString())
         }
 
-        // 2. Delete the element
-        const deleteResult = await Element.findByIdAndDelete(elementId).session(useSession)
+        // 3. Delete the element
+        const deleteResult = await Element.findOneAndDelete(query).session(useSession)
 
         if (!deleteResult) {
           throw new ElementDeleteError('Failed to delete element')
         }
 
-        // 3. Create a element deletion record
+        // 4. Create a element deletion record
         await ElementDeletion.create(
           [
             {
@@ -360,27 +420,29 @@ export class ElementService {
   }: DeleteElementBulkRequest): Promise<DeleteElementBulkResponse> {
     return withTransaction(async useSession => {
       try {
-        // 1. Check if elements exist
+        // 1. Build query
         const query: FilterQuery<IElementDB> = {
           _id: { $in: elementIds },
         }
         if (projectId) {
           query.projectId = projectId
         }
+
+        // 2. Check if elements exist
         const elements = await Element.find(query).session(useSession).lean()
 
         if (!elements) {
           throw new ElementNotFoundError(elementIds.toString())
         }
 
-        // 2. Delete the elements
+        // 3. Delete the elements
         const deleteResult = await Element.deleteMany(query).session(useSession)
 
         if (deleteResult.deletedCount !== elementIds.length) {
           throw new ElementDeleteError('Failed to delete elements')
         }
 
-        // 3. Create element deletion records
+        // 4. Create element deletion records
         await ElementDeletion.insertMany(
           elements.map(element => ({
             projectId: element.projectId,

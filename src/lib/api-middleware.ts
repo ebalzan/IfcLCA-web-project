@@ -10,16 +10,16 @@ export interface AuthenticatedRequest extends NextRequest {
 
 export type ApiHandler = (request: AuthenticatedRequest) => Promise<NextResponse>
 
-export type ApiHandlerWithParams<P, Q> = (
+export type ApiHandlerWithParams<P> = (
   request: AuthenticatedRequest,
-  context: { pathParams: Promise<P>; queryParams: Promise<Q> }
+  context: { pathParams: Promise<P> }
 ) => Promise<NextResponse>
 
 export type PublicApiHandler = (request: NextRequest) => Promise<NextResponse>
 
-export type PublicApiHandlerWithParams<P, Q> = (
+export type PublicApiHandlerWithParams<P> = (
   request: NextRequest,
-  context: { pathParams: Promise<P>; queryParams: Promise<Q> }
+  context: { pathParams: Promise<P> }
 ) => Promise<NextResponse>
 
 /**
@@ -51,13 +51,8 @@ export function withAuthAndDB(handler: ApiHandler): ApiHandler {
 /**
  * API middleware for routes with dynamic parameters
  */
-export function withAuthAndDBParams<P, Q>(
-  handler: ApiHandlerWithParams<P, Q>
-): ApiHandlerWithParams<P, Q> {
-  return async (
-    request: NextRequest,
-    context: { pathParams: Promise<P>; queryParams: Promise<Q> }
-  ) => {
+export function withAuthAndDBParams<P>(handler: ApiHandlerWithParams<P>): ApiHandlerWithParams<P> {
+  return async (request: NextRequest, context: { pathParams: Promise<P> }) => {
     try {
       const { userId } = await auth()
       if (!userId) {
@@ -97,13 +92,10 @@ export function withDB(handler: PublicApiHandler): PublicApiHandler {
 /**
  * Middleware wrapper for public API routes with dynamic parameters
  */
-export function withDBParams<P, Q>(
-  handler: PublicApiHandlerWithParams<P, Q>
-): PublicApiHandlerWithParams<P, Q> {
-  return async (
-    request: NextRequest,
-    context: { pathParams: Promise<P>; queryParams: Promise<Q> }
-  ) => {
+export function withDBParams<P>(
+  handler: PublicApiHandlerWithParams<P>
+): PublicApiHandlerWithParams<P> {
+  return async (request: NextRequest, context: { pathParams: Promise<P> }) => {
     try {
       await connectToDatabase()
       return await handler(request, context)

@@ -76,7 +76,6 @@ export function createApiErrorResponse(
   const method = request?.method
   const requestId = generateRequestId()
 
-  // Log the error for debugging
   logger.error('❌ [API Error Response] Error in createApiErrorResponse:', {
     error: error instanceof Error ? error.message : String(error),
     stack: error instanceof Error ? error.stack : undefined,
@@ -104,7 +103,6 @@ export function createApiErrorResponse(
     }
   }
 
-  // Handle specific error types
   if (error instanceof TypeError && error.message.includes('fetch')) {
     return {
       success: false,
@@ -137,7 +135,6 @@ export function createApiErrorResponse(
     }
   }
 
-  // Handle unknown errors
   return {
     success: false,
     error: ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
@@ -224,7 +221,6 @@ function generateRequestId(): string {
   return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 }
 
-// Specialized error formatters for common scenarios
 export function formatValidationError(
   errors: Array<{
     field: string
@@ -265,7 +261,6 @@ export function formatUploadError(error: unknown, request?: Request): ApiErrorRe
     resource: 'file',
   })
 
-  // Add upload-specific error handling
   if (error instanceof Error) {
     const message = error.message.toLowerCase()
 

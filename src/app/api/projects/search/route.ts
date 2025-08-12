@@ -1,29 +1,35 @@
-import { NextResponse } from 'next/server'
-import IProjectDB from '@/interfaces/projects/IProjectDB'
+import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
 import { AuthenticatedRequest, getUserId, withAuthAndDB } from '@/lib/api-middleware'
-import { Project } from '@/models'
+import { ProjectService } from '@/lib/services/project-service'
+import { validateQueryParams } from '@/lib/validation-middleware'
+import { searchQuerySchema } from '@/schemas/api/projects/search'
 
-export type SearchResult = Pick<IProjectDB, 'name' | 'description' | '_id'>
+async function searchProjects(request: AuthenticatedRequest) {
+  try {
+    const userId = getUserId(request)
+    const queryParams = validateQueryParams(searchQuerySchema, request)
+    const { q: searchTerm, all, dateFrom, dateTo, sortBy, sortOrder, page, size } = queryParams
 
-async function getProjectsBySearch(request: AuthenticatedRequest) {
-  const userId = getUserId(request)
+    const response = await ProjectService.searchProjects({
+      data: {
+        userId,
+        searchTerm,
+        all,
+        dateFrom,
+        dateTo,
+        sortBy,
+        sortOrder,
+        pagination: {
+          page,
+          size,
+        },
+      },
+    })
 
-  const { searchParams } = new URL(request.url)
-  const query = searchParams.get('q') || ''
-  const all = searchParams.get('all') === 'true'
-
-  const queryConditions = {
-    userId,
-    ...(all ? {} : { name: { $regex: query, $options: 'i' } }),
+    return sendApiSuccessResponse(response, 'Projects searched successfully', request)
+  } catch (error: unknown) {
+    return sendApiErrorResponse(error, request, { operation: 'search', resource: 'project' })
   }
-
-  const projects = await Project.find(queryConditions)
-    .select<SearchResult>('name description _id')
-    .sort({ name: 1 })
-    .limit(all ? 10 : 5)
-    .lean()
-
-  return NextResponse.json<SearchResult[]>(projects)
 }
 
-export const GET = withAuthAndDB(getProjectsBySearch)
+export const GET = withAuthAndDB(searchProjects)

@@ -1,310 +1,92 @@
-import { NextResponse } from 'next/server'
-import IProjectWithStatsClient from '@/interfaces/client/projects/IProjectWithStatsClient'
-import IProjectDB from '@/interfaces/projects/IProjectDB'
-import { ProjectsWithStatsResponse } from '@/interfaces/projects/ProjectsResponse'
-import { AuthenticatedRequest, getUserId, withAuthAndDBParams } from '@/lib/api-middleware'
+import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
+import { AuthenticatedRequest, getUserId, withAuthAndDB } from '@/lib/api-middleware'
+import { ProjectService } from '@/lib/services/project-service'
 import {
   AuthenticatedValidationRequest,
   validateQueryParams,
-  withAuthAndValidationParams,
+  withAuthAndValidation,
 } from '@/lib/validation-middleware'
-import { Project } from '@/models'
-import { CreateProjectRequest, createProjectSchema } from '@/schemas/api'
-import { paginationSchema } from '@/schemas/api'
+import { paginationRequestSchema } from '@/schemas/api/general'
+import {
+  CreateProjectBulkRequest,
+  createProjectBulkRequestSchema,
+  DeleteProjectBulkRequest,
+  deleteProjectBulkRequestSchema,
+  UpdateProjectBulkRequest,
+  updateProjectBulkRequestSchema,
+} from '@/schemas/api/projects/project-requests'
 
-export const runtime = 'nodejs'
+async function createProjectBulk(
+  request: AuthenticatedValidationRequest<CreateProjectBulkRequest>
+) {
+  try {
+    const userId = getUserId(request)
+    const { projects } = request.validatedData.data
 
-async function getProjectsWithStats(userId: string, limit: number, page: number) {
-  return Project.aggregate<IProjectWithStatsClient>([
-    {
-      $match: { userId },
-    },
-    {
-      $lookup: {
-        from: 'uploads',
-        localField: '_id',
-        foreignField: 'projectId',
-        as: 'uploads',
-      },
-    },
-    {
-      $lookup: {
-        from: 'elements',
-        localField: '_id',
-        foreignField: 'projectId',
-        as: 'elements',
-        pipeline: [
-          {
-            $lookup: {
-              from: 'materials',
-              localField: 'materials.material',
-              foreignField: '_id',
-              as: 'materialRefs',
-              pipeline: [
-                {
-                  $lookup: {
-                    from: 'indicatorsEC3',
-                    localField: 'ec3MatchId',
-                    foreignField: '_id',
-                    as: 'ec3Match',
-                  },
-                },
-                {
-                  $unwind: {
-                    path: '$ec3Match',
-                    preserveNullAndEmptyArrays: true,
-                  },
-                },
-              ],
-            },
-          },
-          {
-            $addFields: {
-              materials: {
-                $map: {
-                  input: '$materials',
-                  as: 'mat',
-                  in: {
-                    $mergeObjects: [
-                      '$$mat',
-                      {
-                        material: {
-                          $arrayElemAt: [
-                            {
-                              $filter: {
-                                input: '$materialRefs',
-                                cond: {
-                                  $eq: ['$$this._id', '$$mat.material'],
-                                },
-                              },
-                            },
-                            0,
-                          ],
-                        },
-                      },
-                    ],
-                  },
-                },
-              },
-              totalVolume: { $sum: '$materials.volume' },
-              emissions: {
-                $reduce: {
-                  input: '$materials',
-                  initialValue: { gwp: 0, ubp: 0, penre: 0 },
-                  in: {
-                    gwp: {
-                      $add: [
-                        '$$value.gwp',
-                        {
-                          $multiply: [
-                            '$$this.volume',
-                            { $ifNull: ['$$this.material.density', 0] },
-                            { $ifNull: ['$$this.material.ec3Match.GWP', 0] },
-                          ],
-                        },
-                      ],
-                    },
-                    ubp: {
-                      $add: [
-                        '$$value.ubp',
-                        {
-                          $multiply: [
-                            '$$this.volume',
-                            { $ifNull: ['$$this.material.density', 0] },
-                            { $ifNull: ['$$this.material.ec3Match.UBP', 0] },
-                          ],
-                        },
-                      ],
-                    },
-                    penre: {
-                      $add: [
-                        '$$value.penre',
-                        {
-                          $multiply: [
-                            '$$this.volume',
-                            { $ifNull: ['$$this.material.density', 0] },
-                            {
-                              $ifNull: ['$$this.material.ec3Match.PENRE', 0],
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                  },
-                },
-              },
-            },
-          },
-        ],
-      },
-    },
-    {
-      $lookup: {
-        from: 'materials',
-        localField: '_id',
-        foreignField: 'projectId',
-        as: 'materials',
-        pipeline: [
-          {
-            $lookup: {
-              from: 'indicatorsEC3',
-              localField: 'ec3MatchId',
-              foreignField: '_id',
-              as: 'ec3Match',
-            },
-          },
-          {
-            $unwind: {
-              path: '$ec3Match',
-              preserveNullAndEmptyArrays: true,
-            },
-          },
-          {
-            $lookup: {
-              from: 'elements',
-              let: { materialId: '$_id' },
-              pipeline: [
-                {
-                  $match: {
-                    $expr: {
-                      $in: ['$$materialId', '$materials.material'],
-                    },
-                  },
-                },
-                {
-                  $unwind: '$materials',
-                },
-                {
-                  $match: {
-                    $expr: {
-                      $eq: ['$materials.material', '$$materialId'],
-                    },
-                  },
-                },
-                {
-                  $group: {
-                    _id: null,
-                    totalVolume: { $sum: '$materials.volume' },
-                  },
-                },
-              ],
-              as: 'volumeData',
-            },
-          },
-          {
-            $addFields: {
-              volume: {
-                $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
-              },
-              gwp: {
-                $multiply: [
-                  {
-                    $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
-                  },
-                  { $ifNull: ['$density', 0] },
-                  { $ifNull: ['$ec3Match.GWP', 0] },
-                ],
-              },
-              ubp: {
-                $multiply: [
-                  {
-                    $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
-                  },
-                  { $ifNull: ['$density', 0] },
-                  { $ifNull: ['$ec3Match.UBP', 0] },
-                ],
-              },
-              penre: {
-                $multiply: [
-                  {
-                    $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
-                  },
-                  { $ifNull: ['$density', 0] },
-                  { $ifNull: ['$ec3Match.PENRE', 0] },
-                ],
-              },
-            },
-          },
-          {
-            $project: {
-              volumeData: 0,
-            },
-          },
-        ],
-      },
-    },
-    {
-      $addFields: {
-        lastActivityAt: {
-          $max: [
-            '$updatedAt',
-            { $max: '$uploads.createdAt' },
-            { $max: '$elements.createdAt' },
-            { $max: '$materials.createdAt' },
-          ],
-        },
-        _count: {
-          elements: { $size: '$elements' },
-          uploads: { $size: '$uploads' },
-          materials: { $size: '$materials' },
-        },
-        totalEmissions: {
-          $reduce: {
-            input: '$elements',
-            initialValue: { gwp: 0, ubp: 0, penre: 0 },
-            in: {
-              gwp: { $add: ['$$value.gwp', '$$this.emissions.gwp'] },
-              ubp: { $add: ['$$value.ubp', '$$this.emissions.ubp'] },
-              penre: { $add: ['$$value.penre', '$$this.emissions.penre'] },
-            },
-          },
-        },
-      },
-    },
-  ])
-    .limit(limit)
-    .skip((page - 1) * limit)
+    const result = await ProjectService.createProjectBulk({
+      data: { projects, userId },
+    })
+
+    return sendApiSuccessResponse(result.data, 'Projects created successfully', request)
+  } catch (error: unknown) {
+    return sendApiErrorResponse(error, request, { operation: 'create bulk', resource: 'project' })
+  }
 }
 
-async function getProjects(
-  request: AuthenticatedRequest
-): Promise<NextResponse<ProjectsWithStatsResponse>> {
-  const userId = getUserId(request)
+async function getProjectBulk(request: AuthenticatedRequest) {
+  try {
+    const userId = getUserId(request)
+    const queryParams = validateQueryParams(paginationRequestSchema, request, {
+      page: 1,
+      size: 10,
+    })
+    const { page, size } = queryParams
 
-  const queryParams = validateQueryParams(paginationSchema, request)
-  const { limit, page } = queryParams
+    const projects = await ProjectService.getProjectBulk({
+      data: { projectIds: [], userId, pagination: { page, size } },
+    })
 
-  const projects = await getProjectsWithStats(userId, limit, page)
-
-  const totalCount = await Project.countDocuments({ userId })
-  const hasMore = page * limit < totalCount
-
-  return NextResponse.json({
-    projects,
-    hasMore,
-    totalCount,
-  })
+    return sendApiSuccessResponse(projects.data, 'Projects fetched successfully', request)
+  } catch (error: unknown) {
+    return sendApiErrorResponse(error, request, { operation: 'fetch', resource: 'projects' })
+  }
 }
 
-async function createProject(
-  request: AuthenticatedValidationRequest<CreateProjectRequest>
-): Promise<NextResponse<IProjectDB>> {
-  const userId = getUserId(request)
-  const validatedData = request.validatedData
+async function updateProjectBulk(
+  request: AuthenticatedValidationRequest<UpdateProjectBulkRequest>
+) {
+  try {
+    const userId = getUserId(request)
+    const { projectIds, updates } = request.validatedData.data
 
-  const project: IProjectDB = await Project.create({
-    ...validatedData,
-    userId,
-    emissions: {
-      gwp: 0,
-      ubp: 0,
-      penre: 0,
-      lastCalculated: new Date(),
-    },
-  })
+    const result = await ProjectService.updateProjectBulk({
+      data: { projectIds, updates, userId },
+    })
 
-  return NextResponse.json(project)
+    return sendApiSuccessResponse(result.data, 'Projects updated successfully', request)
+  } catch (error: unknown) {
+    return sendApiErrorResponse(error, request, { operation: 'update bulk', resource: 'project' })
+  }
 }
 
-export const GET = withAuthAndDBParams(getProjects)
-export const POST = withAuthAndValidationParams(createProjectSchema, createProject)
+async function deleteProjectBulk(
+  request: AuthenticatedValidationRequest<DeleteProjectBulkRequest>
+) {
+  try {
+    const userId = getUserId(request)
+    const { projectIds } = request.validatedData.data
+
+    const result = await ProjectService.deleteProjectBulk({
+      data: { projectIds, userId },
+    })
+
+    return sendApiSuccessResponse(result.data, 'Projects deleted successfully', request)
+  } catch (error: unknown) {
+    return sendApiErrorResponse(error, request, { operation: 'delete bulk', resource: 'project' })
+  }
+}
+
+export const POST = withAuthAndValidation(createProjectBulkRequestSchema, createProjectBulk)
+export const GET = withAuthAndDB(getProjectBulk)
+export const PUT = withAuthAndValidation(updateProjectBulkRequestSchema, updateProjectBulk)
+export const DELETE = withAuthAndValidation(deleteProjectBulkRequestSchema, deleteProjectBulk)

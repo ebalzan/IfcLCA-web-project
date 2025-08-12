@@ -1,6 +1,11 @@
 import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
 import { MaterialService } from '@/lib/services/material-service'
-import { AuthenticatedValidationRequest, withAuthAndValidation } from '@/lib/validation-middleware'
+import {
+  AuthenticatedValidationRequest,
+  validateQueryParams,
+  withAuthAndValidation,
+} from '@/lib/validation-middleware'
+import { paginationRequestSchema } from '@/schemas/api/general'
 import {
   CreateMaterialBulkRequest,
   createMaterialBulkRequestSchema,
@@ -16,10 +21,10 @@ async function createMaterialBulk(
   request: AuthenticatedValidationRequest<CreateMaterialBulkRequest>
 ) {
   try {
-    const { materials } = request.validatedData.data
+    const { materials, projectId } = request.validatedData.data
 
     const results = await MaterialService.createMaterialBulk({
-      data: { materials },
+      data: { materials, projectId },
     })
 
     return sendApiSuccessResponse(results.data, 'Materials created successfully', request)
@@ -30,10 +35,15 @@ async function createMaterialBulk(
 
 async function getMaterialBulk(request: AuthenticatedValidationRequest<GetMaterialBulkRequest>) {
   try {
-    const { materialIds } = request.validatedData.data
+    const { materialIds, projectId } = request.validatedData.data
+    const queryParams = validateQueryParams(paginationRequestSchema, request, {
+      page: 1,
+      size: 10,
+    })
+    const { page, size } = queryParams
 
     const material = await MaterialService.getMaterialBulk({
-      data: { materialIds },
+      data: { materialIds, projectId, pagination: { page, size } },
     })
 
     return sendApiSuccessResponse(material.data, 'Material fetched successfully', request)
@@ -46,10 +56,10 @@ async function updateMaterialBulk(
   request: AuthenticatedValidationRequest<UpdateMaterialBulkRequest>
 ) {
   try {
-    const { materialIds, updates } = request.validatedData.data
+    const { materialIds, updates, projectId } = request.validatedData.data
 
     const results = await MaterialService.updateMaterialBulk({
-      data: { materialIds, updates },
+      data: { materialIds, updates, projectId },
     })
 
     return sendApiSuccessResponse(results.data, 'Materials updated successfully', request)
@@ -62,10 +72,10 @@ async function deleteMaterialBulk(
   request: AuthenticatedValidationRequest<DeleteMaterialBulkRequest>
 ) {
   try {
-    const { materialIds } = request.validatedData.data
+    const { materialIds, projectId } = request.validatedData.data
 
     const results = await MaterialService.deleteMaterialBulk({
-      data: { materialIds },
+      data: { materialIds, projectId },
     })
 
     return sendApiSuccessResponse(results.data, 'Materials deleted successfully', request)

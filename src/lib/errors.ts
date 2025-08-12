@@ -22,6 +22,40 @@ export class AppError extends Error {
   }
 }
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public url: string,
+    public responseText?: string
+  ) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
+export class NetworkError extends Error {
+  constructor(
+    message: string,
+    public url: string,
+    public originalError?: Error
+  ) {
+    super(message)
+    this.name = 'NetworkError'
+  }
+}
+
+export class ParseError extends Error {
+  constructor(
+    message: string,
+    public url: string,
+    public originalError?: Error
+  ) {
+    super(message)
+    this.name = 'ParseError'
+  }
+}
+
 /**
  * Resource not found error
  */

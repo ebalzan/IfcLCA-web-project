@@ -1,7 +1,7 @@
 import { Types } from 'mongoose'
 import { z } from 'zod'
 import { IElementDB } from '@/interfaces/elements/IElementDB'
-import { defaultRequestSchema } from '../general'
+import { defaultRequestSchema, paginationRequestSchema } from '../general'
 
 // Create element
 export const createElementRequestSchema = defaultRequestSchema(z.custom<Omit<IElementDB, '_id'>>())
@@ -15,6 +15,7 @@ export const createElementBulkRequestSchema = defaultRequestSchema(
 export const getElementRequestSchema = defaultRequestSchema(
   z.object({
     elementId: z.custom<Types.ObjectId>(),
+    projectId: z.custom<Types.ObjectId>().optional(),
   })
 )
 
@@ -22,6 +23,7 @@ export const getElementBulkRequestSchema = defaultRequestSchema(
   z.object({
     elementIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one element ID is required'),
     projectId: z.custom<Types.ObjectId>().optional(),
+    pagination: paginationRequestSchema,
   })
 )
 
@@ -30,6 +32,7 @@ export const updateElementRequestSchema = defaultRequestSchema(
   z.object({
     elementId: z.custom<Types.ObjectId>(),
     updates: z.custom<Partial<Omit<IElementDB, 'id'>>>(),
+    projectId: z.custom<Types.ObjectId>().optional(),
   })
 )
 export const updateElementBulkRequestSchema = defaultRequestSchema(
@@ -46,6 +49,7 @@ export const updateElementBulkRequestSchema = defaultRequestSchema(
 export const deleteElementRequestSchema = defaultRequestSchema(
   z.object({
     elementId: z.custom<Types.ObjectId>(),
+    projectId: z.custom<Types.ObjectId>().optional(),
   })
 )
 
