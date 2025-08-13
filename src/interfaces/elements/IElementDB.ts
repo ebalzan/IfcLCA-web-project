@@ -4,7 +4,7 @@ import ILCAIndicators from '../materials/ILCAIndicators'
 
 export interface IElementVirtuals {
   totalVolume: number
-  emissions: ILCAIndicators
+  indicators: ILCAIndicators
 }
 
 export interface IElementDB {

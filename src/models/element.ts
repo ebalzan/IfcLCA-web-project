@@ -3,6 +3,7 @@ import mongooseLeanGetters from 'mongoose-lean-getters'
 import mongooseLeanVirtuals from 'mongoose-lean-virtuals'
 import { IElementDB, IElementVirtuals } from '@/interfaces/elements/IElementDB'
 import { IMaterialLayer } from '@/interfaces/elements/IMaterialLayer'
+import { calculateElementIndicators } from '@/utils/calculateElementIndicators'
 
 type IElementModelType = Model<IElementDB, {}, {}, IElementVirtuals>
 
@@ -37,12 +38,6 @@ const materialLayerSchema = new Schema<IMaterialLayer>({
     type: Number,
     required: true,
     min: 0,
-    default: null,
-    nullable: true,
-  },
-  indicators: {
-    type: Object,
-    required: true,
     default: null,
     nullable: true,
   },
@@ -96,24 +91,8 @@ elementSchema.virtual('totalVolume').get(function () {
 })
 
 // Virtual for emissions
-elementSchema.virtual('emissions').get(function () {
-  return this.materials.reduce(
-    (acc, materialLayer) => {
-      const material = materialLayer.material as any // Will be populated
-      if (!material?.ec3MatchId) return acc
-
-      const volume = materialLayer.volume || 0
-      const density = material.density || 0
-      const mass = volume * density
-
-      return {
-        gwp: acc.gwp + mass * (material.ec3MatchId?.gwp || 0),
-        ubp: acc.ubp + mass * (material.ec3MatchId.ubp || 0),
-        penre: acc.penre + mass * (material.ec3MatchId.penre || 0),
-      }
-    },
-    { gwp: 0, ubp: 0, penre: 0 }
-  )
+elementSchema.virtual('indicators').get(async function () {
+  return await calculateElementIndicators({ data: { elementId: this._id } })
 })
 
 // Middleware to validate material fractions sum to 1
