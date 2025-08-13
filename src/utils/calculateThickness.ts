@@ -2,7 +2,7 @@ import { IFCElement } from '@/interfaces/ifc'
 
 export function calculateThickness(element: IFCElement): number {
   const totalThickness = element.materialLayers?.layers.reduce(
-    (sum, layer) => sum + (layer.volume || 0),
+    (sum, layer) => sum + layer.volume,
     0
   )
 
