@@ -7,6 +7,11 @@ type IMaterialModelType = Model<IMaterialDB, {}, {}, IMaterialVirtuals>
 
 const materialSchema = new Schema<IMaterialDB, IMaterialModelType, {}, IMaterialVirtuals>(
   {
+    uploadId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Upload',
+      required: true,
+    },
     projectId: {
       type: Schema.Types.ObjectId,
       ref: 'Project',

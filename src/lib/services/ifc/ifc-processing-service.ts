@@ -61,7 +61,7 @@ export class IFCProcessingService {
           upsert: true,
         },
       }))
-      const materialResult = await Material.bulkWrite(materialOps)
+      const materialResult = await Material.bulkWrite(materialOps, { session })
 
       logger.debug('Material creation result', {
         upsertedCount: materialResult.upsertedCount,
@@ -156,7 +156,7 @@ export class IFCProcessingService {
                   volume: element.volume ?? 0,
                   loadBearing: element.properties.loadBearing || false,
                   isExternal: element.properties.isExternal || false,
-                  materials: processedMaterials,
+                  materialLayers: processedMaterials,
                   updatedAt: new Date(),
                 },
                 $setOnInsert: {
@@ -169,7 +169,7 @@ export class IFCProcessingService {
             },
           }
         })
-        const result = await Element.bulkWrite(bulkOps)
+        const result = await Element.bulkWrite(bulkOps, { session })
         processedCount += result.upsertedCount + result.modifiedCount
 
         logger.debug(`Processed batch ${i / BATCH_SIZE + 1}`, {

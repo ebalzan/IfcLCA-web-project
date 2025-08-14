@@ -264,11 +264,29 @@ export class EC3CreateMatchError extends BusinessLogicError {
 }
 
 /**
- * Upload-specific errors
+ * Upload create error
  */
-export class UploadError extends BusinessLogicError {
+export class UploadCreateError extends BusinessLogicError {
   constructor(message: string) {
-    super(message, 'UPLOAD_ERROR')
+    super(message, 'UPLOAD_CREATE_ERROR')
+  }
+}
+
+/**
+ * Upload update error
+ */
+export class UploadUpdateError extends BusinessLogicError {
+  constructor(message: string) {
+    super(message, 'UPLOAD_UPDATE_ERROR')
+  }
+}
+
+/**
+ * Upload delete error
+ */
+export class UploadDeleteError extends BusinessLogicError {
+  constructor(message: string) {
+    super(message, 'UPLOAD_DELETE_ERROR')
   }
 }
 

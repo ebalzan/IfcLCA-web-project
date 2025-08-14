@@ -45,6 +45,11 @@ const materialLayerSchema = new Schema<IMaterialLayer>({
 
 const elementSchema = new Schema<IElementDB, IElementModelType, {}, IElementVirtuals>(
   {
+    uploadId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Upload',
+      required: true,
+    },
     projectId: {
       type: Schema.Types.ObjectId,
       ref: 'Project',

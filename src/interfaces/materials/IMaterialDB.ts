@@ -5,6 +5,7 @@ interface IMaterialDB extends Partial<Omit<IEC3Material, 'id' | 'name'>> {
   _id: Types.ObjectId
   name: string
   projectId: Types.ObjectId
+  uploadId: Types.ObjectId
   ec3MatchId: string | null
 }
 

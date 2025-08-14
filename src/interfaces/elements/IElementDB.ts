@@ -10,6 +10,7 @@ export interface IElementVirtuals {
 export interface IElementDB {
   _id: Types.ObjectId
   projectId: Types.ObjectId
+  uploadId: Types.ObjectId
   guid: string
   name: string
   type: string
