@@ -84,16 +84,16 @@ materialSchema.plugin(mongooseLeanGetters)
 materialSchema.virtual('elements', {
   ref: 'Element',
   localField: '_id',
-  foreignField: 'materials.material',
+  foreignField: 'materialLayers.materialId',
 })
 
 // Virtual for total volume
 materialSchema.virtual('totalVolume').get(async function () {
   const result = await model('Element').aggregate<Pick<IMaterialVirtuals, 'totalVolume'>>([
-    { $match: { 'materials.material': this._id } },
-    { $unwind: '$materials' },
-    { $match: { 'materials.material': this._id } },
-    { $group: { _id: null, totalVolume: { $sum: '$materials.volume' } } },
+    { $match: { 'materialLayers.materialId': this._id } },
+    { $unwind: '$materialLayers' },
+    { $match: { 'materialLayers.materialId': this._id } },
+    { $group: { _id: null, totalVolume: { $sum: '$materialLayers.volume' } } },
   ])
 
   return result[0]?.totalVolume || 0

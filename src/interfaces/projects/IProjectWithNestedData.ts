@@ -12,7 +12,7 @@ export interface IProjectWithNestedData extends IProjectDB {
   elements: IElementWithMaterialRefs[]
   materials: IMaterialDB[]
   uploads: IUploadDB[]
-  totalEmissions: ILCAIndicators
+  totalIndicators: ILCAIndicators
   lastActivityAt: Date
   _count: {
     elements: number

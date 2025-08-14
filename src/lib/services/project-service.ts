@@ -236,7 +236,7 @@ export class ProjectService {
               {
                 $lookup: {
                   from: 'materials',
-                  localField: 'materials.material',
+                  localField: 'materialLayers.materialId',
                   foreignField: '_id',
                   as: 'materialRefs',
                   pipeline: [
@@ -259,21 +259,21 @@ export class ProjectService {
               },
               {
                 $addFields: {
-                  materials: {
+                  materialLayers: {
                     $map: {
-                      input: '$materials',
+                      input: '$materialLayers',
                       as: 'mat',
                       in: {
                         $mergeObjects: [
                           '$$mat',
                           {
-                            material: {
+                            materialId: {
                               $arrayElemAt: [
                                 {
                                   $filter: {
                                     input: '$materialRefs',
                                     cond: {
-                                      $eq: ['$$this._id', '$$mat.material'],
+                                      $eq: ['$$this._id', '$$mat.materialId'],
                                     },
                                   },
                                 },
@@ -285,10 +285,10 @@ export class ProjectService {
                       },
                     },
                   },
-                  totalVolume: { $sum: '$materials.volume' },
-                  emissions: {
+                  totalVolume: { $sum: '$materialLayers.volume' },
+                  indicators: {
                     $reduce: {
-                      input: '$materials',
+                      input: '$materialLayers',
                       initialValue: { gwp: 0, ubp: 0, penre: 0 },
                       in: {
                         gwp: {
@@ -297,8 +297,8 @@ export class ProjectService {
                             {
                               $multiply: [
                                 '$$this.volume',
-                                { $ifNull: ['$$this.material.density', 0] },
-                                { $ifNull: ['$$this.material.kbobMatch.GWP', 0] },
+                                { $ifNull: ['$$this.materialId.density', 0] },
+                                { $ifNull: ['$$this.materialId.indicators.gwp', 0] },
                               ],
                             },
                           ],
@@ -309,8 +309,8 @@ export class ProjectService {
                             {
                               $multiply: [
                                 '$$this.volume',
-                                { $ifNull: ['$$this.material.density', 0] },
-                                { $ifNull: ['$$this.material.kbobMatch.UBP', 0] },
+                                { $ifNull: ['$$this.materialId.density', 0] },
+                                { $ifNull: ['$$this.materialId.indicators.ubp', 0] },
                               ],
                             },
                           ],
@@ -321,9 +321,9 @@ export class ProjectService {
                             {
                               $multiply: [
                                 '$$this.volume',
-                                { $ifNull: ['$$this.material.density', 0] },
+                                { $ifNull: ['$$this.materialId.density', 0] },
                                 {
-                                  $ifNull: ['$$this.material.kbobMatch.PENRE', 0],
+                                  $ifNull: ['$$this.materialId.indicators.penre', 0],
                                 },
                               ],
                             },
@@ -342,7 +342,7 @@ export class ProjectService {
             from: 'materials',
             localField: '_id',
             foreignField: 'projectId',
-            as: 'materials',
+            as: 'materialLayers',
             pipeline: [
               {
                 $lookup: {
@@ -366,24 +366,24 @@ export class ProjectService {
                     {
                       $match: {
                         $expr: {
-                          $in: ['$$materialId', '$materials.material'],
+                          $in: ['$$materialId', '$materialLayers.materialId'],
                         },
                       },
                     },
                     {
-                      $unwind: '$materials',
+                      $unwind: '$materialLayers',
                     },
                     {
                       $match: {
                         $expr: {
-                          $eq: ['$materials.material', '$$materialId'],
+                          $eq: ['$materialLayers.materialId', '$$materialId'],
                         },
                       },
                     },
                     {
                       $group: {
                         _id: null,
-                        totalVolume: { $sum: '$materials.volume' },
+                        totalVolume: { $sum: '$materialLayers.volume' },
                       },
                     },
                   ],
@@ -401,7 +401,7 @@ export class ProjectService {
                         $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
                       },
                       { $ifNull: ['$density', 0] },
-                      { $ifNull: ['$ec3Match.gwp', 0] },
+                      { $ifNull: ['$indicators.gwp', 0] },
                     ],
                   },
                   ubp: {
@@ -410,7 +410,7 @@ export class ProjectService {
                         $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
                       },
                       { $ifNull: ['$density', 0] },
-                      { $ifNull: ['$ec3Match.ubp', 0] },
+                      { $ifNull: ['$indicators.ubp', 0] },
                     ],
                   },
                   penre: {
@@ -419,7 +419,7 @@ export class ProjectService {
                         $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
                       },
                       { $ifNull: ['$density', 0] },
-                      { $ifNull: ['$ec3Match.penre', 0] },
+                      { $ifNull: ['$indicators.penre', 0] },
                     ],
                   },
                 },
@@ -439,22 +439,22 @@ export class ProjectService {
                 '$updatedAt',
                 { $max: '$uploads.createdAt' },
                 { $max: '$elements.createdAt' },
-                { $max: '$materials.createdAt' },
+                { $max: '$materialLayers.createdAt' },
               ],
             },
             _count: {
               elements: { $size: '$elements' },
               uploads: { $size: '$uploads' },
-              materials: { $size: '$materials' },
+              materialLayers: { $size: '$materialLayers' },
             },
-            totalEmissions: {
+            totalIndicators: {
               $reduce: {
                 input: '$elements',
                 initialValue: { gwp: 0, ubp: 0, penre: 0 },
                 in: {
-                  gwp: { $add: ['$$value.gwp', '$$this.emissions.gwp'] },
-                  ubp: { $add: ['$$value.ubp', '$$this.emissions.ubp'] },
-                  penre: { $add: ['$$value.penre', '$$this.emissions.penre'] },
+                  gwp: { $add: ['$$value.gwp', '$$this.indicators.gwp'] },
+                  ubp: { $add: ['$$value.ubp', '$$this.indicators.ubp'] },
+                  penre: { $add: ['$$value.penre', '$$this.indicators.penre'] },
                 },
               },
             },
@@ -526,7 +526,7 @@ export class ProjectService {
               {
                 $lookup: {
                   from: 'materials',
-                  localField: 'materials.material',
+                  localField: 'materialLayers.materialId',
                   foreignField: '_id',
                   as: 'materialRefs',
                   pipeline: [
@@ -549,21 +549,21 @@ export class ProjectService {
               },
               {
                 $addFields: {
-                  materials: {
+                  materialLayers: {
                     $map: {
-                      input: '$materials',
+                      input: '$materialLayers',
                       as: 'mat',
                       in: {
                         $mergeObjects: [
                           '$$mat',
                           {
-                            material: {
+                            materialId: {
                               $arrayElemAt: [
                                 {
                                   $filter: {
                                     input: '$materialRefs',
                                     cond: {
-                                      $eq: ['$$this._id', '$$mat.material'],
+                                      $eq: ['$$this._id', '$$mat.materialId'],
                                     },
                                   },
                                 },
@@ -575,10 +575,10 @@ export class ProjectService {
                       },
                     },
                   },
-                  totalVolume: { $sum: '$materials.volume' },
-                  emissions: {
+                  totalVolume: { $sum: '$materialLayers.volume' },
+                  indicators: {
                     $reduce: {
-                      input: '$materials',
+                      input: '$materialLayers',
                       initialValue: { gwp: 0, ubp: 0, penre: 0 },
                       in: {
                         gwp: {
@@ -587,8 +587,8 @@ export class ProjectService {
                             {
                               $multiply: [
                                 '$$this.volume',
-                                { $ifNull: ['$$this.material.density', 0] },
-                                { $ifNull: ['$$this.material.kbobMatch.GWP', 0] },
+                                { $ifNull: ['$$this.materialId.density', 0] },
+                                { $ifNull: ['$$this.materialId.indicators.gwp', 0] },
                               ],
                             },
                           ],
@@ -599,8 +599,8 @@ export class ProjectService {
                             {
                               $multiply: [
                                 '$$this.volume',
-                                { $ifNull: ['$$this.material.density', 0] },
-                                { $ifNull: ['$$this.material.kbobMatch.UBP', 0] },
+                                { $ifNull: ['$$this.materialId.density', 0] },
+                                { $ifNull: ['$$this.materialId.indicators.ubp', 0] },
                               ],
                             },
                           ],
@@ -611,9 +611,9 @@ export class ProjectService {
                             {
                               $multiply: [
                                 '$$this.volume',
-                                { $ifNull: ['$$this.material.density', 0] },
+                                { $ifNull: ['$$this.materialId.density', 0] },
                                 {
-                                  $ifNull: ['$$this.material.kbobMatch.PENRE', 0],
+                                  $ifNull: ['$$this.materialId.indicators.penre', 0],
                                 },
                               ],
                             },
@@ -632,7 +632,7 @@ export class ProjectService {
             from: 'materials',
             localField: '_id',
             foreignField: 'projectId',
-            as: 'materials',
+            as: 'materialLayers',
             pipeline: [
               {
                 $lookup: {
@@ -656,24 +656,24 @@ export class ProjectService {
                     {
                       $match: {
                         $expr: {
-                          $in: ['$$materialId', '$materials.material'],
+                          $in: ['$$materialId', '$materialLayers.materialId'],
                         },
                       },
                     },
                     {
-                      $unwind: '$materials',
+                      $unwind: '$materialLayers',
                     },
                     {
                       $match: {
                         $expr: {
-                          $eq: ['$materials.material', '$$materialId'],
+                          $eq: ['$materialLayers.materialId', '$$materialId'],
                         },
                       },
                     },
                     {
                       $group: {
                         _id: null,
-                        totalVolume: { $sum: '$materials.volume' },
+                        totalVolume: { $sum: '$materialLayers.volume' },
                       },
                     },
                   ],
@@ -691,7 +691,7 @@ export class ProjectService {
                         $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
                       },
                       { $ifNull: ['$density', 0] },
-                      { $ifNull: ['$ec3Match.gwp', 0] },
+                      { $ifNull: ['$indicators.gwp', 0] },
                     ],
                   },
                   ubp: {
@@ -700,7 +700,7 @@ export class ProjectService {
                         $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
                       },
                       { $ifNull: ['$density', 0] },
-                      { $ifNull: ['$ec3Match.ubp', 0] },
+                      { $ifNull: ['$indicators.ubp', 0] },
                     ],
                   },
                   penre: {
@@ -729,22 +729,22 @@ export class ProjectService {
                 '$updatedAt',
                 { $max: '$uploads.createdAt' },
                 { $max: '$elements.createdAt' },
-                { $max: '$materials.createdAt' },
+                { $max: '$materialLayers.createdAt' },
               ],
             },
             _count: {
               elements: { $size: '$elements' },
               uploads: { $size: '$uploads' },
-              materials: { $size: '$materials' },
+              materialLayers: { $size: '$materialLayers' },
             },
-            totalEmissions: {
+            totalIndicators: {
               $reduce: {
                 input: '$elements',
                 initialValue: { gwp: 0, ubp: 0, penre: 0 },
                 in: {
-                  gwp: { $add: ['$$value.gwp', '$$this.emissions.gwp'] },
-                  ubp: { $add: ['$$value.ubp', '$$this.emissions.ubp'] },
-                  penre: { $add: ['$$value.penre', '$$this.emissions.penre'] },
+                  gwp: { $add: ['$$value.gwp', '$$this.indicators.gwp'] },
+                  ubp: { $add: ['$$value.ubp', '$$this.indicators.ubp'] },
+                  penre: { $add: ['$$value.penre', '$$this.indicators.penre'] },
                 },
               },
             },
@@ -1052,7 +1052,7 @@ export class ProjectService {
 
       // Get paginated results
       const projects = await Project.find(queryConditions)
-        .select('name description _id userId emissions createdAt updatedAt')
+        .select('name description _id userId indicators createdAt updatedAt')
         .sort(sortObject)
         .skip(skip)
         .limit(size)
@@ -1087,40 +1087,6 @@ export class ProjectService {
       throw new DatabaseError(
         error instanceof Error ? error.message : 'Failed to search projects',
         'search'
-      )
-    }
-  }
-
-  /**
-   * Update project emissions
-   */
-  static async updateProjectEmissions(
-    projectId: string,
-    emissions: { gwp: number; ubp: number; penre: number },
-    session?: any
-  ): Promise<void> {
-    try {
-      await Project.findByIdAndUpdate(
-        projectId,
-        {
-          $set: {
-            emissions: {
-              ...emissions,
-              lastCalculated: new Date(),
-            },
-          },
-        },
-        { session: session || null }
-      )
-    } catch (error: unknown) {
-      logger.error('❌ [Project Service] Error in updateProjectEmissions:', error)
-
-      if (isAppError(error)) {
-        throw error
-      }
-
-      throw new ProjectUpdateError(
-        error instanceof Error ? error.message : 'Failed to update project emissions'
       )
     }
   }

@@ -15,7 +15,7 @@ export interface IElementDB {
   type: string
   loadBearing: boolean
   isExternal: boolean
-  materials: IMaterialLayer[]
+  materialLayers: IMaterialLayer[]
   createdAt: Date
   updatedAt: Date
 }

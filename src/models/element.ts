@@ -8,7 +8,7 @@ import { calculateElementIndicators } from '@/utils/calculateElementIndicators'
 type IElementModelType = Model<IElementDB, {}, {}, IElementVirtuals>
 
 const materialLayerSchema = new Schema<IMaterialLayer>({
-  material: {
+  materialId: {
     type: Schema.Types.ObjectId,
     ref: 'Material',
     required: true,
@@ -70,7 +70,7 @@ const elementSchema = new Schema<IElementDB, IElementModelType, {}, IElementVirt
       type: Boolean,
       default: false,
     },
-    materials: [materialLayerSchema],
+    materialLayers: [materialLayerSchema],
   },
   {
     timestamps: true,
@@ -79,7 +79,7 @@ const elementSchema = new Schema<IElementDB, IElementModelType, {}, IElementVirt
 
 // Indexes
 elementSchema.index({ projectId: 1, guid: 1 }, { unique: true })
-elementSchema.index({ 'materials.material': 1 })
+elementSchema.index({ 'materialLayers.materialId': 1 })
 
 // Plugins
 elementSchema.plugin(mongooseLeanVirtuals)
@@ -87,7 +87,7 @@ elementSchema.plugin(mongooseLeanGetters)
 
 // Virtuals
 elementSchema.virtual('totalVolume').get(function () {
-  return this.materials.reduce((sum, materialLayer) => sum + (materialLayer.volume || 0), 0)
+  return this.materialLayers.reduce((sum, materialLayer) => sum + (materialLayer.volume || 0), 0)
 })
 
 // Virtual for emissions
@@ -97,7 +97,7 @@ elementSchema.virtual('indicators').get(async function () {
 
 // Middleware to validate material fractions sum to 1
 elementSchema.pre('save', function (next) {
-  const totalFraction = this.materials.reduce(
+  const totalFraction = this.materialLayers.reduce(
     (sum, materialLayer) => sum + (materialLayer?.fraction || 0),
     0
   )

@@ -103,7 +103,7 @@ export class IFCProcessingService {
                   }
 
                   return {
-                    material: material._id,
+                    materialId: material._id,
                     materialName: materialLayer.name,
                     volume: materialLayer.volume ?? 0,
                     fraction: materialLayer.fraction ?? null,
@@ -131,7 +131,7 @@ export class IFCProcessingService {
                   }
 
                   return {
-                    material: material._id,
+                    materialId: material._id,
                     materialName: material.name,
                     volume: layer.volume || totalVolume / layers.length,
                     fraction: null,
