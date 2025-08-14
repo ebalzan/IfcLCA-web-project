@@ -1,6 +1,7 @@
 import { FilterQuery } from 'mongoose'
 import IUploadDB from '@/interfaces/uploads/IUploadDB'
-import { Upload, Material, Element } from '@/models'
+import { logger } from '@/lib/logger'
+import { Upload } from '@/models'
 import {
   CreateUploadRequest,
   CreateUploadBulkRequest,
@@ -10,6 +11,7 @@ import {
   UpdateUploadBulkRequest,
   DeleteUploadRequest,
   DeleteUploadBulkRequest,
+  CreateUploadWithIFCProcessingRequest,
 } from '@/schemas/api/uploads/upload-requests'
 import {
   CreateUploadResponse,
@@ -20,8 +22,11 @@ import {
   UpdateUploadBulkResponse,
   DeleteUploadResponse,
   DeleteUploadBulkResponse,
+  CreateUploadWithIFCProcessingResponse,
 } from '@/schemas/api/uploads/upload-responses'
 import { withTransaction } from '@/utils/withTransaction'
+import { IFCProcessingService } from './ifc/ifc-processing-service'
+import { parseIfcWithWasm } from './ifc/ifc-wasm-parser'
 import {
   DatabaseError,
   NotFoundError,
@@ -30,7 +35,6 @@ import {
   UploadUpdateError,
   isAppError,
 } from '../errors'
-import { logger } from '../logger'
 
 export class UploadService {
   // Cache configuration
@@ -526,6 +530,91 @@ export class UploadService {
 
         throw new UploadDeleteError(
           error instanceof Error ? error.message : 'Failed to delete uploads'
+        )
+      }
+    }, session)
+  }
+
+  static async createUploadWithIFCProcessing({
+    data: { file, projectId, userId },
+    session,
+  }: CreateUploadWithIFCProcessingRequest): Promise<CreateUploadWithIFCProcessingResponse> {
+    return withTransaction(async useSession => {
+      try {
+        // 1. Create upload record using existing function
+        const uploadResult = await UploadService.createUpload({
+          data: {
+            projectId,
+            filename: file.name,
+            status: 'Processing',
+            userId,
+            _count: {
+              elements: 0,
+              materials: 0,
+            },
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          session: useSession,
+        })
+
+        // 2. Check if upload was created successfully
+        if (!uploadResult.success) {
+          throw new UploadCreateError('Failed to create upload record')
+        }
+
+        const upload = uploadResult.data
+
+        // 3. Parse IFC file
+        const parseResult = await parseIfcWithWasm(file)
+
+        // 4. Process elements and materials
+        // TODO: CHECK IT LATER
+        const [elementResult, matchResult] = await Promise.all([
+          IFCProcessingService.processElementsAndMaterialsFromIFC({
+            data: { projectId, elements: parseResult.elements, uploadId: upload._id },
+            session: useSession,
+          }),
+          IFCProcessingService.applyAutomaticMaterialMatches({
+            data: {
+              projectId,
+              materialIds: parseResult.elements.map(element => element.materials).flat(),
+            },
+            session: useSession,
+          }),
+        ])
+
+        // 5. Update upload with results using existing update function
+        const updateResult = await UploadService.updateUpload({
+          data: {
+            uploadId: upload._id,
+            projectId,
+            updates: {
+              status: 'Completed',
+              _count: {
+                elements: elementResult.data.elementCount,
+                materials: elementResult.data.materialCount,
+              },
+              updatedAt: new Date(),
+            },
+          },
+          session: useSession,
+        })
+
+        return {
+          success: true,
+          data: updateResult.data,
+          message: 'Upload created and processed successfully',
+        }
+      } catch (error: unknown) {
+        logger.error('❌ [Upload Service] Error in createUploadWithIFCProcessing:', error)
+
+        if (isAppError(error)) {
+          throw error
+        }
+
+        throw new UploadCreateError(
+          error instanceof Error ? error.message : 'Failed to create upload with IFC processing'
         )
       }
     }, session)

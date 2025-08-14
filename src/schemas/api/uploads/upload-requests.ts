@@ -57,6 +57,15 @@ export const deleteUploadBulkRequestSchema = defaultRequestSchema(
   })
 )
 
+// Create upload with IFC processing
+export const createUploadWithIFCProcessingRequestSchema = defaultRequestSchema(
+  z.object({
+    file: z.instanceof(File),
+    projectId: z.custom<Types.ObjectId>(),
+    userId: z.string(),
+  })
+)
+
 // Create upload types
 export type CreateUploadRequest = z.infer<typeof createUploadRequestSchema>
 export type CreateUploadBulkRequest = z.infer<typeof createUploadBulkRequestSchema>
@@ -72,3 +81,8 @@ export type UpdateUploadBulkRequest = z.infer<typeof updateUploadBulkRequestSche
 // Delete upload types
 export type DeleteUploadRequest = z.infer<typeof deleteUploadRequestSchema>
 export type DeleteUploadBulkRequest = z.infer<typeof deleteUploadBulkRequestSchema>
+
+// Create upload with IFC processing types
+export type CreateUploadWithIFCProcessingRequest = z.infer<
+  typeof createUploadWithIFCProcessingRequestSchema
+>

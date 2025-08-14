@@ -21,7 +21,7 @@ export const processElementsAndMaterialsFromIFCRequestSchema = defaultRequestSch
   z.object({
     projectId: z.custom<Types.ObjectId>(),
     elements: z.array(z.custom<IFCElement>()),
-    uploadId: z.string(),
+    uploadId: z.custom<Types.ObjectId>(),
   })
 )
 export const processElementsAndMaterialsFromIFCResponseSchema = defaultResponseSchema(

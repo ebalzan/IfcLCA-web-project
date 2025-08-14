@@ -15,6 +15,11 @@ export const getUploadBulkResponseSchema = defaultResponseSchema(
   })
 )
 
+// Create upload with IFC processing
+export const createUploadWithIFCProcessingResponseSchema = defaultResponseSchema(
+  z.custom<IUploadDB>()
+)
+
 // Update upload types
 export const updateUploadResponseSchema = defaultResponseSchema(z.custom<IUploadDB>())
 export const updateUploadBulkResponseSchema = defaultResponseSchema(z.array(z.custom<IUploadDB>()))
@@ -38,3 +43,8 @@ export type UpdateUploadBulkResponse = z.infer<typeof updateUploadBulkResponseSc
 // Delete upload types
 export type DeleteUploadResponse = z.infer<typeof deleteUploadResponseSchema>
 export type DeleteUploadBulkResponse = z.infer<typeof deleteUploadBulkResponseSchema>
+
+// Create upload with IFC processing types
+export type CreateUploadWithIFCProcessingResponse = z.infer<
+  typeof createUploadWithIFCProcessingResponseSchema
+>
