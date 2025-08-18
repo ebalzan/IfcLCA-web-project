@@ -30,7 +30,7 @@ export function UploadModal({ open, onOpenChange, projectId, onSuccess }: Upload
         const file = acceptedFiles[0]
         logger.debug('Starting file upload', {
           filename: file.name,
-          size: file.size,
+          size: (file.size / 1024 / 1024).toFixed(2) + 'MB',
           type: file.type,
         })
 
@@ -39,10 +39,8 @@ export function UploadModal({ open, onOpenChange, projectId, onSuccess }: Upload
         })
 
         const uploadPromise = await createUpload({
-          data: {
-            file,
-            projectId: new Types.ObjectId(projectId),
-          },
+          file,
+          projectId: new Types.ObjectId(projectId),
         })
         const results = (await Promise.race([uploadPromise, timeoutPromise])) as IFCParseResult
         const { projectId: resultProjectId, shouldRedirectToLibrary } = results

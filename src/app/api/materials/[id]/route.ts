@@ -109,7 +109,15 @@ async function deleteMaterial(
   }
 }
 
-export const POST = withAuthAndValidation(createMaterialRequestSchema, createMaterial)
-export const GET = withAuthAndValidationWithParams(getMaterialRequestSchema, getMaterial)
-export const PUT = withAuthAndValidationWithParams(updateMaterialRequestSchema, updateMaterial)
-export const DELETE = withAuthAndValidationWithParams(deleteMaterialRequestSchema, deleteMaterial)
+export const POST = withAuthAndValidation(createMaterialRequestSchema, createMaterial, {
+  method: 'json',
+})
+export const GET = withAuthAndValidationWithParams(getMaterialRequestSchema, getMaterial, {
+  method: 'json',
+})
+export const PUT = withAuthAndValidationWithParams(updateMaterialRequestSchema, updateMaterial, {
+  method: 'json',
+})
+export const DELETE = withAuthAndValidationWithParams(deleteMaterialRequestSchema, deleteMaterial, {
+  method: 'json',
+})

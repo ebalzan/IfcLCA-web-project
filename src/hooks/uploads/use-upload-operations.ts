@@ -38,20 +38,20 @@ export const useGetUploadBulk = () => {
 export const useCreateUpload = () => {
   const router = useRouter()
 
-  return useTanStackMutation<
-    ParseIFCFileResponse,
-    { data: Omit<ParseIFCFileRequest['data'], 'userId'> }
-  >('/api/uploads', {
-    method: 'POST',
-    mutationKey: [Queries.GET_UPLOADS],
-    showSuccessToast: true,
-    successMessage: 'Upload has been created successfully',
-    showErrorToast: true,
-    invalidateQueries: [[Queries.GET_UPLOADS]],
-    onSuccess: ({ data }) => {
-      router.push(`/projects/${data.projectId}`)
-    },
-  })
+  return useTanStackMutation<ParseIFCFileResponse, Omit<ParseIFCFileRequest['data'], 'userId'>>(
+    '/api/uploads',
+    {
+      method: 'POST',
+      mutationKey: [Queries.GET_UPLOADS],
+      showSuccessToast: true,
+      successMessage: 'Upload has been created successfully',
+      showErrorToast: true,
+      invalidateQueries: [[Queries.GET_UPLOADS]],
+      onSuccess: ({ data }) => {
+        router.push(`/projects/${data.projectId}`)
+      },
+    }
+  )
 }
 
 export const useDeleteUpload = () => {

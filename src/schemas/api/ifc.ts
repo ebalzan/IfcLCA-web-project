@@ -40,6 +40,12 @@ export const parseIFCFileRequestSchema = defaultRequestSchema(
     userId: z.string(),
   })
 )
+export const parseIFCFileRequestClientSchema = defaultRequestSchema(
+  z.object({
+    file: z.instanceof(File),
+    projectId: z.custom<Types.ObjectId>(),
+  })
+)
 export const parseIFCFileResponseSchema = defaultResponseSchema(z.custom<IFCParseResult>())
 
 // Apply automatic material matches request and response types
@@ -60,4 +66,5 @@ export type ProcessElementsAndMaterialsFromIFCResponse = z.infer<
 
 // Parse IFC file request and response types
 export type ParseIFCFileRequest = z.infer<typeof parseIFCFileRequestSchema>
+export type ParseIFCFileRequestClient = z.infer<typeof parseIFCFileRequestClientSchema>
 export type ParseIFCFileResponse = z.infer<typeof parseIFCFileResponseSchema>

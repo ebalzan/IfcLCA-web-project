@@ -43,4 +43,6 @@ async function createEC3Match(
   }
 }
 
-export const POST = withAuthAndValidationWithParams(createEC3MatchRequestSchema, createEC3Match)
+export const POST = withAuthAndValidationWithParams(createEC3MatchRequestSchema, createEC3Match, {
+  method: 'json',
+})

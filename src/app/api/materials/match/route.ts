@@ -25,4 +25,6 @@ async function createEC3BulkMatch(
   }
 }
 
-export const POST = withAuthAndValidation(createEC3BulkMatchRequestSchema, createEC3BulkMatch)
+export const POST = withAuthAndValidation(createEC3BulkMatchRequestSchema, createEC3BulkMatch, {
+  method: 'json',
+})

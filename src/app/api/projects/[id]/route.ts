@@ -92,7 +92,11 @@ export async function deleteProject(
   }
 }
 
-export const POST = withAuthAndValidation(createProjectRequestSchema, createProject)
+export const POST = withAuthAndValidation(createProjectRequestSchema, createProject, {
+  method: 'json',
+})
 export const GET = withAuthAndDBParams(getProject)
-export const PUT = withAuthAndValidationWithParams(updateProjectRequestSchema, updateProject)
+export const PUT = withAuthAndValidationWithParams(updateProjectRequestSchema, updateProject, {
+  method: 'json',
+})
 export const DELETE = withAuthAndDBParams(deleteProject)

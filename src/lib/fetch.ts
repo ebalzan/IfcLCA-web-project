@@ -54,6 +54,11 @@ export async function fetchApi<T>(url: string, options?: FetchApiOptions): Promi
     ...fetchOptions.headers,
   }
 
+  // Don't override Content-Type for FormData
+  if (fetchOptions.body instanceof FormData) {
+    delete (headers as Record<string, string>)['Content-Type']
+  }
+
   const attemptRequest = async (attempt: number = 1): Promise<T> => {
     try {
       const controller = new AbortController()

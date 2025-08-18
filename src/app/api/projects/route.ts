@@ -86,7 +86,13 @@ async function deleteProjectBulk(
   }
 }
 
-export const POST = withAuthAndValidation(createProjectBulkRequestSchema, createProjectBulk)
+export const POST = withAuthAndValidation(createProjectBulkRequestSchema, createProjectBulk, {
+  method: 'json',
+})
 export const GET = withAuthAndDB(getProjectBulk)
-export const PUT = withAuthAndValidation(updateProjectBulkRequestSchema, updateProjectBulk)
-export const DELETE = withAuthAndValidation(deleteProjectBulkRequestSchema, deleteProjectBulk)
+export const PUT = withAuthAndValidation(updateProjectBulkRequestSchema, updateProjectBulk, {
+  method: 'json',
+})
+export const DELETE = withAuthAndValidation(deleteProjectBulkRequestSchema, deleteProjectBulk, {
+  method: 'json',
+})

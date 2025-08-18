@@ -3,27 +3,19 @@ import { sendApiSuccessResponse } from '@/lib/api-error-response'
 import { getUserId } from '@/lib/api-middleware'
 import { parseIFCFile } from '@/lib/services/ifc/ifc-parser-client'
 import { UploadService } from '@/lib/services/upload-service'
-import {
-  AuthenticatedValidationRequest,
-  validateFileUpload,
-  withAuthAndValidation,
-} from '@/lib/validation-middleware'
-import { ifcFileValidationSchema } from '@/schemas/api/general'
-import { ParseIFCFileRequest, parseIFCFileRequestSchema } from '@/schemas/api/ifc'
+import { AuthenticatedValidationRequest, withAuthAndValidation } from '@/lib/validation-middleware'
+import { ParseIFCFileRequestClient, parseIFCFileRequestClientSchema } from '@/schemas/api/ifc'
 import {
   DeleteUploadRequest,
   deleteUploadRequestSchema,
 } from '@/schemas/api/uploads/upload-requests'
 
-async function createUpload(request: AuthenticatedValidationRequest<ParseIFCFileRequest>) {
+async function createUpload(request: AuthenticatedValidationRequest<ParseIFCFileRequestClient>) {
   try {
     const userId = getUserId(request)
-    const validationResponse = await validateFileUpload(ifcFileValidationSchema, request)
-    if (!validationResponse.success) {
-      return validationResponse.error
-    }
-    const { file } = validationResponse.data
-    const { projectId } = request.validatedData.data
+    const { projectId, file } = request.validatedData.data
+
+    console.log('INFO#######', request.validatedData.data)
 
     const uploadResult = await parseIFCFile({
       data: {
@@ -53,5 +45,9 @@ async function deleteUpload(request: AuthenticatedValidationRequest<DeleteUpload
   }
 }
 
-export const POST = withAuthAndValidation(parseIFCFileRequestSchema, createUpload)
-export const DELETE = withAuthAndValidation(deleteUploadRequestSchema, deleteUpload)
+export const POST = withAuthAndValidation(parseIFCFileRequestClientSchema, createUpload, {
+  method: 'formData',
+})
+export const DELETE = withAuthAndValidation(deleteUploadRequestSchema, deleteUpload, {
+  method: 'json',
+})

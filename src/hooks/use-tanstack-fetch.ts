@@ -146,9 +146,40 @@ export const useTanStackMutation = <TResponse, TRequestData>(
       const finalUrl =
         options?.method === 'DELETE' && typeof variables === 'string' ? `${url}/${variables}` : url
 
+      // Check if we're sending FormData by looking for File objects in variables
+      const isFormData =
+        variables &&
+        typeof variables === 'object' &&
+        'file' in variables &&
+        variables.file instanceof File
+
+      let body: string | FormData | undefined
+
+      if (isFormData) {
+        const formData = new FormData()
+
+        // Add file
+        formData.append('file', (variables as { file: File }).file)
+
+        // Create the data object without the file
+        const dataObject: Record<string, unknown> = {}
+        Object.entries(variables as Record<string, unknown>).forEach(([key, value]) => {
+          if (key !== 'file' && value !== undefined) {
+            dataObject[key] = value
+          }
+        })
+
+        // Add the data object as a JSON string
+        formData.append('data', JSON.stringify(dataObject))
+
+        body = formData
+      } else if (variables && typeof variables !== 'string') {
+        body = JSON.stringify(variables)
+      }
+
       return fetchApi<TResponse>(finalUrl, {
         ...options,
-        body: variables && typeof variables !== 'string' ? JSON.stringify(variables) : undefined,
+        body,
       })
     },
     onSuccess: (data, variables) => {
@@ -198,8 +229,7 @@ export const useTanStackMutation = <TResponse, TRequestData>(
     isLoading: mutation.isPending,
     isError: mutation.isError,
     isSuccess: mutation.isSuccess,
-    error: mutation.error ? (mutation.error as Error).message : null,
-    data: mutation.data || null,
+    error: mutation.error,
     reset: mutation.reset,
   }
 }

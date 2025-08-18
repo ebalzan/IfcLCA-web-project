@@ -84,7 +84,15 @@ async function deleteMaterialBulk(
   }
 }
 
-export const POST = withAuthAndValidation(createMaterialBulkRequestSchema, createMaterialBulk)
-export const GET = withAuthAndValidation(getMaterialBulkRequestSchema, getMaterialBulk)
-export const PUT = withAuthAndValidation(updateMaterialBulkRequestSchema, updateMaterialBulk)
-export const DELETE = withAuthAndValidation(deleteMaterialBulkRequestSchema, deleteMaterialBulk)
+export const POST = withAuthAndValidation(createMaterialBulkRequestSchema, createMaterialBulk, {
+  method: 'json',
+})
+export const GET = withAuthAndValidation(getMaterialBulkRequestSchema, getMaterialBulk, {
+  method: 'json',
+})
+export const PUT = withAuthAndValidation(updateMaterialBulkRequestSchema, updateMaterialBulk, {
+  method: 'json',
+})
+export const DELETE = withAuthAndValidation(deleteMaterialBulkRequestSchema, deleteMaterialBulk, {
+  method: 'json',
+})

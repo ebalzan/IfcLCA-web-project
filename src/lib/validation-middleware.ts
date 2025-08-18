@@ -16,13 +16,88 @@ export type ValidationMiddleware<T> = (
   handler: (request: ValidationRequest<T>) => Promise<NextResponse>
 ) => (request: NextRequest) => Promise<NextResponse>
 
+export type RequestProcessingMethod = 'json' | 'formData'
+
+export interface ValidationOptions {
+  method: RequestProcessingMethod
+  strictHeaders?: boolean
+}
+
+const validateContentType = (
+  request: NextRequest,
+  expectedMethod: RequestProcessingMethod,
+  strictHeaders: boolean = true
+): boolean => {
+  if (!strictHeaders) return true
+
+  const contentType = request.headers.get('Content-Type')?.toLowerCase() || ''
+
+  switch (expectedMethod) {
+    case 'json':
+      return contentType.includes('application/json')
+    case 'formData':
+      return contentType.includes('multipart/form-data')
+    default:
+      return true
+  }
+}
+
+const parseRequestBody = async <T>(
+  request: NextRequest,
+  method: RequestProcessingMethod
+): Promise<T> => {
+  switch (method) {
+    case 'json':
+      return await request.json()
+    case 'formData':
+      const formData = await request.formData()
+      const data: Record<string, unknown> = {}
+
+      for (const [key, value] of formData.entries()) {
+        if (key === 'data' && typeof value === 'string') {
+          // Parse the data field as JSON
+          try {
+            const parsedData = JSON.parse(value)
+            // Add the file from the separate 'file' field
+            if (formData.get('file') instanceof File) {
+              parsedData.file = formData.get('file')
+            }
+            data[key] = parsedData
+          } catch {
+            data[key] = value
+          }
+        } else if (key !== 'file') {
+          // Skip the file field as it's handled above
+          data[key] = value
+        }
+      }
+
+      return data as T
+    default:
+      return await request.json()
+  }
+}
+
 export const withValidation = <T>(
   schema: z.ZodSchema<T>,
-  handler: (request: ValidationRequest<T>) => Promise<NextResponse>
+  handler: (request: ValidationRequest<T>) => Promise<NextResponse>,
+  options: ValidationOptions
 ) => {
+  const { method, strictHeaders = true } = options
+
   return async (request: NextRequest) => {
     try {
-      const body: T = await request.json()
+      if (!validateContentType(request, method, strictHeaders)) {
+        const expectedContentType = method === 'json' ? 'application/json' : 'multipart/form-data'
+
+        const errorResponse = formatValidationError(
+          [],
+          `Invalid Content-Type. Expected: ${expectedContentType}`
+        )
+        return NextResponse.json(errorResponse, { status: 400 })
+      }
+
+      const body: T = await parseRequestBody<T>(request, method)
       const validatedData = schema.parse(body)
 
       const validationRequest = request as ValidationRequest<T>
@@ -54,11 +129,9 @@ export const validateQueryParams = <T extends z.ZodSchema>(
 ): z.infer<T> => {
   const { searchParams } = new URL(request.url)
 
-  // Convert string values to appropriate types based on schema
   const queryObject: Record<string, string | number> = {}
 
   for (const [key, value] of searchParams.entries()) {
-    // Handle numeric values
     if (key === 'page' || key === 'size' || key === 'limit') {
       queryObject[key] = parseInt(value, 10)
     } else {
@@ -80,50 +153,26 @@ export const validatePathParams = async <T extends z.ZodSchema>(
   return schema.parse(dataToValidate)
 }
 
-export const validateFileUpload = async <T extends z.ZodSchema>(
-  schema: T,
-  request: NextRequest
-): Promise<{ success: true; data: z.infer<T> } | { success: false; error: NextResponse }> => {
-  try {
-    const formData = await request.formData()
-    const data = Object.fromEntries(formData.entries())
-    const validatedData = schema.parse(data)
-    return { success: true, data: validatedData }
-  } catch (error: unknown) {
-    if (error instanceof ZodError) {
-      const formattedErrors = error.errors.map(err => ({
-        field: err.path.join('.'),
-        message: err.message,
-        code: err.code,
-      }))
-      return {
-        success: false,
-        error: NextResponse.json(
-          { error: 'File validation failed', details: formattedErrors },
-          { status: 400 }
-        ),
-      }
-    }
-    return {
-      success: false,
-      error: NextResponse.json({ error: 'Invalid file upload' }, { status: 400 }),
-    }
-  }
-}
-
 export const withAuthAndValidation = <T>(
   schema: z.ZodSchema<T>,
-  handler: (request: AuthenticatedValidationRequest<T>) => Promise<NextResponse>
+  handler: (request: AuthenticatedValidationRequest<T>) => Promise<NextResponse>,
+  options: ValidationOptions
 ) => {
   return withAuthAndDB(async authRequest => {
-    const validationHandler = withValidation<T>(schema, validationRequest => {
-      const mergedRequest = {
-        ...authRequest,
-        ...validationRequest,
-      } as AuthenticatedValidationRequest<T>
+    const validationHandler = withValidation<T>(
+      schema,
+      validationRequest => {
+        const mergedRequest = {
+          ...authRequest,
+          ...validationRequest,
+        } as AuthenticatedValidationRequest<T>
 
-      return handler(mergedRequest)
-    })
+        return handler(mergedRequest)
+      },
+      {
+        ...options,
+      }
+    )
 
     return validationHandler(authRequest)
   })
@@ -134,17 +183,24 @@ export const withAuthAndValidationWithParams = <T, P>(
   handler: (
     request: AuthenticatedValidationRequest<T>,
     context: { params: Promise<P> }
-  ) => Promise<NextResponse>
+  ) => Promise<NextResponse>,
+  options: ValidationOptions
 ) => {
   return withAuthAndDBParams<P>(async (authRequest, context) => {
-    const validationHandler = withValidation<T>(schema, validationRequest => {
-      const mergedRequest = {
-        ...authRequest,
-        ...validationRequest,
-      } as AuthenticatedValidationRequest<T>
+    const validationHandler = withValidation<T>(
+      schema,
+      validationRequest => {
+        const mergedRequest = {
+          ...authRequest,
+          ...validationRequest,
+        } as AuthenticatedValidationRequest<T>
 
-      return handler(mergedRequest, context)
-    })
+        return handler(mergedRequest, context)
+      },
+      {
+        ...options,
+      }
+    )
 
     return validationHandler(authRequest)
   })

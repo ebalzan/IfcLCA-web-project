@@ -88,6 +88,12 @@ async function deleteUpload(
   }
 }
 
-export const GET = withAuthAndValidationWithParams(getUploadRequestSchema, getUpload)
-export const PUT = withAuthAndValidationWithParams(updateUploadRequestSchema, updateUpload)
-export const DELETE = withAuthAndValidationWithParams(deleteUploadRequestSchema, deleteUpload)
+export const GET = withAuthAndValidationWithParams(getUploadRequestSchema, getUpload, {
+  method: 'json',
+})
+export const PUT = withAuthAndValidationWithParams(updateUploadRequestSchema, updateUpload, {
+  method: 'json',
+})
+export const DELETE = withAuthAndValidationWithParams(deleteUploadRequestSchema, deleteUpload, {
+  method: 'json',
+})
