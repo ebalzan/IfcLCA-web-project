@@ -23,7 +23,6 @@ import {
 } from 'lucide-react'
 import { Loader2 } from 'lucide-react'
 import { useTheme } from 'next-themes'
-import { SearchResult } from '@/app/api/projects/search/route'
 import { HelpDialog } from '@/components/help-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -46,11 +45,12 @@ import {
 } from '@/components/ui/navigation-menu'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { UploadModal } from '@/components/upload-modal'
-import { useProjectsWithStats } from '@/hooks/projects/use-project-operations'
+import { useGetProjectWithNestedDataBulk } from '@/hooks/projects/use-project-operations'
 import { useDebounce } from '@/hooks/use-debounce'
-import IProjectClient from '@/interfaces/client/projects/IProjectClient'
+import { IProjectClient } from '@/interfaces/client/projects/IProjectClient'
 import { api } from '@/lib/fetch'
-import { cn } from '@/lib/utils'
+import { SearchResult } from '@/schemas/api/projects/search'
+import { cn } from '@/utils/cn'
 
 interface Notification {
   id: string
@@ -135,7 +135,7 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
   const { theme, setTheme } = useTheme()
   const [showProjectSelect, setShowProjectSelect] = useState(false)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
-  const { data: projectsWithStats } = useProjectsWithStats()
+  const { data: projects } = useGetProjectWithNestedDataBulk()
 
   useEffect(() => {
     const searchProjects = async () => {
@@ -501,7 +501,7 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
             <DialogDescription>Choose a project to upload the Ifc file to</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
-            {projectsWithStats?.map(project => (
+            {projects?.map(project => (
               <Button
                 key={project._id}
                 variant="outline"

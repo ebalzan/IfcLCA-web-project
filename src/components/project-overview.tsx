@@ -14,21 +14,24 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useDeleteProject, useProjectsWithStats } from '@/hooks/projects/use-project-operations'
+import {
+  useDeleteProject,
+  useGetProjectWithNestedDataBulk,
+} from '@/hooks/projects/use-project-operations'
 import { DeleteProjectDialog } from './delete-project-dialog'
 import ProjectCard from './project-card'
 
 export function ProjectOverview() {
   const {
-    data: projectsWithStats,
+    data: projects,
     isLoading,
     isError,
     error,
     hasNextPage,
     fetchNextPage,
-  } = useProjectsWithStats()
+  } = useGetProjectWithNestedDataBulk()
   const router = useRouter()
-  const hasProjects = projectsWithStats && projectsWithStats.length > 0
+  const hasProjects = projects && projects.length > 0
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null)
   const { mutate: deleteProject } = useDeleteProject()
 
@@ -82,7 +85,7 @@ export function ProjectOverview() {
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {projectsWithStats.map(project => {
+        {projects.map(project => {
           return (
             <ProjectCard
               key={project._id}
@@ -98,7 +101,7 @@ export function ProjectOverview() {
         <div className="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
           <div className="flex items-center gap-2">
             <Select
-              value={projectsWithStats.length.toString()}
+              value={projects.length.toString()}
               onValueChange={value => {
                 // setPageSize(Number(value));
                 // setCurrentPage(1);
@@ -115,13 +118,13 @@ export function ProjectOverview() {
               </SelectContent>
             </Select>
             <span className="text-sm text-muted-foreground">
-              Showing {projectsWithStats.length} of {projectsWithStats.length}
+              Showing {projects.length} of {projects.length}
             </span>
           </div>
           <nav className="flex justify-center" aria-label="Pagination">
             <ul className="inline-flex gap-2">
               {Array.from({
-                length: Math.ceil(projectsWithStats.length / 3),
+                length: Math.ceil(projects.length / 3),
               }).map((_, index) => (
                 <li key={index}>
                   <Button

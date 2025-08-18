@@ -7,7 +7,8 @@ import {
   GetNextPageParamFunction,
 } from '@tanstack/react-query'
 import { toast } from '@/hooks/use-toast'
-import { fetchApi, ApiError, NetworkError, ParseError } from '@/lib/fetch'
+import { ApiError, NetworkError, ParseError } from '@/lib/errors'
+import { api, fetchApi } from '@/lib/fetch'
 
 interface TanStackOptions extends RequestInit {
   showErrorToast?: boolean
@@ -16,7 +17,7 @@ interface TanStackOptions extends RequestInit {
 }
 
 // TanStack Query enhanced fetch hook for GET requests
-export const useTanStackQuery = <T>(
+export const useTanStackQuery = <TResponse, TTransformedData>(
   url: string,
   options?: TanStackOptions & {
     queryKey?: string[]
@@ -26,6 +27,7 @@ export const useTanStackQuery = <T>(
     refetchOnWindowFocus?: boolean
     refetchOnMount?: boolean
     retry?: number | boolean
+    select?: (data: TResponse) => TTransformedData
   }
 ) => {
   const queryClient = useQueryClient()
@@ -33,8 +35,8 @@ export const useTanStackQuery = <T>(
 
   const query = useQuery({
     queryKey,
-    queryFn: async (): Promise<T> => {
-      return fetchApi<T>(url, options)
+    queryFn: async (): Promise<TResponse> => {
+      return fetchApi<TResponse>(url, options)
     },
     enabled: options?.enabled ?? true,
     staleTime: options?.staleTime ?? 5 * 60 * 1000, // 5 minutes
@@ -42,10 +44,11 @@ export const useTanStackQuery = <T>(
     refetchOnWindowFocus: options?.refetchOnWindowFocus ?? true,
     refetchOnMount: options?.refetchOnMount ?? true,
     retry: options?.retry ?? 3,
+    select: options?.select,
   })
 
   return {
-    data: query.data || null,
+    data: (query.data as TTransformedData) || null,
     isLoading: query.isLoading,
     error: query.error ? (query.error as Error).message : null,
     isError: query.isError,
@@ -56,7 +59,7 @@ export const useTanStackQuery = <T>(
 }
 
 // TanStack Query infinite query hook for paginated data
-export const useTanStackInfiniteQuery = <T, TData = { pages: T[]; pageParams: number[] }>(
+export const useTanStackInfiniteQuery = <TResponse, TTransformedData>(
   url: string,
   options?: TanStackOptions & {
     queryKey?: string[]
@@ -67,31 +70,37 @@ export const useTanStackInfiniteQuery = <T, TData = { pages: T[]; pageParams: nu
     refetchOnMount?: boolean
     retry?: number | boolean
     limit?: number
-    getNextPageParam?: GetNextPageParamFunction<number, T>
-    select?: (data: { pages: T[]; pageParams: number[] }) => TData
+    getNextPageParam?: GetNextPageParamFunction<number, TResponse>
+    select?: (data: { pages: TResponse[]; pageParams: number[] }) => TTransformedData
   }
 ) => {
   const queryKey = options?.queryKey || [url]
   const limit = options?.limit || 10
 
-  const defaultGetNextPageParam: GetNextPageParamFunction<number, T> = (
-    lastPage: T,
-    allPages: T[],
+  const defaultGetNextPageParam: GetNextPageParamFunction<number, TResponse> = (
+    lastPage: TResponse,
+    allPages: TResponse[],
     lastPageParam: number
   ) => {
-    // Simple check for hasMore property - this is what actually works
-    if (lastPage && typeof lastPage === 'object' && 'hasMore' in lastPage) {
-      return (lastPage as { hasMore: boolean }).hasMore ? lastPageParam + 1 : undefined
+    // Check for hasMore inside data.pagination (your backend structure)
+    if (lastPage && typeof lastPage === 'object' && 'data' in lastPage) {
+      const data = (lastPage as any).data
+      if (data && typeof data === 'object' && 'pagination' in data) {
+        const pagination = data.pagination
+        if (pagination && typeof pagination === 'object' && 'hasMore' in pagination) {
+          return pagination.hasMore ? lastPageParam + 1 : undefined
+        }
+      }
     }
     return undefined
   }
 
   const query = useInfiniteQuery({
     queryKey,
-    queryFn: async ({ pageParam = 1 }): Promise<T> => {
+    queryFn: async ({ pageParam = 1 }): Promise<TResponse> => {
       const separator = url.includes('?') ? '&' : '?'
       const paginatedUrl = `${url}${separator}page=${pageParam}&limit=${limit}`
-      return fetchApi<T>(paginatedUrl, options)
+      return api.get<TResponse>(paginatedUrl, options)
     },
     enabled: options?.enabled ?? true,
     staleTime: options?.staleTime ?? 5 * 60 * 1000, // 5 minutes
@@ -105,7 +114,7 @@ export const useTanStackInfiniteQuery = <T, TData = { pages: T[]; pageParams: nu
   })
 
   return {
-    data: (query.data as TData) || null,
+    data: (query.data as TTransformedData) || null,
     isLoading: query.isLoading,
     error: query.error ? (query.error as Error).message : null,
     isError: query.isError,
@@ -118,13 +127,13 @@ export const useTanStackInfiniteQuery = <T, TData = { pages: T[]; pageParams: nu
 }
 
 // TanStack Query mutation hook for POST/PUT/DELETE operations
-export const useTanStackMutation = <T, TVariables = void>(
+export const useTanStackMutation = <TResponse, TRequestData>(
   url: string,
   options?: TanStackOptions & {
     mutationKey?: string[]
-    onSuccess?: (data: T, variables: TVariables) => void
-    onError?: (error: Error, variables: TVariables) => void
-    onSettled?: (data: T | undefined, error: Error | null, variables: TVariables) => void
+    onSuccess?: (data: TResponse, variables: TRequestData) => void
+    onError?: (error: Error, variables: TRequestData) => void
+    onSettled?: (data: TResponse | undefined, error: Error | null, variables: TRequestData) => void
     invalidateQueries?: string[][]
   }
 ) => {
@@ -132,12 +141,12 @@ export const useTanStackMutation = <T, TVariables = void>(
 
   const mutation = useMutation({
     mutationKey: options?.mutationKey || [url],
-    mutationFn: async (variables: TVariables): Promise<T> => {
+    mutationFn: async (variables: TRequestData): Promise<TResponse> => {
       // For DELETE operations, append the ID to the URL
       const finalUrl =
         options?.method === 'DELETE' && typeof variables === 'string' ? `${url}/${variables}` : url
 
-      return fetchApi<T>(finalUrl, {
+      return fetchApi<TResponse>(finalUrl, {
         ...options,
         body: variables && typeof variables !== 'string' ? JSON.stringify(variables) : undefined,
       })
@@ -196,17 +205,17 @@ export const useTanStackMutation = <T, TVariables = void>(
 }
 
 // Hook for handling form submissions with TanStack Query
-export const useTanStackSubmit = <T, TVariables = unknown>(
+export const useTanStackSubmit = <TResponse, TRequestData = unknown>(
   url: string,
   options?: TanStackOptions & {
     mutationKey?: string[]
     invalidateQueries?: string[][]
-    onSuccess?: (data: T, variables: TVariables) => void
+    onSuccess?: (data: TResponse, variables: TRequestData) => void
   }
 ) => {
   const queryClient = useQueryClient()
 
-  const mutation = useTanStackMutation<T, TVariables>(url, {
+  const mutation = useTanStackMutation<TResponse, TRequestData>(url, {
     ...options,
     method: 'POST',
     headers: {
@@ -225,7 +234,7 @@ export const useTanStackSubmit = <T, TVariables = unknown>(
   })
 
   const submit = useCallback(
-    async (body: TVariables) => {
+    async (body: TRequestData) => {
       return mutation.mutateAsync(body)
     },
     [mutation]

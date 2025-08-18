@@ -33,11 +33,11 @@ async function createProject(request: AuthenticatedValidationRequest<CreateProje
 
 async function getProject(
   request: AuthenticatedRequest,
-  context: { pathParams: Promise<IdParamSchema> }
+  context: { params: Promise<IdParamSchema> }
 ) {
   try {
     const userId = getUserId(request)
-    const { id: projectId } = await validatePathParams(idParamSchema, context.pathParams)
+    const { id: projectId } = await validatePathParams(idParamSchema, context.params)
 
     if (!Types.ObjectId.isValid(projectId)) {
       return sendApiErrorResponse(new Error('Invalid project ID'), request, {
@@ -57,11 +57,11 @@ async function getProject(
 
 async function updateProject(
   request: AuthenticatedValidationRequest<UpdateProjectRequest>,
-  context: { pathParams: Promise<IdParamSchema> }
+  context: { params: Promise<IdParamSchema> }
 ) {
   try {
     const userId = getUserId(request)
-    const { id: projectId } = await validatePathParams(idParamSchema, context.pathParams)
+    const { id: projectId } = await validatePathParams(idParamSchema, context.params)
     const { updates } = request.validatedData.data
 
     const editedProject = await ProjectService.updateProject({
@@ -76,11 +76,11 @@ async function updateProject(
 
 export async function deleteProject(
   request: AuthenticatedRequest,
-  context: { pathParams: Promise<IdParamSchema> }
+  context: { params: Promise<IdParamSchema> }
 ) {
   try {
     const userId = getUserId(request)
-    const { id: projectId } = await validatePathParams(idParamSchema, context.pathParams)
+    const { id: projectId } = await validatePathParams(idParamSchema, context.params)
 
     const result = await ProjectService.deleteProject({
       data: { projectId: new Types.ObjectId(projectId), userId },

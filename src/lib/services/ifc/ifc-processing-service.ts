@@ -1,5 +1,5 @@
+import { Types } from 'mongoose'
 import { IMaterialLayer } from '@/interfaces/elements/IMaterialLayer'
-import { IEC3Material } from '@/interfaces/materials/IEC3Material'
 import { EC3MatchError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { Element, Material } from '@/models'
@@ -12,6 +12,9 @@ import {
 import { MaterialService } from '../material-service'
 
 export class IFCProcessingService {
+  private static materialCache = new Map<string, any>()
+  private static cacheTimeout = 5 * 60 * 1000 // 5 minutes
+
   /**
    * Process elements from Ifc file with existing material matches
    */
@@ -20,7 +23,7 @@ export class IFCProcessingService {
     session,
   }: ProcessElementsAndMaterialsFromIFCRequest): Promise<ProcessElementsAndMaterialsFromIFCResponse> {
     try {
-      logger.debug('Starting Ifc element processing', {
+      logger.debug('Starting IFC file processing', {
         elementCount: elements.length,
         projectId,
         uploadId,
@@ -29,9 +32,8 @@ export class IFCProcessingService {
       // 1. Get all material names
       const materialNames = new Set<string>(
         elements.flatMap(element => {
-          const directMaterials = element.materials?.map(material => material.name) || []
-          const layerMaterials =
-            element.materialLayers?.layers?.map(layer => layer.materialName) || []
+          const directMaterials = element.materials || []
+          const layerMaterials = Object.keys(element.material_volumes || {})
           return [...directMaterials, ...layerMaterials]
         })
       )
@@ -70,12 +72,15 @@ export class IFCProcessingService {
       })
 
       // 3. Get all materials
-      const materials = await Material.find({
-        name: { $in: Array.from(materialNames) },
-        projectId,
+      const materialBulkResult = await MaterialService.getMaterialBulk({
+        data: {
+          materialIds: [],
+          projectId,
+          pagination: { page: 1, size: materialNames.size },
+        },
+        session,
       })
-        .populate<{ ec3MatchId: IEC3Material }>('ec3MatchId')
-        .lean()
+      const materials = materialBulkResult.data.materials
 
       // 4. Create map for quick lookups
       const materialMap = new Map(materials.map(mat => [mat.name, mat]))
@@ -94,68 +99,68 @@ export class IFCProcessingService {
           if (element.materials?.length) {
             processedMaterials.push(
               ...element.materials
-                .map(materialLayer => {
-                  const material = materialMap.get(materialLayer.name)
+                .map(materialName => {
+                  const material = materialMap.get(materialName)
 
                   if (!material) {
-                    logger.warn(`Material not found: ${materialLayer.name}`)
+                    logger.warn(`Material not found: ${materialName}`)
                     return null
                   }
 
                   return {
-                    materialId: material._id,
-                    materialName: materialLayer.name,
-                    volume: materialLayer.volume ?? 0,
-                    fraction: materialLayer.fraction ?? null,
-                    thickness: null,
-                    indicators: null,
-                  }
-                })
-                .filter((item): item is NonNullable<typeof item> => item !== null)
-            )
-          }
-
-          // Process material layers
-          if (element.materialLayers?.layers.length) {
-            const totalVolume = element.volume || 0
-            const layers = element.materialLayers.layers
-
-            processedMaterials.push(
-              ...layers
-                .map(layer => {
-                  const material = materialMap.get(layer.materialName)
-
-                  if (!material) {
-                    logger.warn(`Material not found: ${layer.materialName}`)
-                    return null
-                  }
-
-                  return {
-                    materialId: material._id,
+                    materialId: new Types.ObjectId(material._id),
                     materialName: material.name,
-                    volume: layer.volume || totalVolume / layers.length,
+                    volume: 0,
                     fraction: null,
                     thickness: null,
                     indicators: null,
                   }
                 })
-                .filter((item): item is NonNullable<typeof item> => item !== null)
+                .filter(item => item !== null)
+            )
+          }
+
+          // Process material layers
+          if (Object.keys(element.material_volumes).length) {
+            const totalVolume = element.volume
+            const layers = Object.entries(element.material_volumes)
+
+            processedMaterials.push(
+              ...layers
+                .map(([materialName, data], index) => {
+                  const material = materialMap.get(materialName)
+
+                  if (!material) {
+                    logger.warn(`Material not found: ${materialName}`)
+                    return null
+                  }
+
+                  return {
+                    materialId: new Types.ObjectId(material._id),
+                    materialName: material.name,
+                    volume: data[index].volume / totalVolume,
+                    fraction: data[index].fraction,
+                    thickness: null,
+                    indicators: null,
+                  }
+                })
+                .filter(item => item !== null)
             )
           }
 
           return {
             updateOne: {
               filter: {
-                guid: element.globalId,
+                guid: element.id,
                 projectId,
               },
               update: {
                 $set: {
-                  name: element.name,
+                  name: element.object_type,
                   type: element.type,
-                  volume: element.volume ?? 0,
-                  loadBearing: element.properties.loadBearing || false,
-                  isExternal: element.properties.isExternal || false,
+                  volume: element.volume,
+                  loadBearing: element.properties.loadBearing,
+                  isExternal: element.properties.isExternal,
                   materialLayers: processedMaterials,
                   updatedAt: new Date(),
                 },
@@ -198,7 +203,7 @@ export class IFCProcessingService {
    * Apply automatic matches to materials
    */
   static async applyAutomaticMaterialMatches({
-    data: { materialIds, projectId },
+    data: { materialIds, materialNames, projectId },
     session,
   }: ApplyAutomaticMaterialMatchesRequest): Promise<ApplyAutomaticMaterialMatchesResponse> {
     try {
@@ -208,14 +213,19 @@ export class IFCProcessingService {
       })
 
       // 1. Get materials
-      const materials = await Material.find({
-        _id: { $in: materialIds },
-        projectId,
-      }).lean()
+      const materials = await MaterialService.getMaterialBulk({
+        data: {
+          materialIds,
+          materialNames,
+          projectId,
+          pagination: { page: 1, size: materialIds.length },
+        },
+        session,
+      })
 
       // 2. Get best matches for each material
       const bestMatches = await Promise.all(
-        materials.map(async material => {
+        materials.data.materials.map(async material => {
           const bestMatch = await MaterialService.getBestEC3Match(material.name)
 
           if (!bestMatch || bestMatch.score < 0.9) {
@@ -251,7 +261,7 @@ export class IFCProcessingService {
       if (hasValidMatches) {
         await MaterialService.createEC3BulkMatch({
           data: {
-            materialIds: validMatches.map(match => match.material._id),
+            materialIds: validMatches.map(match => new Types.ObjectId(match.material._id)),
             updates: validMatches.map(match => ({
               ...match.ec3Match,
               ec3MatchId: match.ec3Match.id,

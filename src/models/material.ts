@@ -11,6 +11,8 @@ const materialSchema = new Schema<IMaterialDB, IMaterialModelType, {}, IMaterial
       type: Schema.Types.ObjectId,
       ref: 'Upload',
       required: true,
+      default: null,
+      nullable: true,
     },
     projectId: {
       type: Schema.Types.ObjectId,

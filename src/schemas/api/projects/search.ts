@@ -21,7 +21,7 @@ export const searchProjectsRequestSchema = defaultRequestSchema(
 )
 export const searchProjectsResponseSchema = defaultResponseSchema(
   z.object({
-    projects: z.array(z.custom<IProjectDB>()),
+    projects: z.array(z.custom<Omit<IProjectDB, '_id'> & { _id: string }>()),
     pagination: paginationResponseSchema,
   })
 )
@@ -49,7 +49,7 @@ export const searchQuerySchema = z.object({
 export type SearchProjectsRequest = z.infer<typeof searchProjectsRequestSchema>
 export type SearchProjectsResponse = z.infer<typeof searchProjectsResponseSchema>
 
-export type SearchResult = Pick<IProjectDB, 'name' | 'description' | '_id'>
+export type SearchResult = Pick<IProjectDB, 'name' | 'description'> & { _id: string }
 
 export interface QueryConditions {
   userId: string

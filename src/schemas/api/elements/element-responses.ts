@@ -3,30 +3,38 @@ import { IElementDB } from '@/interfaces/elements/IElementDB'
 import { defaultResponseSchema, paginationResponseSchema } from '../general'
 
 // Create element types
-export const createElementResponseSchema = defaultResponseSchema(z.custom<IElementDB>())
+export const createElementResponseSchema = defaultResponseSchema(
+  z.custom<Omit<IElementDB, '_id'> & { _id: string }>()
+)
 export const createElementBulkResponseSchema = defaultResponseSchema(
-  z.array(z.custom<IElementDB>())
+  z.array(z.custom<Omit<IElementDB, '_id'> & { _id: string }>())
 )
 
 // Get element types
-export const getElementResponseSchema = defaultResponseSchema(z.custom<IElementDB>())
+export const getElementResponseSchema = defaultResponseSchema(
+  z.custom<Omit<IElementDB, '_id'> & { _id: string }>()
+)
 export const getElementBulkResponseSchema = defaultResponseSchema(
   z.object({
-    elements: z.array(z.custom<IElementDB>()),
+    elements: z.array(z.custom<Omit<IElementDB, '_id'> & { _id: string }>()),
     pagination: paginationResponseSchema,
   })
 )
 
 // Update element types
-export const updateElementResponseSchema = defaultResponseSchema(z.custom<IElementDB>())
+export const updateElementResponseSchema = defaultResponseSchema(
+  z.custom<Omit<IElementDB, '_id'> & { _id: string }>()
+)
 export const updateElementBulkResponseSchema = defaultResponseSchema(
-  z.array(z.custom<IElementDB>())
+  z.array(z.custom<Omit<IElementDB, '_id'> & { _id: string }>())
 )
 
 // Delete element types
-export const deleteElementResponseSchema = defaultResponseSchema(z.custom<IElementDB>())
+export const deleteElementResponseSchema = defaultResponseSchema(
+  z.custom<Omit<IElementDB, '_id'> & { _id: string }>()
+)
 export const deleteElementBulkResponseSchema = defaultResponseSchema(
-  z.array(z.custom<IElementDB>())
+  z.array(z.custom<Omit<IElementDB, '_id'> & { _id: string }>())
 )
 
 // Create element types

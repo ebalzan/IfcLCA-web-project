@@ -1,64 +1,57 @@
-import { NextResponse } from 'next/server'
-import { AuthenticatedRequest } from '@/lib/api-middleware'
-import { validatePathParams } from '@/lib/validation-middleware'
-import { Upload } from '@/models'
-import { uploadIdSchema } from '@/schemas/api'
+import { sendApiErrorResponse } from '@/lib/api-error-response'
+import { sendApiSuccessResponse } from '@/lib/api-error-response'
+import { getUserId } from '@/lib/api-middleware'
+import { parseIFCFile } from '@/lib/services/ifc/ifc-parser-client'
+import { UploadService } from '@/lib/services/upload-service'
+import {
+  AuthenticatedValidationRequest,
+  validateFileUpload,
+  withAuthAndValidation,
+} from '@/lib/validation-middleware'
+import { ifcFileValidationSchema } from '@/schemas/api/general'
+import { ParseIFCFileRequest, parseIFCFileRequestSchema } from '@/schemas/api/ifc'
+import {
+  DeleteUploadRequest,
+  deleteUploadRequestSchema,
+} from '@/schemas/api/uploads/upload-requests'
 
-export async function processMaterials(
-  projectId: string,
-  // elements: Array<{
-  //   id: string;
-  //   name: string;
-  //   type: string;
-  //   globalId: string;
-  //   netVolume?: number | { net: number; gross: number };
-  //   grossVolume?: number | { net: number; gross: number };
-  //   materialLayers?: any;
-  //   properties?: {
-  //     loadBearing?: boolean;
-  //     isExternal?: boolean;
-  //   };
-  // }>,
-  uploadId: string,
-  request: AuthenticatedRequest,
-  context: { params: Promise<Record<string, string>> }
-) {
-  const validatedParams = await validatePathParams(uploadIdSchema, context.params)
-  const upload = await Upload.findById(validatedParams.id).populate('elements')
+async function createUpload(request: AuthenticatedValidationRequest<ParseIFCFileRequest>) {
+  try {
+    const userId = getUserId(request)
+    const validationResponse = await validateFileUpload(ifcFileValidationSchema, request)
+    if (!validationResponse.success) {
+      return validationResponse.error
+    }
+    const { file } = validationResponse.data
+    const { projectId } = request.validatedData.data
 
-  if (!upload) {
-    return NextResponse.json({ error: 'Upload not found' }, { status: 404 })
+    const uploadResult = await parseIFCFile({
+      data: {
+        file,
+        projectId,
+        userId,
+      },
+    })
+
+    return sendApiSuccessResponse(uploadResult.data, 'Upload created successfully', request)
+  } catch (error: unknown) {
+    return sendApiErrorResponse(error, request, { operation: 'create', resource: 'Upload' })
   }
-
-  // Create elements
-  // const processedElements = await Element.create(
-  //   elements.map((element) => {
-  //     const volume = (() => {
-  //       if (typeof element.netVolume === "object") {
-  //         return element.netVolume.net;
-  //       }
-  //       if (typeof element.netVolume === "number") {
-  //         return element.netVolume;
-  //       }
-  //       if (typeof element.grossVolume === "object") {
-  //         return element.grossVolume.net;
-  //       }
-  //       if (typeof element.grossVolume === "number") {
-  //         return element.grossVolume;
-  //       }
-  //       return 0;
-  //     })();
-
-  //     return {
-  //       projectId,
-  //       guid: element.globalId,
-  //       name: element.name,
-  //       type: element.type,
-  //       volume: volume,
-  //       loadBearing: element.properties?.loadBearing || false,
-  //       isExternal: element.properties?.isExternal || false,
-  //       materials: [],
-  //     };
-  //   })
-  // );
 }
+
+async function deleteUpload(request: AuthenticatedValidationRequest<DeleteUploadRequest>) {
+  try {
+    const { uploadId, projectId } = request.validatedData.data
+
+    const result = await UploadService.deleteUpload({
+      data: { uploadId, projectId },
+    })
+
+    return sendApiSuccessResponse(result.data, 'Upload deleted successfully', request)
+  } catch (error: unknown) {
+    return sendApiErrorResponse(error, request, { operation: 'delete', resource: 'Upload' })
+  }
+}
+
+export const POST = withAuthAndValidation(parseIFCFileRequestSchema, createUpload)
+export const DELETE = withAuthAndValidation(deleteUploadRequestSchema, deleteUpload)

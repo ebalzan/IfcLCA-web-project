@@ -53,7 +53,10 @@ export class ElementService {
 
       return {
         success: true,
-        data: newElement,
+        data: {
+          ...newElement,
+          _id: newElement._id.toString(),
+        },
         message: 'Element created successfully',
       }
     } catch (error: unknown) {
@@ -89,7 +92,10 @@ export class ElementService {
 
           return {
             success: true,
-            data: newElements,
+            data: newElements.map(element => ({
+              ...element,
+              _id: element._id.toString(),
+            })),
             message: 'Elements created successfully',
           }
         } catch (error: unknown) {
@@ -137,7 +143,10 @@ export class ElementService {
 
       return {
         success: true,
-        data: element,
+        data: {
+          ...element,
+          _id: element._id.toString(),
+        },
         message: 'Element fetched successfully',
       }
     } catch (error: unknown) {
@@ -192,7 +201,10 @@ export class ElementService {
       return {
         success: true,
         data: {
-          elements,
+          elements: elements.map(element => ({
+            ...element,
+            _id: element._id.toString(),
+          })),
           pagination: { page, size, totalCount, hasMore, totalPages: Math.ceil(totalCount / size) },
         },
         message: 'Elements fetched successfully',
@@ -259,7 +271,10 @@ export class ElementService {
 
           return {
             success: true,
-            data: updatedResult,
+            data: {
+              ...updatedResult,
+              _id: updatedResult._id.toString(),
+            },
             message: 'Element updated successfully',
           }
         } catch (error: unknown) {
@@ -343,7 +358,10 @@ export class ElementService {
 
         return {
           success: true,
-          data: elements,
+          data: elements.map(element => ({
+            ...element,
+            _id: element._id.toString(),
+          })),
           message: 'Elements updated successfully',
         }
       },
@@ -395,7 +413,10 @@ export class ElementService {
 
         return {
           success: true,
-          data: element,
+          data: {
+            ...element,
+            _id: element._id.toString(),
+          },
           message: 'Element deleted successfully',
         }
       } catch (error: unknown) {
@@ -454,7 +475,10 @@ export class ElementService {
 
         return {
           success: true,
-          data: elements,
+          data: elements.map(element => ({
+            ...element,
+            _id: element._id.toString(),
+          })),
           message: 'Elements deleted successfully',
         }
       } catch (error: unknown) {

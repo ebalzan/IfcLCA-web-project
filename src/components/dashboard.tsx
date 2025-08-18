@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { Box, Building, Layers, PlusCircle } from 'lucide-react'
-import { ActivityFeed } from '@/components/activity-feed'
+// import { ActivityFeed } from '@/components/activity-feed'
 import { Button } from '@/components/ui/button'
 // import {
 //   Dialog,
@@ -311,14 +311,14 @@ export default function Dashboard() {
             </Card>
           ))}
         </div> */}
-        <ProjectOverview />
+        {/* <ProjectOverview /> */}
       </section>
 
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold">Activity Feed</h2>
         </div>
-        <ActivityFeed />
+        {/* <ActivityFeed /> */}
       </section>
 
       {/* <Dialog open={showProjectSelect} onOpenChange={setShowProjectSelect}>

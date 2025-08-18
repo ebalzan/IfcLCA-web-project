@@ -4,68 +4,75 @@ import {
   useTanStackMutation,
   useTanStackInfiniteQuery,
 } from '@/hooks/use-tanstack-fetch'
-import IProjectClient from '@/interfaces/client/projects/IProjectClient'
-import IProjectWithStatsClient from '@/interfaces/client/projects/IProjectWithStatsClient'
-import { ProjectResponse, ProjectWithStatsResponse } from '@/interfaces/projects/ProjectResponse'
-import { ProjectsResponse, ProjectsWithStatsResponse } from '@/interfaces/projects/ProjectsResponse'
+import { IProjectClient } from '@/interfaces/client/projects/IProjectClient'
+import { IProjectWithNestedDataClient } from '@/interfaces/client/projects/IProjectWithNestedData'
 import { Queries } from '@/queries'
+import {
+  GetProjectBulkResponse,
+  GetProjectResponse,
+  GetProjectWithNestedDataBulkResponse,
+  GetProjectWithNestedDataResponse,
+} from '@/schemas/api/projects/project-responses'
 import { CreateProjectSchema, UpdateProjectSchema } from '@/schemas/projectSchema'
 
 // Query hooks
-export const useProjectById = (projectId: string) => {
-  return useTanStackQuery<ProjectResponse>(`/api/projects/${projectId}`, {
-    queryKey: [Queries.GET_PROJECT_BY_ID, projectId],
+export const useGetProject = (projectId: string) => {
+  return useTanStackQuery<GetProjectResponse, IProjectClient>(`/api/projects/${projectId}`, {
+    queryKey: [Queries.GET_PROJECT, projectId],
     staleTime: 1000 * 60 * 2, // 2 minutes
+    select: ({ data }) => data,
   })
 }
 
-export const useProjectWithStatsById = (projectId: string) => {
-  return useTanStackQuery<ProjectWithStatsResponse>(`/api/projects/${projectId}?withStats=true`, {
-    queryKey: [Queries.GET_PROJECT_BY_ID, projectId],
-    staleTime: 1000 * 60 * 2, // 2 minutes
-  })
-}
-
-export const useProjects = () => {
-  return useTanStackInfiniteQuery<ProjectsResponse, IProjectClient[]>('/api/projects', {
-    queryKey: [Queries.GET_PROJECTS],
-    limit: 3,
-    select: data => {
-      return data.pages.flatMap(page => page.projects)
-    },
-    getNextPageParam: (lastPage, allPages, lastPageParam) => {
-      return lastPage.hasMore ? lastPageParam + 1 : undefined
-    },
-  })
-}
-
-export const useProjectsWithStats = () => {
-  return useTanStackInfiniteQuery<ProjectsWithStatsResponse, IProjectWithStatsClient[]>(
-    '/api/projects',
+export const useGetProjectWithNestedData = (projectId: string) => {
+  return useTanStackQuery<GetProjectWithNestedDataResponse, IProjectWithNestedDataClient>(
+    `/api/projects/${projectId}/nested`,
     {
-      queryKey: [Queries.GET_PROJECTS],
-      limit: 3,
-      select: data => {
-        return data.pages.flatMap(page => page.projects)
-      },
-      getNextPageParam: (lastPage, allPages, lastPageParam) => {
-        return lastPage.hasMore ? lastPageParam + 1 : undefined
-      },
+      queryKey: [Queries.GET_PROJECTS_NESTED, projectId],
+      staleTime: 1000 * 60 * 2, // 2 minutes
+      select: ({ data }) => data,
     }
   )
+}
+
+export const useGetProjectBulk = () => {
+  return useTanStackInfiniteQuery<GetProjectBulkResponse, IProjectClient[]>('/api/projects', {
+    queryKey: [Queries.GET_PROJECTS],
+    select: data => {
+      return data.pages.flatMap(page => page.data.projects)
+    },
+    getNextPageParam: (lastPage, allPages, lastPageParam) => {
+      return lastPage.data.pagination.hasMore ? lastPageParam + 1 : undefined
+    },
+  })
+}
+
+export const useGetProjectWithNestedDataBulk = () => {
+  return useTanStackInfiniteQuery<
+    GetProjectWithNestedDataBulkResponse,
+    IProjectWithNestedDataClient[]
+  >('/api/projects/nested', {
+    queryKey: [Queries.GET_PROJECTS_NESTED],
+    select: data => {
+      return data.pages.flatMap(page => page.data.projects)
+    },
+    getNextPageParam: (lastPage, allPages, lastPageParam) => {
+      return lastPage.data.pagination.hasMore ? lastPageParam + 1 : undefined
+    },
+  })
 }
 
 export const useCreateProject = () => {
   const router = useRouter()
 
-  return useTanStackMutation<ProjectResponse, CreateProjectSchema>('/api/projects', {
+  return useTanStackMutation<GetProjectResponse, CreateProjectSchema>('/api/projects', {
     method: 'POST',
     mutationKey: [Queries.GET_PROJECTS],
     showSuccessToast: true,
     successMessage: 'Project has been created successfully',
     showErrorToast: true,
     invalidateQueries: [[Queries.GET_PROJECTS]],
-    onSuccess: data => {
+    onSuccess: ({ data }) => {
       router.push(`/projects/${data._id}`)
     },
   })
@@ -75,16 +82,16 @@ export const useCreateProject = () => {
 export const useUpdateProject = (projectId: string) => {
   const router = useRouter()
 
-  return useTanStackMutation<ProjectWithStatsResponse, UpdateProjectSchema>(
+  return useTanStackMutation<GetProjectWithNestedDataResponse, UpdateProjectSchema>(
     `/api/projects/${projectId}`,
     {
       method: 'PATCH',
-      mutationKey: [Queries.GET_PROJECT_BY_ID, projectId],
+      mutationKey: [Queries.GET_PROJECT, projectId],
       showSuccessToast: true,
       successMessage: 'Project has been updated successfully',
       showErrorToast: true,
-      invalidateQueries: [[Queries.GET_PROJECTS], [Queries.GET_PROJECT_BY_ID]],
-      onSuccess: data => {
+      invalidateQueries: [[Queries.GET_PROJECTS], [Queries.GET_PROJECT]],
+      onSuccess: ({ data }) => {
         router.push(`/projects/${data._id}`)
       },
     }

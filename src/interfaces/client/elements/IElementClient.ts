@@ -1,19 +1,7 @@
-import { IElementVirtuals } from '@/interfaces/elements/IElementDB'
-import IMaterialLayerClient from './IMaterialLayerClient'
+import { IElementDB } from '@/interfaces/elements/IElementDB'
+import { IMaterialLayerClient } from './IMaterialLayerClient'
 
-export interface IElementWithVirtuals extends IElementClient, IElementVirtuals {}
-
-interface IElementClient {
+export interface IElementClient extends Omit<IElementDB, '_id' | 'materialLayers'> {
   _id: string
-  guid: string
-  projectId: string
-  isExternal: boolean
-  loadBearing: boolean
-  materials: IMaterialLayerClient[]
-  name: string
-  type: string
-  createdAt: Date
-  updatedAt: Date
+  materialLayers: IMaterialLayerClient[]
 }
-
-export default IElementClient

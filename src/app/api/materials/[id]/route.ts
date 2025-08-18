@@ -35,10 +35,10 @@ async function createMaterial(request: AuthenticatedValidationRequest<CreateMate
 
 async function getMaterial(
   request: AuthenticatedValidationRequest<GetMaterialRequest>,
-  context: { pathParams: Promise<IdParamSchema> }
+  context: { params: Promise<IdParamSchema> }
 ) {
   try {
-    const { id: materialId } = await validatePathParams(idParamSchema, context.pathParams)
+    const { id: materialId } = await validatePathParams(idParamSchema, context.params)
     const { projectId } = request.validatedData.data
 
     if (!Types.ObjectId.isValid(materialId)) {
@@ -59,10 +59,10 @@ async function getMaterial(
 
 async function updateMaterial(
   request: AuthenticatedValidationRequest<UpdateMaterialRequest>,
-  context: { pathParams: Promise<IdParamSchema> }
+  context: { params: Promise<IdParamSchema> }
 ) {
   try {
-    const { id: materialId } = await validatePathParams(idParamSchema, context.pathParams)
+    const { id: materialId } = await validatePathParams(idParamSchema, context.params)
     const { updates, projectId } = request.validatedData.data
 
     if (!Types.ObjectId.isValid(materialId)) {
@@ -87,10 +87,10 @@ async function updateMaterial(
 
 async function deleteMaterial(
   request: AuthenticatedValidationRequest<DeleteMaterialRequest>,
-  context: { pathParams: Promise<IdParamSchema> }
+  context: { params: Promise<IdParamSchema> }
 ) {
   try {
-    const { id: materialId } = await validatePathParams(idParamSchema, context.pathParams)
+    const { id: materialId } = await validatePathParams(idParamSchema, context.params)
     const { projectId } = request.validatedData.data
 
     if (!Types.ObjectId.isValid(materialId)) {

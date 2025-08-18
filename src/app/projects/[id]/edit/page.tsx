@@ -15,7 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import {
   useDeleteProject,
-  useProjectWithStatsById,
+  useGetProject,
   useUpdateProject,
 } from '@/hooks/projects/use-project-operations'
 import { UpdateProjectSchema, updateProjectSchema } from '@/schemas/projectSchema'
@@ -26,7 +26,7 @@ export default function EditProjectPage() {
   const router = useRouter()
   const params = useParams<{ id: string }>()
   const projectId = params.id
-  const { data: project, isLoading: isLoadingProject } = useProjectWithStatsById(projectId)
+  const { data: project, isLoading: isLoadingProject } = useGetProject(projectId)
   const { mutate: updateProject, isLoading: isUpdatingProject } = useUpdateProject(projectId)
   const { mutate: deleteProject, isLoading: isDeletingProject } = useDeleteProject()
 

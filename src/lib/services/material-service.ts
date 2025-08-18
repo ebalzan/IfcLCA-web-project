@@ -73,7 +73,10 @@ export class MaterialService {
 
       return {
         success: true,
-        data: createResult,
+        data: {
+          ...createResult,
+          _id: createResult._id.toString(),
+        },
         message: 'Material created successfully',
       }
     } catch (error: unknown) {
@@ -110,7 +113,10 @@ export class MaterialService {
 
         return {
           success: true,
-          data: createResult,
+          data: createResult.map(material => ({
+            ...material,
+            _id: material._id.toString(),
+          })),
           message: 'Materials created successfully',
         }
       } catch (error: unknown) {
@@ -286,7 +292,10 @@ export class MaterialService {
 
       return {
         success: true,
-        data: material,
+        data: {
+          ...material,
+          _id: material._id.toString(),
+        },
         message: 'Material fetched successfully',
       }
     } catch (error: unknown) {
@@ -307,7 +316,7 @@ export class MaterialService {
    * Get multiple materials by their IDs
    */
   static async getMaterialBulk({
-    data: { materialIds, projectId, pagination },
+    data: { materialIds, materialNames, projectId, pagination },
     session,
   }: GetMaterialBulkRequest): Promise<GetMaterialBulkResponse> {
     try {
@@ -315,8 +324,12 @@ export class MaterialService {
       const skip = (page - 1) * size
 
       // 1. Build query
-      const query: FilterQuery<IMaterialDB> = {
-        _id: { $in: materialIds },
+      const query: FilterQuery<IMaterialDB> = {}
+      if (materialIds.length > 0) {
+        query._id = { $in: materialIds }
+      }
+      if (materialNames && materialNames.length > 0) {
+        query.name = { $in: materialNames }
       }
       if (projectId) {
         query.projectId = projectId
@@ -340,7 +353,10 @@ export class MaterialService {
       return {
         success: true,
         data: {
-          materials,
+          materials: materials.map(material => ({
+            ...material,
+            _id: material._id.toString(),
+          })),
           pagination: { page, size, totalCount, hasMore, totalPages: Math.ceil(totalCount / size) },
         },
         message: 'Materials fetched successfully',
@@ -401,7 +417,10 @@ export class MaterialService {
 
           return {
             success: true,
-            data: updateResult,
+            data: {
+              ...updateResult,
+              _id: updateResult._id.toString(),
+            },
             message: 'Material updated successfully',
           }
         } catch (error: unknown) {
@@ -487,7 +506,10 @@ export class MaterialService {
 
         return {
           success: true,
-          data: materials,
+          data: materials.map(material => ({
+            ...material,
+            _id: material._id.toString(),
+          })),
           message: 'Materials updated successfully',
         }
       },
@@ -539,7 +561,10 @@ export class MaterialService {
 
         return {
           success: true,
-          data: material,
+          data: {
+            ...material,
+            _id: material._id.toString(),
+          },
           message: 'Material deleted successfully',
         }
       } catch (error: unknown) {
@@ -599,7 +624,10 @@ export class MaterialService {
 
         return {
           success: true,
-          data: materials,
+          data: materials.map(material => ({
+            ...material,
+            _id: material._id.toString(),
+          })),
           message: 'Materials deleted successfully',
         }
       } catch (error: unknown) {

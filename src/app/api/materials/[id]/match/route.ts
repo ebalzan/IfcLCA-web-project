@@ -14,10 +14,10 @@ import {
 
 async function createEC3Match(
   request: AuthenticatedValidationRequest<CreateEC3MatchRequest>,
-  context: { pathParams: Promise<IdParamSchema> }
+  context: { params: Promise<IdParamSchema> }
 ) {
   try {
-    const { id: materialId } = await validatePathParams(idParamSchema, context.pathParams)
+    const { id: materialId } = await validatePathParams(idParamSchema, context.params)
     const { updates } = request.validatedData.data
 
     if (!Types.ObjectId.isValid(materialId)) {

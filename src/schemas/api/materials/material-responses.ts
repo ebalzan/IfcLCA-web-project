@@ -6,9 +6,11 @@ import { defaultResponseSchema, paginationResponseSchema } from '../general'
 export type EC3MatchData = Omit<IEC3Match, '_id' | 'materialId'> & { materialId: string }
 
 // Create material types
-export const createMaterialResponseSchema = defaultResponseSchema(z.custom<IMaterialDB>())
+export const createMaterialResponseSchema = defaultResponseSchema(
+  z.custom<Omit<IMaterialDB, '_id'> & { _id: string }>()
+)
 export const createMaterialBulkResponseSchema = defaultResponseSchema(
-  z.array(z.custom<IMaterialDB>())
+  z.array(z.custom<Omit<IMaterialDB, '_id'> & { _id: string }>())
 )
 
 // Create EC3 match types
@@ -18,24 +20,30 @@ export const createEC3BulkMatchResponseSchema = defaultResponseSchema(
 )
 
 // Get material types
-export const getMaterialResponseSchema = defaultResponseSchema(z.custom<IMaterialDB>())
+export const getMaterialResponseSchema = defaultResponseSchema(
+  z.custom<Omit<IMaterialDB, '_id'> & { _id: string }>()
+)
 export const getMaterialBulkResponseSchema = defaultResponseSchema(
   z.object({
-    materials: z.array(z.custom<IMaterialDB>()),
+    materials: z.array(z.custom<Omit<IMaterialDB, '_id'> & { _id: string }>()),
     pagination: paginationResponseSchema,
   })
 )
 
 // Update material types
-export const updateMaterialResponseSchema = defaultResponseSchema(z.custom<IMaterialDB>())
+export const updateMaterialResponseSchema = defaultResponseSchema(
+  z.custom<Omit<IMaterialDB, '_id'> & { _id: string }>()
+)
 export const updateMaterialBulkResponseSchema = defaultResponseSchema(
-  z.array(z.custom<IMaterialDB>())
+  z.array(z.custom<Omit<IMaterialDB, '_id'> & { _id: string }>())
 )
 
 // Delete material types
-export const deleteMaterialResponseSchema = defaultResponseSchema(z.custom<IMaterialDB>())
+export const deleteMaterialResponseSchema = defaultResponseSchema(
+  z.custom<Omit<IMaterialDB, '_id'> & { _id: string }>()
+)
 export const deleteMaterialBulkResponseSchema = defaultResponseSchema(
-  z.array(z.custom<IMaterialDB>())
+  z.array(z.custom<Omit<IMaterialDB, '_id'> & { _id: string }>())
 )
 
 // Create material types

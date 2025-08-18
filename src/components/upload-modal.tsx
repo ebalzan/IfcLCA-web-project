@@ -2,35 +2,31 @@
 
 import { useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useQueryClient } from '@tanstack/react-query'
 import { ReloadIcon } from '@radix-ui/react-icons'
 import { UploadCloud } from 'lucide-react'
+import { Types } from 'mongoose'
 import { useDropzone } from 'react-dropzone'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { useCreateUpload } from '@/hooks/uploads/use-upload-operations'
 import { useToast } from '@/hooks/use-toast'
+import { IFCParseResult } from '@/interfaces/ifc'
 import { logger } from '@/lib/logger'
-import { IFCParseResult, parseIFCFile } from '@/lib/services/ifc/ifc-parser-client'
-import { Queries } from '@/queries'
 
 interface UploadModalProps {
-  projectId: string
   open: boolean
+  projectId: string
   onOpenChange: (open: boolean) => void
-  onSuccess?: (upload: { id: string }) => void
+  onSuccess?: () => void
 }
 
-export function UploadModal({ projectId, open, onOpenChange, onSuccess }: UploadModalProps) {
-  const [isUploading, setIsUploading] = useState(false)
-  const [uploadStatus, setUploadStatus] = useState<string>('Processing IFC file...')
-  const { toast } = useToast()
+export function UploadModal({ open, onOpenChange, projectId, onSuccess }: UploadModalProps) {
   const router = useRouter()
-  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const { mutateAsync: createUpload, isLoading } = useCreateUpload()
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
       try {
-        setIsUploading(true)
-        setUploadStatus('Processing IFC file...')
         const file = acceptedFiles[0]
         logger.debug('Starting file upload', {
           filename: file.name,
@@ -39,44 +35,30 @@ export function UploadModal({ projectId, open, onOpenChange, onSuccess }: Upload
         })
 
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Upload timed out after 50 seconds')), 50000)
+          setTimeout(() => reject(new Error('Upload timed out after 60 seconds')), 60000)
         })
 
-        const uploadPromise = parseIFCFile(file, projectId)
+        const uploadPromise = await createUpload({
+          data: {
+            file,
+            projectId: new Types.ObjectId(projectId),
+          },
+        })
         const results = (await Promise.race([uploadPromise, timeoutPromise])) as IFCParseResult
-
-        logger.debug('Upload results', {
-          elementCount: results.elementCount,
-          materialCount: results.materialCount,
-          unmatchedMaterialCount: results.unmatchedMaterialCount,
-          shouldRedirectToLibrary: results.shouldRedirectToLibrary,
-        })
-
-        toast({
-          title: 'Upload Successful',
-          description:
-            results.unmatchedMaterialCount > 0
-              ? `Successfully processed ${results.elementCount} elements. Found ${results.unmatchedMaterialCount} materials that need matching.`
-              : `Successfully processed ${results.elementCount} elements`,
-        })
+        const { projectId: resultProjectId, shouldRedirectToLibrary } = results
 
         onOpenChange(false)
 
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: [Queries.GET_PROJECTS] }),
-          queryClient.invalidateQueries({ queryKey: [Queries.GET_PROJECT_BY_ID, projectId] }),
-        ])
-
-        if (results.shouldRedirectToLibrary) {
+        if (shouldRedirectToLibrary) {
           logger.debug('Redirecting to materials library')
-          router.push(`/materials-library?projectId=${projectId}`)
+          router.push(`/materials-library?projectId=${resultProjectId}`)
           router.refresh()
         } else {
           logger.debug('No redirection needed, refreshing page')
           router.refresh()
-          onSuccess?.({ id: results.uploadId })
+          onSuccess?.()
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Upload failed:', {
           error: error instanceof Error ? error.message : String(error),
           stack: error instanceof Error ? error.stack : undefined,
@@ -104,12 +86,9 @@ export function UploadModal({ projectId, open, onOpenChange, onSuccess }: Upload
           variant: 'destructive',
         })
         onOpenChange(false)
-      } finally {
-        setIsUploading(false)
-        setUploadStatus('Processing IFC file...')
       }
     },
-    [projectId, toast, onOpenChange, queryClient, router, onSuccess]
+    [createUpload, projectId, onOpenChange, router, onSuccess, toast]
   )
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -119,7 +98,7 @@ export function UploadModal({ projectId, open, onOpenChange, onSuccess }: Upload
       'application/ifc': ['.ifc'],
       'application/x-step': ['.ifc'],
     },
-    disabled: isUploading,
+    disabled: isLoading,
   })
 
   return (
@@ -128,10 +107,9 @@ export function UploadModal({ projectId, open, onOpenChange, onSuccess }: Upload
         <DialogHeader>
           <DialogTitle>Load Ifc File</DialogTitle>
         </DialogHeader>
-        {isUploading ? (
+        {isLoading ? (
           <div className="flex flex-col items-center justify-center py-8">
             <ReloadIcon className="h-8 w-8 animate-spin text-primary mb-4" />
-            <p className="text-sm text-muted-foreground mb-2">{uploadStatus}</p>
             <p className="text-xs text-muted-foreground text-center max-w-sm">
               This may take a few moments depending on file size. For IFC4X1 files, external
               processing will be used automatically.

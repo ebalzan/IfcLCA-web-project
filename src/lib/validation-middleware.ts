@@ -53,7 +53,18 @@ export const validateQueryParams = <T extends z.ZodSchema>(
   defaults?: Partial<z.infer<T>>
 ): z.infer<T> => {
   const { searchParams } = new URL(request.url)
-  const queryObject: z.infer<T> = Object.fromEntries(searchParams.entries())
+
+  // Convert string values to appropriate types based on schema
+  const queryObject: Record<string, string | number> = {}
+
+  for (const [key, value] of searchParams.entries()) {
+    // Handle numeric values
+    if (key === 'page' || key === 'size' || key === 'limit') {
+      queryObject[key] = parseInt(value, 10)
+    } else {
+      queryObject[key] = value
+    }
+  }
 
   const dataToValidate = defaults ? { ...defaults, ...queryObject } : queryObject
   return schema.parse(dataToValidate)
@@ -61,7 +72,7 @@ export const validateQueryParams = <T extends z.ZodSchema>(
 
 export const validatePathParams = async <T extends z.ZodSchema>(
   schema: T,
-  params: Promise<{ [key: string]: string }>,
+  params: Promise<z.infer<T>>,
   defaults?: Partial<z.infer<T>>
 ): Promise<z.infer<T>> => {
   const pathParams = await params
@@ -122,7 +133,7 @@ export const withAuthAndValidationWithParams = <T, P>(
   schema: z.ZodSchema<T>,
   handler: (
     request: AuthenticatedValidationRequest<T>,
-    context: { pathParams: Promise<P> }
+    context: { params: Promise<P> }
   ) => Promise<NextResponse>
 ) => {
   return withAuthAndDBParams<P>(async (authRequest, context) => {

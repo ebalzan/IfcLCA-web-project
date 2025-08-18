@@ -1,18 +1,13 @@
 import { Types } from 'mongoose'
 import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
-import { getUserId } from '@/lib/api-middleware'
 import { UploadService } from '@/lib/services/upload-service'
 import {
   AuthenticatedValidationRequest,
-  validateFileUpload,
   validatePathParams,
-  withAuthAndValidation,
   withAuthAndValidationWithParams,
 } from '@/lib/validation-middleware'
-import { IdParamSchema, idParamSchema, ifcFileValidationSchema } from '@/schemas/api/general'
+import { IdParamSchema, idParamSchema } from '@/schemas/api/general'
 import {
-  CreateUploadRequest,
-  createUploadRequestSchema,
   DeleteUploadRequest,
   deleteUploadRequestSchema,
   GetUploadRequest,
@@ -21,38 +16,12 @@ import {
   updateUploadRequestSchema,
 } from '@/schemas/api/uploads/upload-requests'
 
-async function createUpload(request: AuthenticatedValidationRequest<CreateUploadRequest>) {
-  try {
-    // 1. Validation
-    const userId = getUserId(request)
-    const validationResponse = await validateFileUpload(ifcFileValidationSchema, request)
-    if (!validationResponse.success) {
-      return validationResponse.error
-    }
-    const { file } = validationResponse.data
-    const { projectId } = request.validatedData.data
-
-    // 2. Call service for business logic
-    const upload = await UploadService.createUploadWithIFCProcessing({
-      data: {
-        file,
-        projectId,
-        userId,
-      },
-    })
-
-    return sendApiSuccessResponse(upload.data, 'Upload created successfully', request)
-  } catch (error: unknown) {
-    return sendApiErrorResponse(error, request, { operation: 'create', resource: 'Upload' })
-  }
-}
-
 async function getUpload(
   request: AuthenticatedValidationRequest<GetUploadRequest>,
-  context: { pathParams: Promise<IdParamSchema> }
+  context: { params: Promise<IdParamSchema> }
 ) {
   try {
-    const { id: uploadId } = await validatePathParams(idParamSchema, context.pathParams)
+    const { id: uploadId } = await validatePathParams(idParamSchema, context.params)
     const { projectId } = request.validatedData.data
 
     if (!Types.ObjectId.isValid(uploadId)) {
@@ -73,10 +42,10 @@ async function getUpload(
 
 async function updateUpload(
   request: AuthenticatedValidationRequest<UpdateUploadRequest>,
-  context: { pathParams: Promise<IdParamSchema> }
+  context: { params: Promise<IdParamSchema> }
 ) {
   try {
-    const { id: uploadId } = await validatePathParams(idParamSchema, context.pathParams)
+    const { id: uploadId } = await validatePathParams(idParamSchema, context.params)
     const { updates, projectId } = request.validatedData.data
 
     if (!Types.ObjectId.isValid(uploadId)) {
@@ -97,10 +66,10 @@ async function updateUpload(
 
 async function deleteUpload(
   request: AuthenticatedValidationRequest<DeleteUploadRequest>,
-  context: { pathParams: Promise<IdParamSchema> }
+  context: { params: Promise<IdParamSchema> }
 ) {
   try {
-    const { id: uploadId } = await validatePathParams(idParamSchema, context.pathParams)
+    const { id: uploadId } = await validatePathParams(idParamSchema, context.params)
     const { projectId } = request.validatedData.data
 
     if (!Types.ObjectId.isValid(uploadId)) {
@@ -118,7 +87,7 @@ async function deleteUpload(
     return sendApiErrorResponse(error, request, { operation: 'delete', resource: 'Upload' })
   }
 }
-export const POST = withAuthAndValidation(createUploadRequestSchema, createUpload)
+
 export const GET = withAuthAndValidationWithParams(getUploadRequestSchema, getUpload)
 export const PUT = withAuthAndValidationWithParams(updateUploadRequestSchema, updateUpload)
 export const DELETE = withAuthAndValidationWithParams(deleteUploadRequestSchema, deleteUpload)

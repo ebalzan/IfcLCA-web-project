@@ -12,14 +12,14 @@ export type ApiHandler = (request: AuthenticatedRequest) => Promise<NextResponse
 
 export type ApiHandlerWithParams<P> = (
   request: AuthenticatedRequest,
-  context: { pathParams: Promise<P> }
+  context: { params: Promise<P> }
 ) => Promise<NextResponse>
 
 export type PublicApiHandler = (request: NextRequest) => Promise<NextResponse>
 
 export type PublicApiHandlerWithParams<P> = (
   request: NextRequest,
-  context: { pathParams: Promise<P> }
+  context: { params: Promise<P> }
 ) => Promise<NextResponse>
 
 /**
@@ -52,7 +52,7 @@ export function withAuthAndDB(handler: ApiHandler): ApiHandler {
  * API middleware for routes with dynamic parameters
  */
 export function withAuthAndDBParams<P>(handler: ApiHandlerWithParams<P>): ApiHandlerWithParams<P> {
-  return async (request: NextRequest, context: { pathParams: Promise<P> }) => {
+  return async (request: NextRequest, context: { params: Promise<P> }) => {
     try {
       const { userId } = await auth()
       if (!userId) {
@@ -95,7 +95,7 @@ export function withDB(handler: PublicApiHandler): PublicApiHandler {
 export function withDBParams<P>(
   handler: PublicApiHandlerWithParams<P>
 ): PublicApiHandlerWithParams<P> {
-  return async (request: NextRequest, context: { pathParams: Promise<P> }) => {
+  return async (request: NextRequest, context: { params: Promise<P> }) => {
     try {
       await connectToDatabase()
       return await handler(request, context)

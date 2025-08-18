@@ -7,8 +7,9 @@ import { defaultRequestSchema, paginationRequestSchema } from '../general'
 export const createUploadRequestSchema = defaultRequestSchema(z.custom<Omit<IUploadDB, '_id'>>())
 export const createUploadBulkRequestSchema = defaultRequestSchema(
   z.object({
-    uploads: z.array(z.custom<Omit<IUploadDB, '_id'>>()),
+    uploads: z.array(z.custom<Omit<IUploadDB, '_id' | 'userId'>>()),
     projectId: z.custom<Types.ObjectId>().optional(),
+    userId: z.string(),
   })
 )
 

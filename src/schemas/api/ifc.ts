@@ -1,12 +1,13 @@
 import { Types } from 'mongoose'
 import { z } from 'zod'
-import { IFCElement } from '@/interfaces/ifc'
+import { IFCElement, IFCParseResult } from '@/interfaces/ifc'
 import { defaultRequestSchema, defaultResponseSchema } from './general'
 
 // Apply automatic material matches request and response schemas
 export const applyAutomaticMaterialMatchesRequestSchema = defaultRequestSchema(
   z.object({
     materialIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one material ID is required'),
+    materialNames: z.array(z.string()).min(1, 'At least one material name is required').optional(),
     projectId: z.custom<Types.ObjectId>(),
   })
 )
@@ -31,6 +32,16 @@ export const processElementsAndMaterialsFromIFCResponseSchema = defaultResponseS
   })
 )
 
+// Parse IFC file request and response schemas
+export const parseIFCFileRequestSchema = defaultRequestSchema(
+  z.object({
+    file: z.instanceof(File),
+    projectId: z.custom<Types.ObjectId>(),
+    userId: z.string(),
+  })
+)
+export const parseIFCFileResponseSchema = defaultResponseSchema(z.custom<IFCParseResult>())
+
 // Apply automatic material matches request and response types
 export type ApplyAutomaticMaterialMatchesRequest = z.infer<
   typeof applyAutomaticMaterialMatchesRequestSchema
@@ -46,3 +57,7 @@ export type ProcessElementsAndMaterialsFromIFCRequest = z.infer<
 export type ProcessElementsAndMaterialsFromIFCResponse = z.infer<
   typeof processElementsAndMaterialsFromIFCResponseSchema
 >
+
+// Parse IFC file request and response types
+export type ParseIFCFileRequest = z.infer<typeof parseIFCFileRequestSchema>
+export type ParseIFCFileResponse = z.infer<typeof parseIFCFileResponseSchema>

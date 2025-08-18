@@ -47,6 +47,7 @@ export const getMaterialRequestSchema = defaultRequestSchema(
 export const getMaterialBulkRequestSchema = defaultRequestSchema(
   z.object({
     materialIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one material ID is required'),
+    materialNames: z.array(z.string()).min(1, 'At least one material name is required').optional(),
     projectId: z.custom<Types.ObjectId>().optional(),
     pagination: paginationRequestSchema,
   })

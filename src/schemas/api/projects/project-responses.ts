@@ -1,44 +1,52 @@
 import { z } from 'zod'
+import { IProjectWithNestedDataClient } from '@/interfaces/client/projects/IProjectWithNestedData'
 import IProjectDB from '@/interfaces/projects/IProjectDB'
-import { IProjectWithNestedData } from '@/interfaces/projects/IProjectWithNestedData'
 import { defaultResponseSchema, paginationResponseSchema } from '../general'
 
 // Create project
-export const createProjectResponseSchema = defaultResponseSchema(z.custom<IProjectDB>())
+export const createProjectResponseSchema = defaultResponseSchema(
+  z.custom<Omit<IProjectDB, '_id'> & { _id: string }>()
+)
 export const createProjectBulkResponseSchema = defaultResponseSchema(
-  z.array(z.custom<IProjectDB>())
+  z.array(z.custom<Omit<IProjectDB, '_id'> & { _id: string }>())
 )
 
 // Get project
-export const getProjectResponseSchema = defaultResponseSchema(z.custom<IProjectDB>())
+export const getProjectResponseSchema = defaultResponseSchema(
+  z.custom<Omit<IProjectDB, '_id'> & { _id: string }>()
+)
 export const getProjectBulkResponseSchema = defaultResponseSchema(
   z.object({
-    projects: z.array(z.custom<IProjectDB>()),
+    projects: z.array(z.custom<Omit<IProjectDB, '_id'> & { _id: string }>()),
     pagination: paginationResponseSchema,
   })
 )
 
 // Get project with nested data
 export const getProjectWithNestedDataResponseSchema = defaultResponseSchema(
-  z.custom<IProjectWithNestedData>()
+  z.custom<IProjectWithNestedDataClient>()
 )
 export const getProjectWithNestedDataBulkResponseSchema = defaultResponseSchema(
   z.object({
-    projects: z.array(z.custom<IProjectWithNestedData>()),
+    projects: z.array(z.custom<IProjectWithNestedDataClient>()),
     pagination: paginationResponseSchema,
   })
 )
 
 // Update project
-export const updateProjectResponseSchema = defaultResponseSchema(z.custom<IProjectDB>())
+export const updateProjectResponseSchema = defaultResponseSchema(
+  z.custom<Omit<IProjectDB, '_id'> & { _id: string }>()
+)
 export const updateProjectBulkResponseSchema = defaultResponseSchema(
-  z.array(z.custom<IProjectDB>())
+  z.array(z.custom<Omit<IProjectDB, '_id'> & { _id: string }>())
 )
 
 // Delete project
-export const deleteProjectResponseSchema = defaultResponseSchema(z.custom<IProjectDB>())
+export const deleteProjectResponseSchema = defaultResponseSchema(
+  z.custom<Omit<IProjectDB, '_id'> & { _id: string }>()
+)
 export const deleteProjectBulkResponseSchema = defaultResponseSchema(
-  z.array(z.custom<IProjectDB>())
+  z.array(z.custom<Omit<IProjectDB, '_id'> & { _id: string }>())
 )
 
 // Create project types

@@ -63,7 +63,10 @@ export class ProjectService {
 
       return {
         success: true,
-        data: newProject,
+        data: {
+          ...newProject,
+          _id: newProject._id.toString(),
+        },
         message: 'Project created successfully',
       }
     } catch (error: unknown) {
@@ -98,7 +101,10 @@ export class ProjectService {
 
         return {
           success: true,
-          data: newProjects,
+          data: newProjects.map(project => ({
+            ...project,
+            _id: project._id.toString(),
+          })),
           message: 'Projects created successfully',
         }
       } catch (error: unknown) {
@@ -133,7 +139,10 @@ export class ProjectService {
 
       return {
         success: true,
-        data: project,
+        data: {
+          ...project,
+          _id: project._id.toString(),
+        },
         message: 'Project fetched successfully',
       }
     } catch (error: unknown) {
@@ -179,7 +188,10 @@ export class ProjectService {
       return {
         success: true,
         data: {
-          projects,
+          projects: projects.map(project => ({
+            ...project,
+            _id: project._id.toString(),
+          })),
           pagination: { page, size, totalCount, hasMore, totalPages: Math.ceil(totalCount / size) },
         },
         message: 'Projects fetched successfully',
@@ -206,13 +218,7 @@ export class ProjectService {
     session,
   }: GetProjectWithNestedDataRequest): Promise<GetProjectWithNestedDataResponse> {
     try {
-      const project = await Project.findOne({ _id: projectId, userId })
-        .session(session || null)
-        .lean()
-
-      if (!project) {
-        throw new ProjectNotFoundError(projectId.toString())
-      }
+      await this.getProject({ data: { projectId, userId }, session })
 
       const [projectWithNestedData] = await Project.aggregate<IProjectWithNestedData>([
         {
@@ -342,7 +348,7 @@ export class ProjectService {
             from: 'materials',
             localField: '_id',
             foreignField: 'projectId',
-            as: 'materialLayers',
+            as: 'materials',
             pipeline: [
               {
                 $lookup: {
@@ -419,7 +425,7 @@ export class ProjectService {
                         $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
                       },
                       { $ifNull: ['$density', 0] },
-                      { $ifNull: ['$indicators.penre', 0] },
+                      { $ifNull: ['$ec3Match.penre', 0] },
                     ],
                   },
                 },
@@ -439,13 +445,13 @@ export class ProjectService {
                 '$updatedAt',
                 { $max: '$uploads.createdAt' },
                 { $max: '$elements.createdAt' },
-                { $max: '$materialLayers.createdAt' },
+                { $max: '$materials.createdAt' },
               ],
             },
             _count: {
               elements: { $size: '$elements' },
               uploads: { $size: '$uploads' },
-              materialLayers: { $size: '$materialLayers' },
+              materials: { $size: '$materials' },
             },
             totalIndicators: {
               $reduce: {
@@ -464,7 +470,30 @@ export class ProjectService {
 
       return {
         success: true,
-        data: projectWithNestedData,
+        data: {
+          ...projectWithNestedData,
+          _id: projectWithNestedData._id.toString(),
+          elements: projectWithNestedData.elements.map(element => ({
+            ...element,
+            _id: element._id.toString(),
+            materialLayers: element.materialLayers.map(layer => ({
+              ...layer,
+              materialId: layer.materialId.toString(),
+            })),
+            materialRefs: element.materialRefs.map(material => ({
+              ...material,
+              _id: material._id.toString(),
+            })),
+          })),
+          materials: projectWithNestedData.materials.map(material => ({
+            ...material,
+            _id: material._id.toString(),
+          })),
+          uploads: projectWithNestedData.uploads.map(upload => ({
+            ...upload,
+            _id: upload._id.toString(),
+          })),
+        },
         message: 'Project fetched successfully',
       }
     } catch (error: unknown) {
@@ -632,7 +661,7 @@ export class ProjectService {
             from: 'materials',
             localField: '_id',
             foreignField: 'projectId',
-            as: 'materialLayers',
+            as: 'materials',
             pipeline: [
               {
                 $lookup: {
@@ -729,13 +758,13 @@ export class ProjectService {
                 '$updatedAt',
                 { $max: '$uploads.createdAt' },
                 { $max: '$elements.createdAt' },
-                { $max: '$materialLayers.createdAt' },
+                { $max: '$materials.createdAt' },
               ],
             },
             _count: {
               elements: { $size: '$elements' },
               uploads: { $size: '$uploads' },
-              materialLayers: { $size: '$materialLayers' },
+              materials: { $size: '$materials' },
             },
             totalIndicators: {
               $reduce: {
@@ -761,14 +790,31 @@ export class ProjectService {
       return {
         success: true,
         data: {
-          projects: projectsWithNestedData,
-          pagination: {
-            size,
-            page,
-            hasMore,
-            totalCount,
-            totalPages: Math.ceil(totalCount / size),
-          },
+          projects: projectsWithNestedData.map(project => ({
+            ...project,
+            _id: project._id.toString(),
+            elements: project.elements.map(element => ({
+              ...element,
+              _id: element._id.toString(),
+              materialLayers: element.materialLayers.map(layer => ({
+                ...layer,
+                materialId: layer.materialId.toString(),
+              })),
+              materialRefs: element.materialRefs.map(material => ({
+                ...material,
+                _id: material._id.toString(),
+              })),
+            })),
+            materials: project.materials.map(material => ({
+              ...material,
+              _id: material._id.toString(),
+            })),
+            uploads: project.uploads.map(upload => ({
+              ...upload,
+              _id: upload._id.toString(),
+            })),
+          })),
+          pagination: { size, page, hasMore, totalCount, totalPages: Math.ceil(totalCount / size) },
         },
         message: 'Projects fetched successfully',
       }
@@ -821,7 +867,10 @@ export class ProjectService {
 
       return {
         success: true,
-        data: updatedResult,
+        data: {
+          ...updatedResult,
+          _id: updatedResult._id.toString(),
+        },
         message: 'Project updated successfully',
       }
     } catch (error: unknown) {
@@ -890,7 +939,10 @@ export class ProjectService {
 
         return {
           success: true,
-          data: projects,
+          data: projects.map(project => ({
+            ...project,
+            _id: project._id.toString(),
+          })),
           message: 'Projects updated successfully',
         }
       } catch (error: unknown) {
@@ -937,7 +989,10 @@ export class ProjectService {
 
         return {
           success: true,
-          data: project,
+          data: {
+            ...project,
+            _id: project._id.toString(),
+          },
           message: 'Project deleted successfully',
         }
       } catch (error: unknown) {
@@ -985,7 +1040,10 @@ export class ProjectService {
 
         return {
           success: true,
-          data: projects,
+          data: projects.map(project => ({
+            ...project,
+            _id: project._id.toString(),
+          })),
           message: 'Projects deleted successfully',
         }
       } catch (error: unknown) {
@@ -1066,7 +1124,10 @@ export class ProjectService {
       return {
         success: true,
         data: {
-          projects,
+          projects: projects.map(project => ({
+            ...project,
+            _id: project._id.toString(),
+          })),
           pagination: {
             size,
             page,
