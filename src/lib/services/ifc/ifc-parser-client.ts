@@ -45,15 +45,15 @@ export async function parseIFCFile({
       // Parse the Ifc file locally using IfcOpenShell WASM
       logger.debug('Parsing Ifc file locally using IfcOpenShell WASM')
 
-      const parseResult = await parseIfcWithWasm(file)
-      logger.debug('WASM Parse Result', parseResult)
+      const wasmResult = await parseIfcWithWasm(file)
+      logger.debug('WASM Parse Result', wasmResult)
 
       // Process materials
       const processElementsAndMaterialsFromIFCResponse =
         await IFCProcessingService.processElementsAndMaterialsFromIFC({
           data: {
             projectId,
-            elements: parseResult.elements,
+            elements: wasmResult.elements,
             uploadId: new Types.ObjectId(uploadResult.data._id),
           },
           session: useSession,

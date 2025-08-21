@@ -138,8 +138,10 @@ export class IFCProcessingService {
                   return {
                     materialId: new Types.ObjectId(material._id),
                     materialName: material.name,
-                    volume: data[index].volume / totalVolume,
-                    fraction: data[index].fraction,
+                    // volume: data[index].volume / totalVolume,
+                    // fraction: data[index].fraction,
+                    volume: 0,
+                    fraction: 0,
                     thickness: null,
                     indicators: null,
                   }

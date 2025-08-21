@@ -10,6 +10,8 @@ import { paginationRequestSchema } from '@/schemas/api/general'
 import {
   CreateProjectBulkRequest,
   createProjectBulkRequestSchema,
+  CreateProjectRequest,
+  createProjectRequestSchema,
   DeleteProjectBulkRequest,
   deleteProjectBulkRequestSchema,
   UpdateProjectBulkRequest,

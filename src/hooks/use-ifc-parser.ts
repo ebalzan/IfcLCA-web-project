@@ -1,9 +1,13 @@
-import { WasmParseResult, Pyodide } from '@/interfaces/ifc'
+'use client'
 
-let pyodideLoading: Promise<Pyodide> | null = null
+import { useState, useCallback } from 'react'
+import { WasmParseResult } from '@/interfaces/ifc'
 
-async function loadPyodideAndIfcOpenShell(): Promise<Pyodide> {
+let pyodideLoading: Promise<any> | null = null
+
+async function loadPyodideAndIfcOpenShell(): Promise<any> {
   if (pyodideLoading) return pyodideLoading
+
   pyodideLoading = new Promise(async (resolve, reject) => {
     try {
       if (!(window as any).loadPyodide) {
@@ -12,7 +16,7 @@ async function loadPyodideAndIfcOpenShell(): Promise<Pyodide> {
         script.async = true
         script.onload = async () => {
           try {
-            const pyodide: Pyodide = await (window as any).loadPyodide({
+            const pyodide = await (window as any).loadPyodide({
               indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/',
             })
             await pyodide.loadPackage(['micropip', 'numpy'])
@@ -28,7 +32,7 @@ async function loadPyodideAndIfcOpenShell(): Promise<Pyodide> {
         script.onerror = reject
         document.head.appendChild(script)
       } else {
-        const pyodide: Pyodide = await (window as any).loadPyodide({
+        const pyodide = await (window as any).loadPyodide({
           indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/',
         })
         await pyodide.loadPackage(['micropip', 'numpy'])
@@ -45,12 +49,20 @@ async function loadPyodideAndIfcOpenShell(): Promise<Pyodide> {
   return pyodideLoading
 }
 
-export async function parseIfcWithWasm(file: File): Promise<WasmParseResult> {
-  const pyodide = await loadPyodideAndIfcOpenShell()
-  const buffer = new Uint8Array(await file.arrayBuffer())
-  pyodide.globals.set('ifc_data', buffer)
+export function useIfcParser() {
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const pythonCode = `
+  const parseIfcFile = useCallback(async (file: File): Promise<WasmParseResult> => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const pyodide = await loadPyodideAndIfcOpenShell()
+      const buffer = new Uint8Array(await file.arrayBuffer())
+      pyodide.globals.set('ifc_data', buffer)
+
+      const pythonCode = `
   import ifcopenshell
   import json
   import os
@@ -282,6 +294,20 @@ export async function parseIfcWithWasm(file: File): Promise<WasmParseResult> {
   json.dumps(result)
   `
 
-  const result = await pyodide.runPythonAsync(pythonCode)
-  return JSON.parse(result)
+      const result = await pyodide.runPythonAsync(pythonCode)
+      return JSON.parse(result)
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to parse IFC file'
+      setError(errorMessage)
+      throw new Error(errorMessage)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  return {
+    parseIfcFile,
+    isLoading,
+    error,
+  }
 }

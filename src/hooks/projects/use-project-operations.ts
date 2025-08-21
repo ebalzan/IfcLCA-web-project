@@ -7,13 +7,13 @@ import {
 import { IProjectClient } from '@/interfaces/client/projects/IProjectClient'
 import { IProjectWithNestedDataClient } from '@/interfaces/client/projects/IProjectWithNestedData'
 import { Queries } from '@/queries'
+import { CreateProjectRequest, UpdateProjectRequest } from '@/schemas/api/projects/project-requests'
 import {
   GetProjectBulkResponse,
   GetProjectResponse,
   GetProjectWithNestedDataBulkResponse,
   GetProjectWithNestedDataResponse,
 } from '@/schemas/api/projects/project-responses'
-import { CreateProjectSchema, UpdateProjectSchema } from '@/schemas/projectSchema'
 
 // Query hooks
 export const useGetProject = (projectId: string) => {
@@ -38,11 +38,12 @@ export const useGetProjectWithNestedData = (projectId: string) => {
 export const useGetProjectBulk = () => {
   return useTanStackInfiniteQuery<GetProjectBulkResponse, IProjectClient[]>('/api/projects', {
     queryKey: [Queries.GET_PROJECTS],
+    initialPageParam: 1,
     select: data => {
       return data.pages.flatMap(page => page.data.projects)
     },
     getNextPageParam: (lastPage, allPages, lastPageParam) => {
-      return lastPage.data.pagination.hasMore ? lastPageParam + 1 : undefined
+      return lastPage.data.pagination.hasMore ? (lastPageParam as number) + 1 : undefined
     },
   })
 }
@@ -53,11 +54,12 @@ export const useGetProjectWithNestedDataBulk = () => {
     IProjectWithNestedDataClient[]
   >('/api/projects/nested', {
     queryKey: [Queries.GET_PROJECTS_NESTED],
+    initialPageParam: 1,
     select: data => {
       return data.pages.flatMap(page => page.data.projects)
     },
     getNextPageParam: (lastPage, allPages, lastPageParam) => {
-      return lastPage.data.pagination.hasMore ? lastPageParam + 1 : undefined
+      return lastPage.data.pagination.hasMore ? (lastPageParam as number) + 1 : undefined
     },
   })
 }
@@ -65,24 +67,27 @@ export const useGetProjectWithNestedDataBulk = () => {
 export const useCreateProject = () => {
   const router = useRouter()
 
-  return useTanStackMutation<GetProjectResponse, CreateProjectSchema>('/api/projects', {
-    method: 'POST',
-    mutationKey: [Queries.GET_PROJECTS],
-    showSuccessToast: true,
-    successMessage: 'Project has been created successfully',
-    showErrorToast: true,
-    invalidateQueries: [[Queries.GET_PROJECTS]],
-    onSuccess: ({ data }) => {
-      router.push(`/projects/${data._id}`)
-    },
-  })
+  return useTanStackMutation<GetProjectResponse, Omit<CreateProjectRequest, 'userId'>>(
+    '/api/projects',
+    {
+      method: 'POST',
+      mutationKey: [Queries.GET_PROJECTS],
+      showSuccessToast: true,
+      successMessage: 'Project has been created successfully',
+      showErrorToast: true,
+      invalidateQueries: [[Queries.GET_PROJECTS]],
+      onSuccess: ({ data }) => {
+        router.push(`/projects/${data._id}`)
+      },
+    }
+  )
 }
 
 // Mutation hooks
 export const useUpdateProject = (projectId: string) => {
   const router = useRouter()
 
-  return useTanStackMutation<GetProjectWithNestedDataResponse, UpdateProjectSchema>(
+  return useTanStackMutation<GetProjectWithNestedDataResponse, UpdateProjectRequest>(
     `/api/projects/${projectId}`,
     {
       method: 'PATCH',

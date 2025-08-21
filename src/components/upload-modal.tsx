@@ -8,8 +8,10 @@ import { Types } from 'mongoose'
 import { useDropzone } from 'react-dropzone'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useCreateUpload } from '@/hooks/uploads/use-upload-operations'
+import { useIfcParser } from '@/hooks/use-ifc-parser'
 import { useToast } from '@/hooks/use-toast'
 import { IFCParseResult } from '@/interfaces/ifc'
+import { api } from '@/lib/fetch'
 import { logger } from '@/lib/logger'
 
 interface UploadModalProps {
@@ -22,7 +24,8 @@ interface UploadModalProps {
 export function UploadModal({ open, onOpenChange, projectId, onSuccess }: UploadModalProps) {
   const router = useRouter()
   const { toast } = useToast()
-  const { mutateAsync: createUpload, isLoading } = useCreateUpload()
+  const { parseIfcFile, isLoading: isParsing } = useIfcParser()
+  const [isProcessing, setIsProcessing] = useState(false)
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
@@ -34,15 +37,28 @@ export function UploadModal({ open, onOpenChange, projectId, onSuccess }: Upload
           type: file.type,
         })
 
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Upload timed out after 60 seconds')), 60000)
-        })
+        // Step 1: Parse IFC file on client-side
+        logger.debug('Parsing IFC file on client-side')
+        const parsedData = await parseIfcFile(file)
+        logger.debug('IFC parsing completed', { elements: parsedData.elements.length })
 
-        const uploadPromise = await createUpload({
-          file,
-          projectId: new Types.ObjectId(projectId),
-        })
-        const results = (await Promise.race([uploadPromise, timeoutPromise])) as IFCParseResult
+        // Step 2: Send parsed data to server for processing
+        setIsProcessing(true)
+        logger.debug('Sending parsed data to server for processing')
+
+        const response = (await api.post('/api/uploads/process-parsed', {
+          data: {
+            projectId,
+            elements: parsedData.elements,
+            filename: file.name,
+          },
+        })) as Response
+
+        if (!response.ok) {
+          throw new Error('Failed to process IFC data on server')
+        }
+
+        const results = (await response.json()) as IFCParseResult
         const { projectId: resultProjectId, shouldRedirectToLibrary } = results
 
         onOpenChange(false)
@@ -63,7 +79,6 @@ export function UploadModal({ open, onOpenChange, projectId, onSuccess }: Upload
           name: error instanceof Error ? error.name : undefined,
         })
 
-        // Check if it's an IFC4X1 schema issue and provide helpful message
         const errorMessage = error instanceof Error ? error.message : String(error)
         let userFriendlyMessage =
           'There was an error processing your file. Please try again or contact support if the issue persists.'
@@ -84,9 +99,11 @@ export function UploadModal({ open, onOpenChange, projectId, onSuccess }: Upload
           variant: 'destructive',
         })
         onOpenChange(false)
+      } finally {
+        setIsProcessing(false)
       }
     },
-    [createUpload, projectId, onOpenChange, router, onSuccess, toast]
+    [parseIfcFile, projectId, onOpenChange, router, onSuccess, toast]
   )
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -96,42 +113,43 @@ export function UploadModal({ open, onOpenChange, projectId, onSuccess }: Upload
       'application/ifc': ['.ifc'],
       'application/x-step': ['.ifc'],
     },
-    disabled: isLoading,
+    disabled: isParsing || isProcessing,
   })
+
+  const isLoading = isParsing || isProcessing
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Load Ifc File</DialogTitle>
+          <DialogTitle>Upload IFC File</DialogTitle>
         </DialogHeader>
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-8">
-            <ReloadIcon className="h-8 w-8 animate-spin text-primary mb-4" />
-            <p className="text-xs text-muted-foreground text-center max-w-sm">
-              This may take a few moments depending on file size. For IFC4X1 files, external
-              processing will be used automatically.
-            </p>
-          </div>
-        ) : (
-          <div
-            {...getRootProps()}
-            className={`
-              border-2 border-dashed rounded-lg p-8 text-center cursor-pointer
-              ${isDragActive ? 'border-primary bg-primary/10' : 'border-border'}
-            `}>
-            <input {...getInputProps()} />
-            <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
-            <p className="mt-2 text-sm text-muted-foreground">
-              {isDragActive
-                ? 'Drop the file here'
-                : 'Drag and drop an Ifc file, or click to select'}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Supports IFC2x3, IFC4, and IFC4X1 schemas
-            </p>
-          </div>
-        )}
+        <div
+          {...getRootProps()}
+          className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+            isDragActive
+              ? 'border-primary bg-primary/5'
+              : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+          } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+          <input {...getInputProps()} />
+          {isLoading ? (
+            <div className="flex flex-col items-center space-y-2">
+              <ReloadIcon className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">
+                {isParsing ? 'Parsing IFC file...' : 'Processing data...'}
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center space-y-2">
+              <UploadCloud className="h-8 w-8 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                {isDragActive
+                  ? 'Drop the IFC file here'
+                  : 'Drag and drop an IFC file here, or click to select'}
+              </p>
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   )

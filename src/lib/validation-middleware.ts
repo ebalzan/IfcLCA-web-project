@@ -98,6 +98,7 @@ export const withValidation = <T>(
       }
 
       const body: T = await parseRequestBody<T>(request, method)
+      console.log('BODY########', body)
       const validatedData = schema.parse(body)
 
       const validationRequest = request as ValidationRequest<T>

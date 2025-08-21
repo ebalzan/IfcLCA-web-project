@@ -529,7 +529,7 @@ export class ProjectService {
         .limit(size)
         .lean()
 
-      if (!projects || projects.length === 0) {
+      if (!projects) {
         throw new ProjectNotFoundError(projectIds.join(', '))
       }
 

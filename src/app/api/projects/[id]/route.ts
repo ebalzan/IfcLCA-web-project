@@ -5,31 +5,13 @@ import { ProjectService } from '@/lib/services/project-service'
 import {
   AuthenticatedValidationRequest,
   validatePathParams,
-  withAuthAndValidation,
   withAuthAndValidationWithParams,
 } from '@/lib/validation-middleware'
 import { idParamSchema, IdParamSchema } from '@/schemas/api/general'
 import {
-  CreateProjectRequest,
-  createProjectRequestSchema,
   UpdateProjectRequest,
   updateProjectRequestSchema,
 } from '@/schemas/api/projects/project-requests'
-
-async function createProject(request: AuthenticatedValidationRequest<CreateProjectRequest>) {
-  try {
-    const userId = getUserId(request)
-    const { project } = request.validatedData.data
-
-    const result = await ProjectService.createProject({
-      data: { project, userId },
-    })
-
-    return sendApiSuccessResponse(result.data, 'Project created successfully', request)
-  } catch (error: unknown) {
-    return sendApiErrorResponse(error, request, { operation: 'create', resource: 'project' })
-  }
-}
 
 async function getProject(
   request: AuthenticatedRequest,
@@ -92,9 +74,6 @@ export async function deleteProject(
   }
 }
 
-export const POST = withAuthAndValidation(createProjectRequestSchema, createProject, {
-  method: 'json',
-})
 export const GET = withAuthAndDBParams(getProject)
 export const PUT = withAuthAndValidationWithParams(updateProjectRequestSchema, updateProject, {
   method: 'json',
