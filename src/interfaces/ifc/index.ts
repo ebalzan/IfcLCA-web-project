@@ -1,3 +1,5 @@
+import { Types } from 'mongoose'
+
 export interface IFCElement {
   id: string
   type: string
@@ -13,8 +15,8 @@ export interface IFCElement {
 }
 
 export interface IFCParseResult {
-  uploadId: string
-  projectId: string
+  uploadId: Types.ObjectId
+  projectId: Types.ObjectId
   _count: {
     elements: number
     matchedMaterials: number
