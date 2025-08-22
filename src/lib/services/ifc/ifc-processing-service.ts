@@ -82,6 +82,8 @@ export class IFCProcessingService {
       })
       const materials = materialBulkResult.data.materials
 
+      console.log('materials', materials)
+
       // 4. Create map for quick lookups
       const materialMap = new Map(materials.map(mat => [mat.name, mat]))
 
@@ -100,6 +102,7 @@ export class IFCProcessingService {
             processedMaterials.push(
               ...element.materials
                 .map(materialName => {
+                  console.log('materialName', materialName)
                   const material = materialMap.get(materialName)
 
                   if (!material) {
