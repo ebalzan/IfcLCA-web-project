@@ -10,7 +10,6 @@ export const createProjectRequestSchema = defaultRequestSchema(
     userId: z.string(),
   })
 )
-export const createProjectRequestSchemaRoute = createProjectRequestSchema
 export const createProjectBulkRequestSchema = defaultRequestSchema(
   z.object({
     projects: z.array(z.custom<Omit<IProjectDB, '_id' | 'userId'>>()),

@@ -1,5 +1,5 @@
-import IMaterialDB from '@/interfaces/materials/IMaterialDB'
+import IMaterialDB, { IMaterialVirtuals } from '@/interfaces/materials/IMaterialDB'
 
-export interface IMaterialClient extends Omit<IMaterialDB, '_id'> {
+export interface IMaterialClient extends Omit<IMaterialDB, '_id'>, IMaterialVirtuals {
   _id: string
 }

@@ -1,19 +1,18 @@
 import IProjectDB from './IProjectDB'
 import { IElementDB, IElementVirtuals } from '../elements/IElementDB'
 import ILCAIndicators from '../materials/ILCAIndicators'
-import IMaterialDB from '../materials/IMaterialDB'
+import IMaterialDB, { IMaterialVirtuals } from '../materials/IMaterialDB'
 import IUploadDB from '../uploads/IUploadDB'
 
 export interface IElementWithMaterialRefs extends IElementDB, IElementVirtuals {
-  materialRefs: IMaterialDB[]
+  materialRefs: (IMaterialDB & IMaterialVirtuals)[]
 }
 
 export interface IProjectWithNestedData extends IProjectDB {
   elements: IElementWithMaterialRefs[]
-  materials: IMaterialDB[]
+  materials: (IMaterialDB & IMaterialVirtuals)[]
   uploads: IUploadDB[]
   totalIndicators: ILCAIndicators
-  lastActivityAt: Date
   _count: {
     elements: number
     uploads: number

@@ -3,30 +3,23 @@ import { logger } from '@/lib/logger'
 import { ParseIFCFileRequest, ParseIFCFileResponse } from '@/schemas/api/ifc'
 import { withTransaction } from '@/utils/withTransaction'
 import { IFCProcessingService } from './ifc-processing-service'
-import { parseIfcWithWasm } from './ifc-wasm-parser'
+// import { parseIfcWithWasm } from './ifc-wasm-parser'
 import { MaterialService } from '../material-service'
 import { UploadService } from '../upload-service'
 
 export async function parseIFCFile({
-  data: { file, projectId, userId },
+  data: { filename, elements, projectId, userId },
   session,
 }: ParseIFCFileRequest): Promise<ParseIFCFileResponse> {
   return withTransaction(async useSession => {
     try {
-      logger.debug('Starting Ifc parsing process', {
-        filename: file.name,
-        size: file.size,
-        type: file.type,
-        projectId,
-      })
-
       logger.debug('Creating upload record')
 
       const uploadResult = await UploadService.createUpload({
         data: {
           projectId,
           userId,
-          filename: file.name,
+          filename,
           status: 'Processing',
           _count: {
             elements: 0,
@@ -42,22 +35,27 @@ export async function parseIFCFile({
         throw new Error('Failed to create upload record')
       }
 
-      // Parse the Ifc file locally using IfcOpenShell WASM
-      logger.debug('Parsing Ifc file locally using IfcOpenShell WASM')
+      // // Parse the Ifc file locally using IfcOpenShell WASM
+      // logger.debug('Parsing Ifc file locally using IfcOpenShell WASM')
 
-      const wasmResult = await parseIfcWithWasm(file)
-      logger.debug('WASM Parse Result', wasmResult)
+      // const wasmResult = await parseIfcWithWasm(file)
+      // logger.debug('WASM Parse Result', wasmResult)
 
       // Process materials
       const processElementsAndMaterialsFromIFCResponse =
         await IFCProcessingService.processElementsAndMaterialsFromIFC({
           data: {
             projectId,
-            elements: wasmResult.elements,
+            elements,
             uploadId: new Types.ObjectId(uploadResult.data._id),
           },
           session: useSession,
         })
+
+      if (!processElementsAndMaterialsFromIFCResponse.success) {
+        throw new Error('Failed to process elements and materials')
+      }
+
       const { elementCount, materialCount } = processElementsAndMaterialsFromIFCResponse.data
 
       // Get all materials
@@ -70,6 +68,10 @@ export async function parseIFCFile({
         session: useSession,
       })
 
+      if (!materials.success) {
+        throw new Error('Failed to get materials')
+      }
+
       // Apply automatic material matches
       const applyAutomaticMaterialMatchesResponse =
         await IFCProcessingService.applyAutomaticMaterialMatches({
@@ -79,7 +81,33 @@ export async function parseIFCFile({
           },
           session: useSession,
         })
+
+      if (!applyAutomaticMaterialMatchesResponse.success) {
+        throw new Error('Failed to apply automatic material matches')
+      }
+
       const { matchedCount } = applyAutomaticMaterialMatchesResponse.data
+
+      // Update upload record
+      const updatedUpload = await UploadService.updateUpload({
+        data: {
+          uploadId: new Types.ObjectId(uploadResult.data._id),
+          projectId,
+          updates: {
+            status: 'Completed',
+            _count: {
+              elements: elementCount,
+              materials: materialCount,
+            },
+            updatedAt: new Date(),
+          },
+        },
+        session: useSession,
+      })
+
+      if (!updatedUpload.success) {
+        throw new Error('Failed to update upload record')
+      }
 
       return {
         success: true,

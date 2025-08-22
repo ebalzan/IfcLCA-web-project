@@ -4,105 +4,82 @@ import {
   useTanStackMutation,
   useTanStackInfiniteQuery,
 } from '@/hooks/use-tanstack-fetch'
-import IProjectClient from '@/interfaces/client/projects/IProjectClient'
-import IProjectWithStatsClient from '@/interfaces/client/projects/IProjectWithStatsClient'
-import { ProjectResponse, ProjectWithStatsResponse } from '@/interfaces/projects/ProjectResponse'
-import { ProjectsResponse, ProjectsWithStatsResponse } from '@/interfaces/projects/ProjectsResponse'
+import { IMaterialClient } from '@/interfaces/client/materials/IMaterialClient'
 import { Queries } from '@/queries'
-import { CreateProjectSchema, UpdateProjectSchema } from '@/schemas/projectSchema'
+import {
+  CreateMaterialRequest,
+  UpdateMaterialRequest,
+} from '@/schemas/api/materials/material-requests'
+import {
+  CreateMaterialResponse,
+  GetMaterialBulkResponse,
+  GetMaterialResponse,
+  UpdateMaterialResponse,
+} from '@/schemas/api/materials/material-responses'
 
 // Query hooks
-export const useProjectById = (projectId: string) => {
-  return useTanStackQuery<ProjectResponse>(`/api/projects/${projectId}`, {
-    queryKey: [Queries.GET_PROJECT_BY_ID, projectId],
+export const useGetMaterial = (materialId: string) => {
+  return useTanStackQuery<GetMaterialResponse>(`/api/materials/${materialId}`, {
+    queryKey: [Queries.GET_MATERIAL, materialId],
     staleTime: 1000 * 60 * 2, // 2 minutes
   })
 }
 
-export const useProjectWithStatsById = (projectId: string) => {
-  return useTanStackQuery<ProjectWithStatsResponse>(`/api/projects/${projectId}?withStats=true`, {
-    queryKey: [Queries.GET_PROJECT_BY_ID, projectId],
-    staleTime: 1000 * 60 * 2, // 2 minutes
-  })
-}
-
-export const useProjects = () => {
-  return useTanStackInfiniteQuery<ProjectsResponse, IProjectClient[]>('/api/projects', {
-    queryKey: [Queries.GET_PROJECTS],
-    limit: 3,
+export const useGetMaterialBulk = () => {
+  return useTanStackInfiniteQuery<GetMaterialBulkResponse, IMaterialClient[]>('/api/materials', {
+    queryKey: [Queries.GET_MATERIALS],
+    initialPageParam: 1,
     select: data => {
-      return data.pages.flatMap(page => page.projects)
+      return data.pages.flatMap(page => page.data.materials)
     },
     getNextPageParam: (lastPage, allPages, lastPageParam) => {
-      return lastPage.hasMore ? lastPageParam + 1 : undefined
+      return lastPage.data.pagination.hasMore ? (lastPageParam as number) + 1 : undefined
     },
   })
 }
 
-export const useProjectsWithStats = () => {
-  return useTanStackInfiniteQuery<ProjectsWithStatsResponse, IProjectWithStatsClient[]>(
-    '/api/projects',
-    {
-      queryKey: [Queries.GET_PROJECTS],
-      limit: 3,
-      select: data => {
-        return data.pages.flatMap(page => page.projects)
-      },
-      getNextPageParam: (lastPage, allPages, lastPageParam) => {
-        return lastPage.hasMore ? lastPageParam + 1 : undefined
-      },
-    }
-  )
-}
-
-export const useCreateProject = () => {
+export const useCreateMaterial = () => {
   const router = useRouter()
 
-  return useTanStackMutation<ProjectResponse, CreateProjectSchema>('/api/projects', {
+  return useTanStackMutation<CreateMaterialResponse, CreateMaterialRequest>('/api/materials', {
     method: 'POST',
-    mutationKey: [Queries.GET_PROJECTS],
+    mutationKey: [Queries.GET_MATERIALS],
     showSuccessToast: true,
-    successMessage: 'Project has been created successfully',
+    successMessage: 'Material has been created successfully',
     showErrorToast: true,
-    invalidateQueries: [[Queries.GET_PROJECTS]],
-    onSuccess: data => {
-      router.push(`/projects/${data._id}`)
-    },
+    invalidateQueries: [[Queries.GET_MATERIALS]],
   })
 }
 
 // Mutation hooks
-export const useUpdateProject = (projectId: string) => {
+export const useUpdateMaterial = (materialId: string) => {
   const router = useRouter()
 
-  return useTanStackMutation<ProjectWithStatsResponse, UpdateProjectSchema>(
-    `/api/projects/${projectId}`,
+  return useTanStackMutation<UpdateMaterialResponse, UpdateMaterialRequest>(
+    `/api/materials/${materialId}`,
     {
       method: 'PATCH',
-      mutationKey: [Queries.GET_PROJECT_BY_ID, projectId],
+      mutationKey: [Queries.GET_MATERIAL, materialId],
       showSuccessToast: true,
-      successMessage: 'Project has been updated successfully',
+      successMessage: 'Material has been updated successfully',
       showErrorToast: true,
-      invalidateQueries: [[Queries.GET_PROJECTS], [Queries.GET_PROJECT_BY_ID]],
-      onSuccess: data => {
-        router.push(`/projects/${data._id}`)
-      },
+      invalidateQueries: [[Queries.GET_MATERIALS], [Queries.GET_MATERIAL]],
     }
   )
 }
 
-export const useDeleteProject = () => {
+export const useDeleteMaterial = () => {
   const router = useRouter()
 
-  return useTanStackMutation<void, string>('/api/projects', {
+  return useTanStackMutation<void, string>('/api/materials', {
     method: 'DELETE',
-    mutationKey: [Queries.DELETE_PROJECT],
+    mutationKey: [Queries.DELETE_MATERIAL],
     showSuccessToast: true,
-    successMessage: 'The project has been successfully deleted.',
+    successMessage: 'The material has been successfully deleted.',
     showErrorToast: true,
-    invalidateQueries: [[Queries.GET_PROJECTS]],
+    invalidateQueries: [[Queries.GET_MATERIALS]],
     onSuccess: () => {
-      router.replace('/projects')
+      router.replace('/materials')
     },
   })
 }

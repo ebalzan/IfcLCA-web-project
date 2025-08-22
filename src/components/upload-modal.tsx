@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { ReloadIcon } from '@radix-ui/react-icons'
 import { UploadCloud } from 'lucide-react'
@@ -9,9 +9,6 @@ import { useDropzone } from 'react-dropzone'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useCreateUpload } from '@/hooks/uploads/use-upload-operations'
 import { useIfcParser } from '@/hooks/use-ifc-parser'
-import { useToast } from '@/hooks/use-toast'
-import { IFCParseResult } from '@/interfaces/ifc'
-import { api } from '@/lib/fetch'
 import { logger } from '@/lib/logger'
 
 interface UploadModalProps {
@@ -23,9 +20,8 @@ interface UploadModalProps {
 
 export function UploadModal({ open, onOpenChange, projectId, onSuccess }: UploadModalProps) {
   const router = useRouter()
-  const { toast } = useToast()
-  const { parseIfcFile, isLoading: isParsing } = useIfcParser()
-  const [isProcessing, setIsProcessing] = useState(false)
+  const { parseIfcFileWasm, isLoading: isParsing } = useIfcParser()
+  const { mutateAsync: createUpload } = useCreateUpload()
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
@@ -39,27 +35,29 @@ export function UploadModal({ open, onOpenChange, projectId, onSuccess }: Upload
 
         // Step 1: Parse IFC file on client-side
         logger.debug('Parsing IFC file on client-side')
-        const parsedData = await parseIfcFile(file)
-        logger.debug('IFC parsing completed', { elements: parsedData.elements.length })
+        const parsedData = await parseIfcFileWasm(file)
+        const { elements } = parsedData
+        logger.debug('IFC WASM parsing completed', { elements: elements.length })
 
         // Step 2: Send parsed data to server for processing
-        setIsProcessing(true)
         logger.debug('Sending parsed data to server for processing')
 
-        const response = (await api.post('/api/uploads/process-parsed', {
+        const response = await createUpload({
           data: {
-            projectId,
-            elements: parsedData.elements,
+            projectId: new Types.ObjectId(projectId),
+            elements,
             filename: file.name,
+            userId: '',
           },
-        })) as Response
+        })
 
-        if (!response.ok) {
+        console.log('🔄 Response:', response)
+
+        if (!response.success) {
           throw new Error('Failed to process IFC data on server')
         }
 
-        const results = (await response.json()) as IFCParseResult
-        const { projectId: resultProjectId, shouldRedirectToLibrary } = results
+        const { projectId: resultProjectId, shouldRedirectToLibrary } = response.data
 
         onOpenChange(false)
 
@@ -93,17 +91,10 @@ export function UploadModal({ open, onOpenChange, projectId, onSuccess }: Upload
             'No building elements found in the IFC file. Please ensure the file contains building elements and try again.'
         }
 
-        toast({
-          title: 'Upload Failed',
-          description: userFriendlyMessage,
-          variant: 'destructive',
-        })
         onOpenChange(false)
-      } finally {
-        setIsProcessing(false)
       }
     },
-    [parseIfcFile, projectId, onOpenChange, router, onSuccess, toast]
+    [parseIfcFileWasm, createUpload, projectId, onOpenChange, router, onSuccess]
   )
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -113,10 +104,8 @@ export function UploadModal({ open, onOpenChange, projectId, onSuccess }: Upload
       'application/ifc': ['.ifc'],
       'application/x-step': ['.ifc'],
     },
-    disabled: isParsing || isProcessing,
+    disabled: isParsing,
   })
-
-  const isLoading = isParsing || isProcessing
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -130,9 +119,9 @@ export function UploadModal({ open, onOpenChange, projectId, onSuccess }: Upload
             isDragActive
               ? 'border-primary bg-primary/5'
               : 'border-muted-foreground/25 hover:border-muted-foreground/50'
-          } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+          } ${isParsing ? 'opacity-50 cursor-not-allowed' : ''}`}>
           <input {...getInputProps()} />
-          {isLoading ? (
+          {isParsing ? (
             <div className="flex flex-col items-center space-y-2">
               <ReloadIcon className="h-8 w-8 animate-spin text-primary" />
               <p className="text-sm text-muted-foreground">

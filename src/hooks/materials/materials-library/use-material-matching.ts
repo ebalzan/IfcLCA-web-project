@@ -1,29 +1,21 @@
 import { useCallback } from 'react'
 import confetti from 'canvas-confetti'
 import { useTanStackMutation } from '@/hooks/use-tanstack-fetch'
-import { MatchEC3Response } from '@/interfaces/materials/ec3/MatchEC3Response'
-import IMaterialChange from '@/interfaces/materials/IMaterialChange'
-import { MatchEC3Request } from '@/schemas/api'
+import { IMaterialClient } from '@/interfaces/client/materials/IMaterialClient'
 import { useMaterialsLibraryStore } from './materials-library-store'
 
 export function useMaterialMatching() {
-  const {
-    acceptMatch,
-    acceptAllMatches,
-    confirmMatches,
-    setIsMatchingInProgress,
-    openMaterialChangesModal,
-    setPreviewChanges,
-  } = useMaterialsLibraryStore()
+  const { acceptMatch, acceptAllMatches, confirmMatches, setIsMatchingInProgress } =
+    useMaterialsLibraryStore()
 
-  const { mutateAsync: matchMutateAsync } = useTanStackMutation<MatchEC3Response, MatchEC3Request>(
-    '/api/materials/ec3/match',
-    {
-      method: 'PUT',
-      showSuccessToast: true,
-      showErrorToast: true,
-    }
-  )
+  // const { mutateAsync: matchMutateAsync } = useTanStackMutation<MatchEC3Response, MatchEC3Request>(
+  //   '/api/materials/ec3/match',
+  //   {
+  //     method: 'PUT',
+  //     showSuccessToast: true,
+  //     showErrorToast: true,
+  //   }
+  // )
 
   // Enhanced accept all matches with confetti
   const acceptAllMatchesWithConfetti = useCallback(
@@ -95,42 +87,23 @@ export function useMaterialMatching() {
     [acceptMatch]
   )
 
-  // Enhanced show preview with API call
-  const showPreviewChangesWithAPI = useCallback(async () => {
-    setIsMatchingInProgress(true)
-
-    try {
-      // This will need to be implemented based on your API
-      // const changes = await getPreviewChanges()
-      // setPreviewChanges(changes)
-      setPreviewChanges([])
-      openMaterialChangesModal()
-    } catch (error: unknown) {
-      console.error('Failed to prepare preview:', error)
-      // Toast will be handled in the component
-    } finally {
-      setIsMatchingInProgress(false)
-    }
-  }, [setIsMatchingInProgress, setPreviewChanges, openMaterialChangesModal])
-
   // Enhanced confirm match with mutation
-  const confirmMatchWithMutation = useCallback(
-    async (changesWithDensity: IMaterialChange[]) => {
-      setIsMatchingInProgress(true)
-      await matchMutateAsync({
-        materialIds: changesWithDensity.map(change => change.materialId.toString()),
-        ec3MatchId: changesWithDensity[0].materialId.toString(),
-        density: changesWithDensity[0].newDensity,
-      })
-      confirmMatches()
-    },
-    [matchMutateAsync, confirmMatches, setIsMatchingInProgress]
-  )
+  // const confirmMatchWithMutation = useCallback(
+  //   async (changesWithDensity: IMaterialClient[]) => {
+  //     setIsMatchingInProgress(true)
+  //     await matchMutateAsync({
+  //       materialIds: changesWithDensity.map(change => change._id),
+  //       ec3MatchId: changesWithDensity[0]._id,
+  //       density: changesWithDensity[0].density,
+  //     })
+  //     confirmMatches()
+  //   },
+  //   [matchMutateAsync, confirmMatches, setIsMatchingInProgress]
+  // )
 
   return {
     acceptAllMatchesWithConfetti,
     acceptMatchWithConfetti,
-    showPreviewChanges: showPreviewChangesWithAPI,
-    confirmMatch: confirmMatchWithMutation,
+    // confirmMatch: confirmMatchWithMutation,
   }
 }

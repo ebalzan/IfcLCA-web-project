@@ -67,20 +67,17 @@ export const useGetProjectWithNestedDataBulk = () => {
 export const useCreateProject = () => {
   const router = useRouter()
 
-  return useTanStackMutation<GetProjectResponse, Omit<CreateProjectRequest, 'userId'>>(
-    '/api/projects',
-    {
-      method: 'POST',
-      mutationKey: [Queries.GET_PROJECTS],
-      showSuccessToast: true,
-      successMessage: 'Project has been created successfully',
-      showErrorToast: true,
-      invalidateQueries: [[Queries.GET_PROJECTS]],
-      onSuccess: ({ data }) => {
-        router.push(`/projects/${data._id}`)
-      },
-    }
-  )
+  return useTanStackMutation<GetProjectResponse, CreateProjectRequest>('/api/projects/create', {
+    method: 'POST',
+    mutationKey: [Queries.GET_PROJECTS],
+    showSuccessToast: true,
+    successMessage: 'Project has been created successfully',
+    showErrorToast: true,
+    invalidateQueries: [[Queries.GET_PROJECTS]],
+    onSuccess: ({ data }) => {
+      router.push(`/projects/${data._id}`)
+    },
+  })
 }
 
 // Mutation hooks

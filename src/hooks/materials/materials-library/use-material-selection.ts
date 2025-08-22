@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import IMaterialClient from '@/interfaces/client/materials/IMaterialClient'
+import { IMaterialClient } from '@/interfaces/client/materials/IMaterialClient'
 
 export function useMaterialSelection() {
   const [selectedMaterials, setSelectedMaterials] = useState<IMaterialClient[]>([])

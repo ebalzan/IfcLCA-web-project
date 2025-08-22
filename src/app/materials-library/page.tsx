@@ -14,7 +14,7 @@ export default function MaterialsLibraryPage() {
         </div>
       </div>
 
-      <MaterialLibraryComponent />
+      {/* <MaterialLibraryComponent /> */}
     </div>
   )
 }

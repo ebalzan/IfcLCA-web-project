@@ -655,7 +655,13 @@ export class MaterialService {
     try {
       // Try exact match first
       const ec3Materials = await api.get<IEC3Material[]>(
-        `${process.env.EC3_API_URL}/industry_epds?name__like=${cleanedName}`
+        `${process.env.EC3_API_URL}/industry_epds?name__like=${cleanedName}`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${process.env.EC3_API_KEY || ''}`,
+          },
+        }
       )
       const exactMatch = ec3Materials.find(m => m.name === cleanedName)
 
@@ -676,7 +682,7 @@ export class MaterialService {
 
       return null
     } catch (error: unknown) {
-      logger.error('❌ [Material Service] Error in findBestEC3Match:', error)
+      logger.error('❌ [Material Service] Error in getBestEC3Match:', error)
 
       if (isAppError(error)) {
         throw error

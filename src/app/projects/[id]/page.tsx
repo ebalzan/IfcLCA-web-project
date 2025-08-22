@@ -275,41 +275,50 @@ const ElementsTab = ({ project }: { project: IProjectWithNestedDataClient }) => 
 const MaterialsTab = ({ project }: { project: IProjectWithNestedDataClient }) => {
   const data = useMemo(() => {
     // Group materials by name and sum volumes
-    const materialGroups = project.elements.reduce(
-      (acc, element) => {
-        element.materialRefs.forEach((materialLayer: IMaterialClient) => {
-          const key = materialLayer._id
-          if (!acc[key]) {
-            acc[key] = {
-              ...materialLayer,
-              // totalVolume: 0,
-              gwp: 0,
-              ubp: 0,
-              penre: 0,
-            }
-          }
-          // acc[key].totalVolume += materialLayer.volume || 0
-          // acc[key].gwp +=
-          //   materialLayer.volume *
-          //   (materialLayer.material.density || 0) *
-          //   (materialLayer.material.kbobMatch?.gwp || 0);
-          // acc[key].ubp +=
-          //   materialLayer.volume *
-          //   (materialLayer.material.density || 0) *
-          //   (materialLayer.material.kbobMatch?.ubp || 0);
-          // acc[key].penre +=
-          //   materialLayer.volume *
-          //   (materialLayer.material.density || 0) *
-          //   (materialLayer.material.kbobMatch?.penre || 0);
-        })
-        return acc
-      },
-      {} as Record<string, IMaterialClient>
-    )
+    const materialGroups = project.materials.map(material => ({
+      ...material,
+      ec3MatchId: material.ec3MatchId !== null ? material.ec3MatchId : null,
+      density: material.density || 0,
+      gwp: material.gwp || 0,
+      ubp: material.ubp || 0,
+      penre: material.penre || 0,
+      totalVolume: material.totalVolume || 0,
+    }))
+    // const materialGroups = project.elements.reduce(
+    //   (acc, element) => {
+    //     element.materialRefs.forEach((materialLayer: IMaterialClient) => {
+    //       const key = materialLayer._id
+    //       if (!acc[key]) {
+    //         acc[key] = {
+    //           ...materialLayer,
+    //           // totalVolume: 0,
+    //           gwp: 0,
+    //           ubp: 0,
+    //           penre: 0,
+    //         }
+    //       }
+    //       acc[key].totalVolume += materialLayer.totalVolume || 0
+    //       acc[key].gwp +=
+    //         materialLayer.totalVolume *
+    //         (materialLayer.density || 0) *
+    //         (materialLayer.indicators.gwp || 0)
+    //       acc[key].ubp +=
+    //         materialLayer.totalVolume *
+    //         (materialLayer.density || 0) *
+    //         (materialLayer.indicators.ubp || 0)
+    //       acc[key].penre +=
+    //         materialLayer.volume *
+    //         (materialLayer.material.density || 0) *
+    //         (materialLayer.material.kbobMatch?.penre || 0)
+    //     })
+    //     return acc
+    //   },
+    //   {} as Record<string, IMaterialClient>
+    // )
 
     console.log('🔄 Material groups:', { materialGroups })
 
-    return Object.values(materialGroups)
+    return materialGroups
   }, [project])
 
   return (

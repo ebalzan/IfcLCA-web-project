@@ -26,11 +26,12 @@ export const useGetUpload = (uploadId: string) => {
 export const useGetUploadBulk = () => {
   return useTanStackInfiniteQuery<GetUploadBulkResponse, IUploadClient[]>('/api/uploads', {
     queryKey: [Queries.GET_UPLOADS],
+    initialPageParam: 1,
     select: data => {
       return data.pages.flatMap(page => page.data.uploads)
     },
-    getNextPageParam: (lastPage, allPages, lastPageParam) => {
-      return lastPage.data.pagination.hasMore ? lastPageParam + 1 : undefined
+    getNextPageParam: (lastPage, _allPages, lastPageParam) => {
+      return lastPage.data.pagination.hasMore ? (lastPageParam as number) + 1 : undefined
     },
   })
 }
@@ -38,20 +39,17 @@ export const useGetUploadBulk = () => {
 export const useCreateUpload = () => {
   const router = useRouter()
 
-  return useTanStackMutation<ParseIFCFileResponse, Omit<ParseIFCFileRequest['data'], 'userId'>>(
-    '/api/uploads',
-    {
-      method: 'POST',
-      mutationKey: [Queries.GET_UPLOADS],
-      showSuccessToast: true,
-      successMessage: 'Upload has been created successfully',
-      showErrorToast: true,
-      invalidateQueries: [[Queries.GET_UPLOADS]],
-      onSuccess: ({ data }) => {
-        router.push(`/projects/${data.projectId}`)
-      },
-    }
-  )
+  return useTanStackMutation<ParseIFCFileResponse, ParseIFCFileRequest>('/api/uploads', {
+    method: 'POST',
+    mutationKey: [Queries.GET_UPLOADS],
+    showSuccessToast: true,
+    successMessage: 'Upload has been created successfully',
+    showErrorToast: true,
+    invalidateQueries: [[Queries.GET_UPLOADS]],
+    onSuccess: ({ data }) => {
+      router.push(`/projects/${data.projectId}`)
+    },
+  })
 }
 
 export const useDeleteUpload = () => {

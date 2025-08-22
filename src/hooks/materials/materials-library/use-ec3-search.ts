@@ -1,7 +1,5 @@
 import { useCallback, useMemo } from 'react'
 import { useTanStackQuery } from '@/hooks/use-tanstack-fetch'
-import { EC3SearchResponse } from '@/interfaces/materials/ec3/EC3SearchMaterial'
-import { EC3Service } from '@/lib/services/ec3-service'
 import { Queries } from '@/queries'
 import { useMaterialsLibraryStore } from './materials-library-store'
 
@@ -15,7 +13,7 @@ export function useEC3Search() {
     isLoading: isSearching,
     error: searchError,
     isError,
-  } = useTanStackQuery<EC3SearchResponse>(
+  } = useTanStackQuery<SearchEC3Response>(
     `/api/materials/ec3/search?query=${encodeURIComponent(searchValue)}`,
     {
       queryKey: [Queries.SEARCH_EC3, searchValue],

@@ -1,10 +1,10 @@
 'use client'
 
 import { StarFilledIcon, StarIcon } from '@radix-ui/react-icons'
-import { EC3Product } from '@/lib/services/ec3-service'
+import { IMaterialClient } from '@/interfaces/client/materials/IMaterialClient'
 
 interface EC3ProductCardProps {
-  product: EC3Product
+  product: IMaterialClient
   isFavorite: boolean
   isSelectable: boolean
   onSelect: (productId: string) => void
@@ -25,7 +25,7 @@ export function EC3ProductCard({
       }`}
       onClick={() => {
         if (isSelectable) {
-          onSelect(product.id)
+          onSelect(product._id)
         }
       }}>
       <div className="flex justify-between items-start gap-4">
@@ -36,7 +36,7 @@ export function EC3ProductCard({
               className="p-1 hover:bg-secondary/20 rounded shrink-0"
               onClick={e => {
                 e.stopPropagation()
-                onToggleFavorite(product.id)
+                onToggleFavorite(product._id)
               }}>
               {isFavorite ? (
                 <StarFilledIcon className="w-4 h-4 text-yellow-400" />

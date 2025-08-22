@@ -7,9 +7,7 @@ import {
   createProjectRequestSchema,
 } from '@/schemas/api/projects/project-requests'
 
-async function createProject(
-  request: AuthenticatedValidationRequest<Omit<CreateProjectRequest, 'userId'>>
-) {
+async function createProject(request: AuthenticatedValidationRequest<CreateProjectRequest>) {
   try {
     const userId = getUserId(request)
     const { project } = request.validatedData.data

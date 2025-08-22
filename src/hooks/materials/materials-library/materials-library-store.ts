@@ -1,9 +1,8 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import { AutoSuggestedMatch } from '@/components/materials-library/materials-library-ifc-box/materials-library-card/AutoSuggestedMatch'
-import IMaterialClient from '@/interfaces/client/materials/IMaterialClient'
-import IProjectWithStatsClient from '@/interfaces/client/projects/IProjectWithStatsClient'
-import IMaterialChange from '@/interfaces/materials/IMaterialChange'
+import { IMaterialClient } from '@/interfaces/client/materials/IMaterialClient'
+import { IProjectWithNestedDataClient } from '@/interfaces/client/projects/IProjectWithNestedData'
 
 interface MaterialsLibraryStore {
   // Materials Library State
@@ -16,30 +15,23 @@ interface MaterialsLibraryStore {
   // Material Matching State
   temporaryMatches: Record<string, string>
   isMatchingInProgress: boolean
-  previewChanges: IMaterialChange[]
   isOpenMaterialChangesModal: boolean
   autoSuggestedMatches: Record<string, AutoSuggestedMatch>
 
   // Actions - Materials Library
   setSelectedProject: (projectId: string) => void
   setSearchValue: (value: string) => void
-  updateMaterials: (projectsWithStats: IProjectWithStatsClient[] | null) => void
+  updateMaterials: (projectsWithStats: IProjectWithNestedDataClient[] | null) => void
   openMaterialChangesModal: () => void
   closeMaterialChangesModal: () => void
 
   // Actions - Material Matching
   setTemporaryMatches: (materialIds: string[], openEPDId: string | null) => void
   setIsMatchingInProgress: (isMatchingInProgress: boolean) => void
-  setPreviewChanges: (changes: IMaterialChange[]) => void
   confirmMatches: () => void
   acceptMatch: (openEPDId: string, selectedMaterialId: string) => void
   acceptAllMatches: (openEPDId: string) => void
   cancelMatch: () => void
-  getMatchingProgress: (materials: IMaterialClient[]) => {
-    totalMaterials: number
-    matchedCount: number
-    percentage: number
-  }
 
   // Utility
   resetState: () => void
@@ -56,7 +48,6 @@ const initialState = {
   // Material Matching State
   temporaryMatches: {},
   isMatchingInProgress: false,
-  previewChanges: [],
   isOpenMaterialChangesModal: false,
   autoSuggestedMatches: {},
 }
@@ -98,7 +89,7 @@ export const useMaterialsLibraryStore = create<MaterialsLibraryStore>()(
         set({ filteredMaterials })
       },
 
-      updateMaterials: (projectsWithStats: IProjectWithStatsClient[] | null) => {
+      updateMaterials: (projectsWithStats: IProjectWithNestedDataClient[] | null) => {
         const { selectedProject, searchValue } = get()
 
         if (!projectsWithStats) {
@@ -169,10 +160,6 @@ export const useMaterialsLibraryStore = create<MaterialsLibraryStore>()(
         set({ isMatchingInProgress })
       },
 
-      setPreviewChanges: (changes: IMaterialChange[]) => {
-        set({ previewChanges: changes })
-      },
-
       confirmMatches: () => {
         // This will be handled by the mutation in the component
         // The store just provides the state management
@@ -196,20 +183,6 @@ export const useMaterialsLibraryStore = create<MaterialsLibraryStore>()(
 
       cancelMatch: () => {
         set({ isOpenMaterialChangesModal: false })
-      },
-
-      getMatchingProgress: (materials: IMaterialClient[]) => {
-        const { temporaryMatches } = get()
-        const totalMaterials = materials.length
-        const matchedCount = materials.filter(
-          material => temporaryMatches[material._id] || material.ec3MatchId?._id.toString()
-        ).length
-
-        return {
-          totalMaterials,
-          matchedCount,
-          percentage: (matchedCount / totalMaterials) * 100,
-        }
       },
 
       resetState: () => {

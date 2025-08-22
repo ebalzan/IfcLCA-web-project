@@ -53,7 +53,7 @@ export function useIfcParser() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const parseIfcFile = useCallback(async (file: File): Promise<WasmParseResult> => {
+  const parseIfcFileWasm = useCallback(async (file: File): Promise<WasmParseResult> => {
     setIsLoading(true)
     setError(null)
 
@@ -306,7 +306,7 @@ export function useIfcParser() {
   }, [])
 
   return {
-    parseIfcFile,
+    parseIfcFileWasm,
     isLoading,
     error,
   }

@@ -29,13 +29,14 @@ import {
   CreateProjectRequest,
   createProjectRequestSchema,
 } from '@/schemas/api/projects/project-requests'
+import { createProjectSchema, CreateProjectSchema } from '@/schemas/client/project-schemas'
 
 export default function ProjectsNewPage() {
   const router = useRouter()
   const { mutate: createProject, isLoading } = useCreateProject()
 
-  const form = useForm<CreateProjectRequest>({
-    resolver: zodResolver(createProjectRequestSchema),
+  const form = useForm<CreateProjectSchema>({
+    resolver: zodResolver(createProjectSchema),
     defaultValues: {
       name: '',
       description: '',
@@ -104,14 +105,22 @@ export default function ProjectsNewPage() {
           <form
             onSubmit={handleSubmit(data =>
               createProject({
-                project: {
-                  ...data,
+                data: {
+                  project: {
+                    ...data,
+                    indicators: {
+                      gwp: 0,
+                      ubp: 0,
+                      penre: 0,
+                      lastCalculated: new Date(),
+                    },
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                  },
                   userId: '',
-
                 },
               })
-            )}
-          >
+            )}>
             <CardHeader>
               <CardTitle className="text-2xl font-bold flex items-center gap-2">
                 <PlusCircle className="h-6 w-6 text-muted-foreground" />

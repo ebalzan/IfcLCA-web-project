@@ -265,32 +265,6 @@ export class ProjectService {
               },
               {
                 $addFields: {
-                  materialLayers: {
-                    $map: {
-                      input: '$materialLayers',
-                      as: 'mat',
-                      in: {
-                        $mergeObjects: [
-                          '$$mat',
-                          {
-                            materialId: {
-                              $arrayElemAt: [
-                                {
-                                  $filter: {
-                                    input: '$materialRefs',
-                                    cond: {
-                                      $eq: ['$$this._id', '$$mat.materialId'],
-                                    },
-                                  },
-                                },
-                                0,
-                              ],
-                            },
-                          },
-                        ],
-                      },
-                    },
-                  },
                   totalVolume: { $sum: '$materialLayers.volume' },
                   indicators: {
                     $reduce: {
@@ -398,7 +372,7 @@ export class ProjectService {
               },
               {
                 $addFields: {
-                  volume: {
+                  totalVolume: {
                     $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
                   },
                   gwp: {
@@ -440,14 +414,6 @@ export class ProjectService {
         },
         {
           $addFields: {
-            lastActivityAt: {
-              $max: [
-                '$updatedAt',
-                { $max: '$uploads.createdAt' },
-                { $max: '$elements.createdAt' },
-                { $max: '$materials.createdAt' },
-              ],
-            },
             _count: {
               elements: { $size: '$elements' },
               uploads: { $size: '$uploads' },
@@ -533,7 +499,7 @@ export class ProjectService {
         throw new ProjectNotFoundError(projectIds.join(', '))
       }
 
-      const projectsWithNestedData = await Project.aggregate<IProjectWithNestedData>([
+      const projectWithNestedDataBulk = await Project.aggregate<IProjectWithNestedData>([
         {
           $match: query,
         },
@@ -578,32 +544,6 @@ export class ProjectService {
               },
               {
                 $addFields: {
-                  materialLayers: {
-                    $map: {
-                      input: '$materialLayers',
-                      as: 'mat',
-                      in: {
-                        $mergeObjects: [
-                          '$$mat',
-                          {
-                            materialId: {
-                              $arrayElemAt: [
-                                {
-                                  $filter: {
-                                    input: '$materialRefs',
-                                    cond: {
-                                      $eq: ['$$this._id', '$$mat.materialId'],
-                                    },
-                                  },
-                                },
-                                0,
-                              ],
-                            },
-                          },
-                        ],
-                      },
-                    },
-                  },
                   totalVolume: { $sum: '$materialLayers.volume' },
                   indicators: {
                     $reduce: {
@@ -711,7 +651,7 @@ export class ProjectService {
               },
               {
                 $addFields: {
-                  volume: {
+                  totalVolume: {
                     $ifNull: [{ $arrayElemAt: ['$volumeData.totalVolume', 0] }, 0],
                   },
                   gwp: {
@@ -753,14 +693,6 @@ export class ProjectService {
         },
         {
           $addFields: {
-            lastActivityAt: {
-              $max: [
-                '$updatedAt',
-                { $max: '$uploads.createdAt' },
-                { $max: '$elements.createdAt' },
-                { $max: '$materials.createdAt' },
-              ],
-            },
             _count: {
               elements: { $size: '$elements' },
               uploads: { $size: '$uploads' },
@@ -790,7 +722,7 @@ export class ProjectService {
       return {
         success: true,
         data: {
-          projects: projectsWithNestedData.map(project => ({
+          projects: projectWithNestedDataBulk.map(project => ({
             ...project,
             _id: project._id.toString(),
             elements: project.elements.map(element => ({

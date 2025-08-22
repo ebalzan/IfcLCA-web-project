@@ -75,7 +75,7 @@ export async function deleteProject(
 }
 
 export const GET = withAuthAndDBParams(getProject)
-export const PUT = withAuthAndValidationWithParams(updateProjectRequestSchema, updateProject, {
+export const PATCH = withAuthAndValidationWithParams(updateProjectRequestSchema, updateProject, {
   method: 'json',
 })
 export const DELETE = withAuthAndDBParams(deleteProject)

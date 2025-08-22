@@ -17,18 +17,18 @@ import { useMaterialsLibraryStore } from '@/hooks/materials/materials-library/ma
 import { useEC3Search } from '@/hooks/materials/materials-library/use-ec3-search'
 import { useMaterialMatching } from '@/hooks/materials/materials-library/use-material-matching'
 import { useMaterialSelection } from '@/hooks/materials/materials-library/use-material-selection'
-import { useProjectsWithStats } from '@/hooks/projects/use-project-operations'
-import IMaterialClient from '@/interfaces/client/materials/IMaterialClient'
+import { useGetProjectWithNestedData } from '@/hooks/projects/use-project-operations'
+import { IMaterialClient } from '@/interfaces/client/materials/IMaterialClient'
 import { EC3Header } from './materials-library/ec3-header'
 import { EC3ProductCard } from './materials-library/ec3-product-card'
 import { MaterialsLibraryIFCBox } from './materials-library/materials-library-ifc-box'
 
 export function MaterialLibraryComponent() {
   const {
-    data: projectsWithStats,
-    isLoading: isProjectsWithStatsLoading,
-    error: projectsWithStatsError,
-  } = useProjectsWithStats()
+    data: project,
+    isLoading: isProjectLoading,
+    error: projectError,
+  } = useGetProjectWithNestedData(projectId)
 
   const {
     selectedMaterials,

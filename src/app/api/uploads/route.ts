@@ -2,52 +2,42 @@ import { sendApiErrorResponse } from '@/lib/api-error-response'
 import { sendApiSuccessResponse } from '@/lib/api-error-response'
 import { getUserId } from '@/lib/api-middleware'
 import { parseIFCFile } from '@/lib/services/ifc/ifc-parser-client'
-import { UploadService } from '@/lib/services/upload-service'
 import { AuthenticatedValidationRequest, withAuthAndValidation } from '@/lib/validation-middleware'
-import { ParseIFCFileRequestClient, parseIFCFileRequestClientSchema } from '@/schemas/api/ifc'
-import {
-  DeleteUploadRequest,
-  deleteUploadRequestSchema,
-} from '@/schemas/api/uploads/upload-requests'
+import { ParseIFCFileRequest, parseIFCFileRequestSchema } from '@/schemas/api/ifc'
 
-async function createUpload(request: AuthenticatedValidationRequest<ParseIFCFileRequestClient>) {
+async function parseIfc(request: AuthenticatedValidationRequest<ParseIFCFileRequest>) {
   try {
     const userId = getUserId(request)
-    const { projectId, file } = request.validatedData.data
+    const { projectId, elements, filename } = request.validatedData.data
 
-    console.log('INFO#######', request.validatedData.data)
-
-    const uploadResult = await parseIFCFile({
+    const parsedData = await parseIFCFile({
       data: {
-        file,
+        filename,
+        elements,
         projectId,
         userId,
       },
     })
 
-    return sendApiSuccessResponse(uploadResult.data, 'Upload created successfully', request)
+    return sendApiSuccessResponse(
+      {
+        uploadId: parsedData.data.uploadId,
+        projectId: projectId.toString(),
+        _count: {
+          elements: parsedData.data._count.elements,
+          matchedMaterials: parsedData.data._count.matchedMaterials,
+          unmatchedMaterials: parsedData.data._count.unmatchedMaterials,
+        },
+        shouldRedirectToLibrary: parsedData.data.shouldRedirectToLibrary,
+      },
+      'IFC file processed successfully',
+      request
+    )
   } catch (error: unknown) {
-    return sendApiErrorResponse(error, request, { operation: 'create', resource: 'Upload' })
+    return sendApiErrorResponse(error, request, { operation: 'process', resource: 'Parsed IFC' })
   }
 }
 
-async function deleteUpload(request: AuthenticatedValidationRequest<DeleteUploadRequest>) {
-  try {
-    const { uploadId, projectId } = request.validatedData.data
-
-    const result = await UploadService.deleteUpload({
-      data: { uploadId, projectId },
-    })
-
-    return sendApiSuccessResponse(result.data, 'Upload deleted successfully', request)
-  } catch (error: unknown) {
-    return sendApiErrorResponse(error, request, { operation: 'delete', resource: 'Upload' })
-  }
-}
-
-export const POST = withAuthAndValidation(parseIFCFileRequestClientSchema, createUpload, {
-  method: 'formData',
-})
-export const DELETE = withAuthAndValidation(deleteUploadRequestSchema, deleteUpload, {
+export const POST = withAuthAndValidation(parseIFCFileRequestSchema, parseIfc, {
   method: 'json',
 })

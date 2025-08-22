@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { LoaderIcon, Pencil, ArrowLeft, Trash2 } from 'lucide-react'
+import { Types } from 'mongoose'
 import { useForm } from 'react-hook-form'
 import { Breadcrumbs } from '@/components/breadcrumbs'
 import { DeleteProjectDialog } from '@/components/delete-project-dialog'
@@ -18,11 +19,10 @@ import {
   useGetProject,
   useUpdateProject,
 } from '@/hooks/projects/use-project-operations'
-import { UpdateProjectSchema, updateProjectSchema } from '@/schemas/projectSchema'
+import { UpdateProjectSchema, updateProjectSchema } from '@/schemas/client/project-schemas'
 
 export default function EditProjectPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-
   const router = useRouter()
   const params = useParams<{ id: string }>()
   const projectId = params.id
@@ -115,7 +115,18 @@ export default function EditProjectPage() {
         </CardHeader>
         <CardContent>
           <form
-            onSubmit={handleSubmit(() => updateProject({ ...getValues() }))}
+            onSubmit={handleSubmit(data =>
+              updateProject({
+                data: {
+                  projectId: new Types.ObjectId(projectId),
+                  updates: {
+                    ...data,
+                    updatedAt: new Date(),
+                  },
+                  userId: '',
+                },
+              })
+            )}
             className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="name" className="text-sm font-medium">

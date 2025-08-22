@@ -174,8 +174,6 @@ export const useTanStackMutation = <TResponse, TRequestData>(
           ? `${url}/${variables}`
           : url
 
-      console.log('VARS#####', variables)
-
       // Check if we're sending FormData by looking for File objects in variables
       const isFormData =
         variables &&
@@ -204,11 +202,7 @@ export const useTanStackMutation = <TResponse, TRequestData>(
 
         body = formData
       } else if (variables && typeof variables !== 'string') {
-        // Wrap the client data in the expected format for the backend
-        const requestData = {
-          data: variables,
-        }
-        body = JSON.stringify(requestData)
+        body = JSON.stringify(variables)
       }
 
       return fetchApi<TResponse>(finalUrl, {
