@@ -112,8 +112,8 @@ export async function parseIFCFile({
       return {
         success: true,
         data: {
-          uploadId: uploadResult.data._id.toString(),
-          projectId: projectId.toString(),
+          uploadId: new Types.ObjectId(uploadResult.data._id),
+          projectId,
           _count: {
             elements: elementCount,
             matchedMaterials: matchedCount,
