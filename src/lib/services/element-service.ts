@@ -11,7 +11,7 @@ import {
   GetElementRequest,
   UpdateElementBulkRequest,
   UpdateElementRequest,
-} from '@/schemas/api/elements/element-requests'
+} from '@/schemas/services/elements/element-requests'
 import {
   CreateElementBulkResponse,
   CreateElementResponse,
@@ -21,7 +21,7 @@ import {
   GetElementResponse,
   UpdateElementBulkResponse,
   UpdateElementResponse,
-} from '@/schemas/api/elements/element-responses'
+} from '@/schemas/services/elements/element-responses'
 import { withTransaction } from '@/utils/withTransaction'
 import {
   DatabaseError,

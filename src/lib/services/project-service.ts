@@ -5,7 +5,7 @@ import {
   GetProjectRequest,
   GetProjectWithNestedDataBulkRequest,
   GetProjectWithNestedDataRequest,
-} from '@/schemas/api/projects/project-requests'
+} from '@/schemas/services/projects/project-requests'
 import {
   CreateProjectBulkRequest,
   GetProjectBulkRequest,
@@ -13,7 +13,7 @@ import {
   UpdateProjectBulkRequest,
   DeleteProjectRequest,
   DeleteProjectBulkRequest,
-} from '@/schemas/api/projects/project-requests'
+} from '@/schemas/services/projects/project-requests'
 import {
   CreateProjectResponse,
   CreateProjectBulkResponse,
@@ -25,13 +25,13 @@ import {
   DeleteProjectBulkResponse,
   GetProjectWithNestedDataResponse,
   GetProjectWithNestedDataBulkResponse,
-} from '@/schemas/api/projects/project-responses'
+} from '@/schemas/services/projects/project-responses'
 import {
   QueryConditions,
   SearchProjectsRequest,
   SearchProjectsResponse,
   SortObject,
-} from '@/schemas/api/projects/search'
+} from '@/schemas/services/projects/search'
 import { withTransaction } from '@/utils/withTransaction'
 import {
   DatabaseError,
@@ -63,10 +63,7 @@ export class ProjectService {
 
       return {
         success: true,
-        data: {
-          ...newProject,
-          _id: newProject._id.toString(),
-        },
+        data: newProject,
         message: 'Project created successfully',
       }
     } catch (error: unknown) {
@@ -101,10 +98,7 @@ export class ProjectService {
 
         return {
           success: true,
-          data: newProjects.map(project => ({
-            ...project,
-            _id: project._id.toString(),
-          })),
+          data: newProjects,
           message: 'Projects created successfully',
         }
       } catch (error: unknown) {
@@ -139,10 +133,7 @@ export class ProjectService {
 
       return {
         success: true,
-        data: {
-          ...project,
-          _id: project._id.toString(),
-        },
+        data: project,
         message: 'Project fetched successfully',
       }
     } catch (error: unknown) {
@@ -163,35 +154,30 @@ export class ProjectService {
    * Get multiple projects by their IDs
    */
   static async getProjectBulk({
-    data: { projectIds, userId, pagination },
+    data: { userId, pagination },
     session,
   }: GetProjectBulkRequest): Promise<GetProjectBulkResponse> {
     try {
       const { page, size } = pagination
       const skip = (page - 1) * size
 
-      const query = projectIds.length > 0 ? { _id: { $in: projectIds }, userId } : { userId }
-
-      const projects = await Project.find(query)
+      const projects = await Project.find({ userId })
         .session(session || null)
         .skip(skip)
         .limit(size)
         .lean()
 
       if (!projects || projects.length === 0) {
-        throw new ProjectNotFoundError(projectIds.join(', '))
+        throw new ProjectNotFoundError(userId)
       }
 
-      const totalCount = await Project.countDocuments(query).session(session || null)
+      const totalCount = await Project.countDocuments({ userId }).session(session || null)
       const hasMore = page * size < totalCount
 
       return {
         success: true,
         data: {
-          projects: projects.map(project => ({
-            ...project,
-            _id: project._id.toString(),
-          })),
+          projects,
           pagination: { page, size, totalCount, hasMore, totalPages: Math.ceil(totalCount / size) },
         },
         message: 'Projects fetched successfully',
@@ -436,30 +422,7 @@ export class ProjectService {
 
       return {
         success: true,
-        data: {
-          ...projectWithNestedData,
-          _id: projectWithNestedData._id.toString(),
-          elements: projectWithNestedData.elements.map(element => ({
-            ...element,
-            _id: element._id.toString(),
-            materialLayers: element.materialLayers.map(layer => ({
-              ...layer,
-              materialId: layer.materialId.toString(),
-            })),
-            materialRefs: element.materialRefs.map(material => ({
-              ...material,
-              _id: material._id.toString(),
-            })),
-          })),
-          materials: projectWithNestedData.materials.map(material => ({
-            ...material,
-            _id: material._id.toString(),
-          })),
-          uploads: projectWithNestedData.uploads.map(upload => ({
-            ...upload,
-            _id: upload._id.toString(),
-          })),
-        },
+        data: projectWithNestedData,
         message: 'Project fetched successfully',
       }
     } catch (error: unknown) {
@@ -480,28 +443,21 @@ export class ProjectService {
    * Get multiple projects with nested data
    */
   static async getProjectWithNestedDataBulk({
-    data: { projectIds, userId, pagination },
+    data: { userId, pagination },
     session,
   }: GetProjectWithNestedDataBulkRequest): Promise<GetProjectWithNestedDataBulkResponse> {
     try {
       const { page, size } = pagination
       const skip = (page - 1) * size
 
-      const query = projectIds.length > 0 ? { _id: { $in: projectIds }, userId } : { userId }
-
-      const projects = await Project.find(query)
-        .session(session || null)
-        .skip(skip)
-        .limit(size)
-        .lean()
-
-      if (!projects) {
-        throw new ProjectNotFoundError(projectIds.join(', '))
-      }
+      await this.getProjectBulk({
+        data: { userId, pagination: { page, size } },
+        session,
+      })
 
       const projectWithNestedDataBulk = await Project.aggregate<IProjectWithNestedData>([
         {
-          $match: query,
+          $match: { userId },
         },
         {
           $lookup: {
@@ -716,36 +672,13 @@ export class ProjectService {
         .skip(skip)
         .limit(size)
 
-      const totalCount = await Project.countDocuments(query).session(session || null)
+      const totalCount = await Project.countDocuments({ userId }).session(session || null)
       const hasMore = page * size < totalCount
 
       return {
         success: true,
         data: {
-          projects: projectWithNestedDataBulk.map(project => ({
-            ...project,
-            _id: project._id.toString(),
-            elements: project.elements.map(element => ({
-              ...element,
-              _id: element._id.toString(),
-              materialLayers: element.materialLayers.map(layer => ({
-                ...layer,
-                materialId: layer.materialId.toString(),
-              })),
-              materialRefs: element.materialRefs.map(material => ({
-                ...material,
-                _id: material._id.toString(),
-              })),
-            })),
-            materials: project.materials.map(material => ({
-              ...material,
-              _id: material._id.toString(),
-            })),
-            uploads: project.uploads.map(upload => ({
-              ...upload,
-              _id: upload._id.toString(),
-            })),
-          })),
+          projects: projectWithNestedDataBulk,
           pagination: { size, page, hasMore, totalCount, totalPages: Math.ceil(totalCount / size) },
         },
         message: 'Projects fetched successfully',
@@ -771,13 +704,10 @@ export class ProjectService {
     session,
   }: UpdateProjectRequest): Promise<UpdateProjectResponse> {
     try {
-      const project = await Project.findOne({ _id: projectId, userId })
-        .session(session || null)
-        .lean()
-
-      if (!project) {
-        throw new ProjectNotFoundError(projectId.toString())
-      }
+      await this.getProject({
+        data: { projectId, userId },
+        session,
+      })
 
       const updatedResult = await Project.findOneAndUpdate(
         { _id: projectId, userId },
@@ -799,10 +729,7 @@ export class ProjectService {
 
       return {
         success: true,
-        data: {
-          ...updatedResult,
-          _id: updatedResult._id.toString(),
-        },
+        data: updatedResult,
         message: 'Project updated successfully',
       }
     } catch (error: unknown) {
@@ -829,13 +756,10 @@ export class ProjectService {
       try {
         const projectUpdatePromises = projectIds.map(async (projectId, index) => {
           try {
-            const project = await Project.findOne({ _id: projectId, userId })
-              .session(useSession)
-              .lean()
-
-            if (!project) {
-              throw new ProjectNotFoundError(projectId.toString())
-            }
+            await this.getProject({
+              data: { projectId, userId },
+              session: useSession,
+            })
 
             const updateResult = await Project.findOneAndUpdate(
               { _id: projectId, userId },
@@ -846,21 +770,13 @@ export class ProjectService {
                 },
               },
               { session: useSession, upsert: false }
-            )
+            ).lean()
 
             if (!updateResult) {
               throw new ProjectUpdateError(`Failed to update project: ${projectId.toString()}`)
             }
 
-            const updatedProject = await Project.findOne({ _id: projectId, userId })
-              .session(session || null)
-              .lean()
-
-            if (!updatedProject) {
-              throw new ProjectNotFoundError(projectId.toString())
-            }
-
-            return updatedProject
+            return updateResult
           } catch (error: unknown) {
             logger.error('❌ [Project Service] Error in updateProjectBulk:', error)
             throw error
@@ -871,10 +787,7 @@ export class ProjectService {
 
         return {
           success: true,
-          data: projects.map(project => ({
-            ...project,
-            _id: project._id.toString(),
-          })),
+          data: projects,
           message: 'Projects updated successfully',
         }
       } catch (error: unknown) {
@@ -900,11 +813,10 @@ export class ProjectService {
   }: DeleteProjectRequest): Promise<DeleteProjectResponse> {
     return withTransaction(async useSession => {
       try {
-        const project = await Project.findOne({ _id: projectId, userId }).session(useSession).lean()
-
-        if (!project) {
-          throw new ProjectNotFoundError(projectId.toString())
-        }
+        await this.getProject({
+          data: { projectId, userId },
+          session: useSession,
+        })
 
         // Delete all associated data in order
         await Upload.deleteMany({ projectId })
@@ -921,10 +833,7 @@ export class ProjectService {
 
         return {
           success: true,
-          data: {
-            ...project,
-            _id: project._id.toString(),
-          },
+          data: deleteResult,
           message: 'Project deleted successfully',
         }
       } catch (error: unknown) {
@@ -972,10 +881,7 @@ export class ProjectService {
 
         return {
           success: true,
-          data: projects.map(project => ({
-            ...project,
-            _id: project._id.toString(),
-          })),
+          data: projects,
           message: 'Projects deleted successfully',
         }
       } catch (error: unknown) {

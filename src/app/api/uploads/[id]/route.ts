@@ -6,7 +6,7 @@ import {
   validatePathParams,
   withAuthAndValidationWithParams,
 } from '@/lib/validation-middleware'
-import { IdParamSchema, idParamSchema } from '@/schemas/api/general'
+import { IdParamSchema, idParamSchema } from '@/schemas/general'
 import {
   DeleteUploadRequest,
   deleteUploadRequestSchema,
@@ -14,7 +14,7 @@ import {
   getUploadRequestSchema,
   UpdateUploadRequest,
   updateUploadRequestSchema,
-} from '@/schemas/api/uploads/upload-requests'
+} from '@/schemas/services/uploads/upload-requests'
 
 async function getUpload(
   request: AuthenticatedValidationRequest<GetUploadRequest>,

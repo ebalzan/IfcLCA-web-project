@@ -6,13 +6,13 @@ import {
 } from '@/hooks/use-tanstack-fetch'
 import { IUploadClient } from '@/interfaces/client/uploads/IUploadClient'
 import { Queries } from '@/queries'
-import { ParseIFCFileRequest, ParseIFCFileResponse } from '@/schemas/api/ifc'
-import { DeleteUploadRequest } from '@/schemas/api/uploads/upload-requests'
+import { ParseIFCFileRequest, ParseIFCFileResponse } from '@/schemas/services/ifc'
+import { DeleteUploadRequest } from '@/schemas/services/uploads/upload-requests'
 import {
   DeleteUploadResponse,
   GetUploadBulkResponse,
   GetUploadResponse,
-} from '@/schemas/api/uploads/upload-responses'
+} from '@/schemas/services/uploads/upload-responses'
 
 // Query hooks
 export const useGetUpload = (uploadId: string) => {

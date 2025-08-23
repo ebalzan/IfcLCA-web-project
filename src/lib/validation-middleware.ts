@@ -127,11 +127,11 @@ export const validateQueryParams = <T extends z.ZodSchema>(
   request: NextRequest,
   defaults?: Partial<z.infer<T>>
 ): z.infer<T> => {
-  const { searchParams } = new URL(request.url)
+  const searchParams = request.nextUrl.searchParams
 
   const queryObject: Record<string, string | number> = {}
 
-  for (const [key, value] of searchParams.entries()) {
+  for (const [key, value] of searchParams) {
     if (key === 'page' || key === 'size' || key === 'limit') {
       queryObject[key] = parseInt(value, 10)
     } else {

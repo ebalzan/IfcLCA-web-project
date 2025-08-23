@@ -1,21 +1,21 @@
 import { z } from 'zod'
 import { IProjectWithNestedDataClient } from '@/interfaces/client/projects/IProjectWithNestedData'
 import IProjectDB from '@/interfaces/projects/IProjectDB'
-import { defaultResponseSchema, paginationResponseSchema } from '../general'
+import { defaultResponseSchema, paginationResponseSchema } from '@/schemas/general'
 
 // Create project
-export const createProjectResponseSchema = defaultResponseSchema(
+export const createProjectResponseApiSchema = defaultResponseSchema(
   z.custom<Omit<IProjectDB, '_id'> & { _id: string }>()
 )
-export const createProjectBulkResponseSchema = defaultResponseSchema(
+export const createProjectBulkResponseApiSchema = defaultResponseSchema(
   z.array(z.custom<Omit<IProjectDB, '_id'> & { _id: string }>())
 )
 
 // Get project
-export const getProjectResponseSchema = defaultResponseSchema(
+export const getProjectResponseApiSchema = defaultResponseSchema(
   z.custom<Omit<IProjectDB, '_id'> & { _id: string }>()
 )
-export const getProjectBulkResponseSchema = defaultResponseSchema(
+export const getProjectBulkResponseApiSchema = defaultResponseSchema(
   z.object({
     projects: z.array(z.custom<Omit<IProjectDB, '_id'> & { _id: string }>()),
     pagination: paginationResponseSchema,
@@ -23,10 +23,10 @@ export const getProjectBulkResponseSchema = defaultResponseSchema(
 )
 
 // Get project with nested data
-export const getProjectWithNestedDataResponseSchema = defaultResponseSchema(
+export const getProjectWithNestedDataResponseApiSchema = defaultResponseSchema(
   z.custom<IProjectWithNestedDataClient>()
 )
-export const getProjectWithNestedDataBulkResponseSchema = defaultResponseSchema(
+export const getProjectWithNestedDataBulkResponseApiSchema = defaultResponseSchema(
   z.object({
     projects: z.array(z.custom<IProjectWithNestedDataClient>()),
     pagination: paginationResponseSchema,
@@ -34,41 +34,41 @@ export const getProjectWithNestedDataBulkResponseSchema = defaultResponseSchema(
 )
 
 // Update project
-export const updateProjectResponseSchema = defaultResponseSchema(
+export const updateProjectResponseApiSchema = defaultResponseSchema(
   z.custom<Omit<IProjectDB, '_id'> & { _id: string }>()
 )
-export const updateProjectBulkResponseSchema = defaultResponseSchema(
+export const updateProjectBulkResponseApiSchema = defaultResponseSchema(
   z.array(z.custom<Omit<IProjectDB, '_id'> & { _id: string }>())
 )
 
 // Delete project
-export const deleteProjectResponseSchema = defaultResponseSchema(
+export const deleteProjectResponseApiSchema = defaultResponseSchema(
   z.custom<Omit<IProjectDB, '_id'> & { _id: string }>()
 )
-export const deleteProjectBulkResponseSchema = defaultResponseSchema(
+export const deleteProjectBulkResponseApiSchema = defaultResponseSchema(
   z.array(z.custom<Omit<IProjectDB, '_id'> & { _id: string }>())
 )
 
 // Create project types
-export type CreateProjectResponse = z.infer<typeof createProjectResponseSchema>
-export type CreateProjectBulkResponse = z.infer<typeof createProjectBulkResponseSchema>
+export type CreateProjectResponseApi = z.infer<typeof createProjectResponseApiSchema>
+export type CreateProjectBulkResponseApi = z.infer<typeof createProjectBulkResponseApiSchema>
 
 // Get project types
-export type GetProjectResponse = z.infer<typeof getProjectResponseSchema>
-export type GetProjectBulkResponse = z.infer<typeof getProjectBulkResponseSchema>
+export type GetProjectResponseApi = z.infer<typeof getProjectResponseApiSchema>
+export type GetProjectBulkResponseApi = z.infer<typeof getProjectBulkResponseApiSchema>
 
 // Get project with nested data types
-export type GetProjectWithNestedDataResponse = z.infer<
-  typeof getProjectWithNestedDataResponseSchema
+export type GetProjectWithNestedDataResponseApi = z.infer<
+  typeof getProjectWithNestedDataResponseApiSchema
 >
-export type GetProjectWithNestedDataBulkResponse = z.infer<
-  typeof getProjectWithNestedDataBulkResponseSchema
+export type GetProjectWithNestedDataBulkResponseApi = z.infer<
+  typeof getProjectWithNestedDataBulkResponseApiSchema
 >
 
 // Update project types
-export type UpdateProjectResponse = z.infer<typeof updateProjectResponseSchema>
-export type UpdateProjectBulkResponse = z.infer<typeof updateProjectBulkResponseSchema>
+export type UpdateProjectResponseApi = z.infer<typeof updateProjectResponseApiSchema>
+export type UpdateProjectBulkResponseApi = z.infer<typeof updateProjectBulkResponseApiSchema>
 
 // Delete project types
-export type DeleteProjectResponse = z.infer<typeof deleteProjectResponseSchema>
-export type DeleteProjectBulkResponse = z.infer<typeof deleteProjectBulkResponseSchema>
+export type DeleteProjectResponseApi = z.infer<typeof deleteProjectResponseApiSchema>
+export type DeleteProjectBulkResponseApi = z.infer<typeof deleteProjectBulkResponseApiSchema>

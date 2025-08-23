@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { IElementDB } from '@/interfaces/elements/IElementDB'
-import { defaultResponseSchema, paginationResponseSchema } from '../general'
+import { defaultResponseSchema, paginationResponseSchema } from '../../general'
 
 // Create element types
 export const createElementResponseSchema = defaultResponseSchema(

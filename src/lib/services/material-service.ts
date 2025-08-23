@@ -1,4 +1,3 @@
-import { FilterQuery } from 'mongoose'
 import { IEC3Material } from '@/interfaces/materials/IEC3Material'
 import IMaterialDB from '@/interfaces/materials/IMaterialDB'
 import {
@@ -24,7 +23,7 @@ import {
   GetMaterialRequest,
   UpdateMaterialBulkRequest,
   UpdateMaterialRequest,
-} from '@/schemas/api/materials/material-requests'
+} from '@/schemas/services/materials/material-requests'
 import {
   CreateMaterialBulkResponse,
   CreateEC3BulkMatchResponse,
@@ -36,7 +35,7 @@ import {
   GetMaterialResponse,
   GetMaterialBulkResponse,
   DeleteMaterialBulkResponse,
-} from '@/schemas/api/materials/material-responses'
+} from '@/schemas/services/materials/material-responses'
 import { withTransaction } from '@/utils/withTransaction'
 import { api } from '../fetch'
 
@@ -73,10 +72,7 @@ export class MaterialService {
 
       return {
         success: true,
-        data: {
-          ...createResult,
-          _id: createResult._id.toString(),
-        },
+        data: createResult,
         message: 'Material created successfully',
       }
     } catch (error: unknown) {
@@ -104,7 +100,7 @@ export class MaterialService {
         const createResult = await Material.insertMany(
           materials.map(material => ({
             ...material,
-            projectId: projectId || material.projectId,
+            projectId,
           })),
           {
             session: useSession,
@@ -113,10 +109,7 @@ export class MaterialService {
 
         return {
           success: true,
-          data: createResult.map(material => ({
-            ...material,
-            _id: material._id.toString(),
-          })),
+          data: createResult,
           message: 'Materials created successfully',
         }
       } catch (error: unknown) {
@@ -154,17 +147,20 @@ export class MaterialService {
 
         if (existingMatch) {
           return {
-            success: false,
-            data: null,
+            success: true,
+            data: existingMatch,
             message: 'Material already matched to EC3',
           }
         }
 
         // 3. Update material
-        await this.updateMaterial({ data: { materialId, updates }, session: useSession })
+        await this.updateMaterial({
+          data: { materialId, updates, projectId: material.projectId },
+          session: useSession,
+        })
 
         // 3. Create EC3 match record
-        await EC3Match.create(
+        const createMatchResult = await EC3Match.insertOne(
           [
             {
               ec3MatchId: updates.ec3MatchId,
@@ -175,13 +171,15 @@ export class MaterialService {
           { session: useSession }
         )
 
+        if (!createMatchResult) {
+          throw new EC3CreateMatchError('Failed to create EC3 match')
+        }
+
+        const match = createMatchResult.toObject()
+
         return {
           success: true,
-          data: {
-            ec3MatchId: updates.ec3MatchId,
-            materialId: materialId.toString(),
-            score: updates.score,
-          },
+          data: match,
           message: 'Material matched to EC3 successfully',
         }
       } catch (error: unknown) {
@@ -207,29 +205,29 @@ export class MaterialService {
   }: CreateEC3BulkMatchRequest): Promise<CreateEC3BulkMatchResponse> {
     return withTransaction(async useSession => {
       try {
-        // 1. Build query
-        const query: FilterQuery<IMaterialDB> = {
-          _id: { $in: materialIds },
-        }
-        if (projectId) {
-          query.projectId = projectId
-        }
-
-        // 2. Check if the materials are already matched to EC3
-        const existingMatches = await EC3Match.find(query).session(useSession).lean()
+        // 1. Check if the materials are already matched to EC3
+        const existingMatches = await EC3Match.find({
+          materialId: { $in: materialIds },
+          projectId,
+        })
+          .session(useSession)
+          .lean()
 
         if (existingMatches.length > 0) {
           return {
             success: true,
-            data: [],
+            data: existingMatches,
             message: 'Materials already matched to EC3',
           }
         }
 
-        // 3. Update materials with EC3 matches
-        await this.updateMaterialBulk({ data: { materialIds, updates }, session: useSession })
+        // 2. Update materials with EC3 matches
+        await this.updateMaterialBulk({
+          data: { materialIds, updates, projectId },
+          session: useSession,
+        })
 
-        // 4. Create EC3 matches
+        // 3. Create EC3 matches
         const bulkOperations = materialIds.map((materialId, index) => ({
           insertOne: {
             document: {
@@ -239,15 +237,12 @@ export class MaterialService {
             },
           },
         }))
-        await EC3Match.bulkWrite(bulkOperations, { session: useSession })
+        const bulkWriteResult = await EC3Match.bulkWrite(bulkOperations, { session: useSession })
+        const matches = Object.values(bulkWriteResult.insertedIds)
 
         return {
           success: true,
-          data: updates.map((material, index) => ({
-            ec3MatchId: material.ec3MatchId,
-            materialId: materialIds[index].toString(),
-            score: updates[index].score,
-          })),
+          data: matches,
           message: 'Materials matched to EC3 successfully',
         }
       } catch (error: unknown) {
@@ -272,30 +267,22 @@ export class MaterialService {
     session,
   }: GetMaterialRequest): Promise<GetMaterialResponse> {
     try {
-      // 1. Build query
-      const query: FilterQuery<IMaterialDB> = {
+      // 1. Fetch material
+      const material = await Material.findOne({
         _id: materialId,
-      }
-      if (projectId) {
-        query.projectId = projectId
-      }
-
-      // 2. Fetch material
-      const material = await Material.findOne(query)
+        projectId,
+      })
         .session(session || null)
         .lean()
 
-      // 3. Check if material exists
+      // 2. Check if material exists
       if (!material) {
         throw new MaterialNotFoundError(materialId.toString())
       }
 
       return {
         success: true,
-        data: {
-          ...material,
-          _id: material._id.toString(),
-        },
+        data: material,
         message: 'Material fetched successfully',
       }
     } catch (error: unknown) {
@@ -316,50 +303,90 @@ export class MaterialService {
    * Get multiple materials by their IDs
    */
   static async getMaterialBulk({
-    data: { materialIds, materialNames, projectId, pagination },
+    data: { projectId, pagination },
     session,
   }: GetMaterialBulkRequest): Promise<GetMaterialBulkResponse> {
     try {
       const { page, size } = pagination
       const skip = (page - 1) * size
 
-      // 1. Build query
-      const query: FilterQuery<IMaterialDB> = {}
-      if (materialIds.length > 0) {
-        query._id = { $in: materialIds }
-      }
-      if (materialNames && materialNames.length > 0) {
-        query.name = { $in: materialNames }
-      }
-      if (projectId) {
-        query.projectId = projectId
-      }
+      // 1. Handle different scenarios based on projectId presence
+      if (!projectId) {
+        // When no projectId is provided, fetch all materials in batches
+        // Use the requested size as batch size, but with a reasonable minimum
+        const batchSize = Math.max(size, 50)
+        let allMaterials: IMaterialDB[] = []
+        let currentPage = 1
+        let hasMore = true
 
-      // 2. Fetch materials with pagination
-      const materials = await Material.find(query)
-        .session(session || null)
-        .limit(size)
-        .skip(skip)
-        .lean()
+        while (hasMore) {
+          const batch = await Material.find()
+            .session(session || null)
+            .limit(batchSize)
+            .skip((currentPage - 1) * batchSize)
+            .lean()
 
-      if (!materials || materials.length === 0) {
-        throw new MaterialNotFoundError(materialIds.join(', '))
-      }
+          if (batch.length === 0) {
+            hasMore = false
+          } else {
+            allMaterials = allMaterials.concat(batch)
+            hasMore = batch.length === batchSize
+            currentPage++
+          }
+        }
 
-      // 3. Get total count for pagination metadata
-      const totalCount = await Material.countDocuments(query).session(session || null)
-      const hasMore = page * size < totalCount
+        if (allMaterials.length === 0) {
+          throw new MaterialNotFoundError('all materials')
+        }
 
-      return {
-        success: true,
-        data: {
-          materials: materials.map(material => ({
-            ...material,
-            _id: material._id.toString(),
-          })),
-          pagination: { page, size, totalCount, hasMore, totalPages: Math.ceil(totalCount / size) },
-        },
-        message: 'Materials fetched successfully',
+        return {
+          success: true,
+          data: {
+            materials: allMaterials,
+            pagination: {
+              page: 1,
+              size: allMaterials.length,
+              totalCount: allMaterials.length,
+              hasMore: false,
+              totalPages: 1,
+            },
+          },
+          message: 'All materials fetched successfully in batches',
+        }
+      } else {
+        // When projectId is provided, use existing pagination logic
+        const materials = await Material.find({
+          projectId,
+        })
+          .session(session || null)
+          .limit(size)
+          .skip(skip)
+          .lean()
+
+        if (!materials || materials.length === 0) {
+          throw new MaterialNotFoundError(projectId.toString())
+        }
+
+        // 3. Get total count for pagination metadata
+        const totalCount = await Material.countDocuments({
+          projectId,
+        }).session(session || null)
+        const hasMore = page * size < totalCount
+
+        return {
+          success: true,
+          data: {
+            materials,
+            pagination: {
+              page,
+              size,
+              totalCount,
+              hasMore,
+              totalPages: Math.ceil(totalCount / size),
+            },
+          },
+          message: 'Materials fetched successfully',
+        }
       }
     } catch (error: unknown) {
       logger.error('❌ [Material Service] Error in getMaterialBulk:', error)
@@ -385,22 +412,18 @@ export class MaterialService {
     return withTransaction(
       async useSession => {
         try {
-          // 1. Build query
-          const query: FilterQuery<IMaterialDB> = { _id: materialId }
-          if (projectId) {
-            query.projectId = projectId
-          }
-
-          // 2. Check if material exists
-          const material = await Material.findOne(query).session(useSession).lean()
-
-          if (!material) {
-            throw new MaterialNotFoundError(materialId.toString())
-          }
+          // 1. Check if material exists
+          await this.getMaterial({
+            data: { materialId, projectId },
+            session: useSession,
+          })
 
           // 3. Update material
           const updateResult = await Material.findOneAndUpdate(
-            query,
+            {
+              _id: materialId,
+              projectId,
+            },
             {
               $set: {
                 ...updates,
@@ -417,10 +440,7 @@ export class MaterialService {
 
           return {
             success: true,
-            data: {
-              ...updateResult,
-              _id: updateResult._id.toString(),
-            },
+            data: updateResult,
             message: 'Material updated successfully',
           }
         } catch (error: unknown) {
@@ -449,33 +469,21 @@ export class MaterialService {
   }: UpdateMaterialBulkRequest): Promise<UpdateMaterialBulkResponse> {
     return withTransaction(
       async useSession => {
-        // 1. Build query
-        const query: FilterQuery<IMaterialDB> = {
-          _id: { $in: materialIds },
-        }
-        if (projectId) {
-          query.projectId = projectId
-        }
-
-        // 2. Update materials
+        // 1. Update materials
         const materialUpdatePromises = materialIds.map(async (materialId, index) => {
           try {
-            // 1. Check if material exists and belongs to project (if projectId provided)
-            const materialQuery: FilterQuery<IMaterialDB> = { _id: materialId }
-            if (projectId) {
-              materialQuery.projectId = projectId
-            }
+            // 1. Check if material exists
+            await this.getMaterial({
+              data: { materialId, projectId },
+              session: useSession,
+            })
 
-            // 2. Check if material exists
-            const material = await Material.findOne(materialQuery).session(useSession).lean()
-
-            if (!material) {
-              throw new MaterialNotFoundError(materialId.toString())
-            }
-
-            // 3. Update material individually
+            // 2. Update material individually
             const updatedMaterial = await Material.findOneAndUpdate(
-              materialQuery,
+              {
+                _id: materialId,
+                projectId,
+              },
               {
                 $set: {
                   ...updates[index],
@@ -489,7 +497,7 @@ export class MaterialService {
               }
             )
 
-            // 4. Check if update was successful
+            // 3. Check if update was successful
             if (!updatedMaterial) {
               throw new MaterialUpdateError(`Failed to update material: ${materialId}`)
             }
@@ -506,10 +514,7 @@ export class MaterialService {
 
         return {
           success: true,
-          data: materials.map(material => ({
-            ...material,
-            _id: material._id.toString(),
-          })),
+          data: materials,
           message: 'Materials updated successfully',
         }
       },
@@ -527,32 +532,30 @@ export class MaterialService {
   }: DeleteMaterialRequest): Promise<DeleteMaterialResponse> {
     return withTransaction(async useSession => {
       try {
-        // 1. Build query
-        const query: FilterQuery<IMaterialDB> = { _id: materialId }
-        if (projectId) {
-          query.projectId = projectId
-        }
+        // 1. Check if material exists
+        await this.getMaterial({
+          data: { materialId, projectId },
+          session: useSession,
+        })
 
-        // 2. Check if material exists
-        const material = await Material.findOne(query).session(useSession).lean()
-
-        if (!material) {
-          throw new MaterialNotFoundError(materialId.toString())
-        }
-
-        // 3. Delete the material
-        const deleteResult = await Material.findOneAndDelete(query).session(useSession)
+        // 2. Delete the material
+        const deleteResult = await Material.findOneAndDelete({
+          _id: materialId,
+          projectId,
+        })
+          .session(useSession)
+          .lean()
 
         if (!deleteResult) {
           throw new MaterialDeleteError('Failed to delete material')
         }
 
         // 4. Create a material deletion record
-        await MaterialDeletion.create(
+        await MaterialDeletion.insertOne(
           [
             {
-              projectId: material.projectId,
-              materialName: material.name,
+              projectId: deleteResult.projectId,
+              materialName: deleteResult.name,
               reason: 'Material deleted by user',
             },
           ],
@@ -561,10 +564,7 @@ export class MaterialService {
 
         return {
           success: true,
-          data: {
-            ...material,
-            _id: material._id.toString(),
-          },
+          data: deleteResult,
           message: 'Material deleted successfully',
         }
       } catch (error: unknown) {
@@ -590,23 +590,25 @@ export class MaterialService {
   }: DeleteMaterialBulkRequest): Promise<DeleteMaterialBulkResponse> {
     return withTransaction(async useSession => {
       try {
-        // 1. Build query
-        const query: FilterQuery<IMaterialDB> = {
+        // 1. Check if materials exist
+        const materials = await Material.find({
           _id: { $in: materialIds },
-        }
-        if (projectId) {
-          query.projectId = projectId
-        }
-
-        // 2. Check if materials exist
-        const materials = await Material.find(query).session(useSession).lean()
+          projectId,
+        })
+          .session(useSession)
+          .lean()
 
         if (materials.length !== materialIds.length) {
           throw new MaterialNotFoundError(materialIds.toString())
         }
 
         // 3. Delete the materials
-        const deleteResult = await Material.deleteMany(query).session(useSession)
+        const deleteResult = await Material.deleteMany({
+          _id: { $in: materialIds },
+          projectId,
+        })
+          .session(useSession)
+          .lean()
 
         if (deleteResult.deletedCount !== materialIds.length) {
           throw new MaterialDeleteError('Failed to delete materials')
@@ -615,7 +617,7 @@ export class MaterialService {
         // 4. Create material deletion records
         await MaterialDeletion.insertMany(
           materials.map(material => ({
-            projectId: projectId || material.projectId,
+            projectId,
             materialName: material.name,
             reason: 'Material deleted by user',
           })),
@@ -624,10 +626,7 @@ export class MaterialService {
 
         return {
           success: true,
-          data: materials.map(material => ({
-            ...material,
-            _id: material._id.toString(),
-          })),
+          data: materials,
           message: 'Materials deleted successfully',
         }
       } catch (error: unknown) {

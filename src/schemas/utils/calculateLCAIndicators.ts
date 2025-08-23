@@ -1,7 +1,7 @@
 import { Types } from 'mongoose'
 import { z } from 'zod'
 import ILCAIndicators from '@/interfaces/materials/ILCAIndicators'
-import { defaultRequestSchema, defaultResponseSchema } from '@/schemas/api/general'
+import { defaultRequestSchema, defaultResponseSchema } from '@/schemas/general'
 
 const calculateElementIndicatorsRequestSchema = defaultRequestSchema(
   z.object({

@@ -1,7 +1,7 @@
 import { Types } from 'mongoose'
 import { z } from 'zod'
 import { IFCElement, IFCParseResult } from '@/interfaces/ifc'
-import { defaultRequestSchema, defaultResponseSchema } from './general'
+import { defaultRequestSchema, defaultResponseSchema } from '../general'
 
 // Apply automatic material matches request and response schemas
 export const applyAutomaticMaterialMatchesRequestSchema = defaultRequestSchema(

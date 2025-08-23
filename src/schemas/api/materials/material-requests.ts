@@ -1,106 +1,137 @@
-import { Types } from 'mongoose'
 import { z } from 'zod'
 import IMaterialDB from '@/interfaces/materials/IMaterialDB'
-import { defaultRequestSchema, paginationRequestSchema } from '../general'
+import { defaultRequestSchema, paginationRequestSchema } from '@/schemas/general'
 
 // Create material
-export const createMaterialRequestSchema = defaultRequestSchema(
-  z.custom<Omit<IMaterialDB, '_id' | 'ec3MatchId'>>()
+export const createMaterialRequestApiSchema = defaultRequestSchema(
+  z.custom<
+    Omit<IMaterialDB, '_id' | 'ec3MatchId' | 'projectId' | 'uploadId'> & {
+      projectId: string
+      uploadId: string
+    }
+  >()
 )
-export const createMaterialBulkRequestSchema = defaultRequestSchema(
+export const createMaterialBulkRequestApiSchema = defaultRequestSchema(
   z.object({
-    materials: z.array(z.custom<Omit<IMaterialDB, '_id' | 'ec3MatchId'>>()),
-    projectId: z.custom<Types.ObjectId>().optional(),
+    materials: z.array(
+      z.custom<
+        Omit<IMaterialDB, '_id' | 'ec3MatchId' | 'projectId' | 'uploadId'> & {
+          projectId: string
+          uploadId: string
+        }
+      >()
+    ),
+    projectId: z.string(),
   })
 )
 
 // Create EC3 match
-export const createEC3MatchRequestSchema = defaultRequestSchema(
+export const createEC3MatchRequestApiSchema = defaultRequestSchema(
   z.object({
-    materialId: z.custom<Types.ObjectId>(),
+    materialId: z.string(),
     updates: z.custom<
-      Partial<Omit<IMaterialDB, 'id' | 'ec3MatchId'>> & { score: number; ec3MatchId: string }
+      Partial<Omit<IMaterialDB, 'id' | 'ec3MatchId' | 'projectId' | 'uploadId'>> & {
+        score: number
+        ec3MatchId: string
+        projectId: string
+        uploadId: string
+      }
     >(),
   })
 )
-export const createEC3BulkMatchRequestSchema = defaultRequestSchema(
+export const createEC3BulkMatchRequestApiSchema = defaultRequestSchema(
   z.object({
-    materialIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one material ID is required'),
+    materialIds: z.array(z.string()).min(1, 'At least one material ID is required'),
     updates: z
       .array(
         z.custom<
-          Partial<Omit<IMaterialDB, 'id' | 'ec3MatchId'>> & { score: number; ec3MatchId: string }
+          Partial<Omit<IMaterialDB, 'id' | 'ec3MatchId' | 'projectId' | 'uploadId'>> & {
+            score: number
+            ec3MatchId: string
+            projectId: string
+            uploadId: string
+          }
         >()
       )
       .min(1, 'At least one update is required'),
-    projectId: z.custom<Types.ObjectId>().optional(),
+    projectId: z.string(),
   })
 )
 
 // Get material
-export const getMaterialRequestSchema = defaultRequestSchema(
+export const getMaterialRequestApiSchema = defaultRequestSchema(
   z.object({
-    materialId: z.custom<Types.ObjectId>(),
-    projectId: z.custom<Types.ObjectId>().optional(),
+    materialId: z.string(),
+    projectId: z.string(),
   })
 )
-export const getMaterialBulkRequestSchema = defaultRequestSchema(
+export const getMaterialBulkRequestApiSchema = defaultRequestSchema(
   z.object({
-    materialIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one material ID is required'),
-    materialNames: z.array(z.string()).min(1, 'At least one material name is required').optional(),
-    projectId: z.custom<Types.ObjectId>().optional(),
+    projectId: z.string().optional(),
     pagination: paginationRequestSchema,
   })
 )
 
 // Update material
-export const updateMaterialRequestSchema = defaultRequestSchema(
+export const updateMaterialRequestApiSchema = defaultRequestSchema(
   z.object({
-    materialId: z.custom<Types.ObjectId>(),
-    updates: z.custom<Partial<Omit<IMaterialDB, 'id'>>>(),
-    projectId: z.custom<Types.ObjectId>().optional(),
+    materialId: z.string(),
+    updates: z.custom<
+      Partial<Omit<IMaterialDB, 'id' | 'projectId' | 'uploadId'>> & {
+        projectId: string
+        uploadId: string
+      }
+    >(),
+    projectId: z.string(),
   })
 )
-export const updateMaterialBulkRequestSchema = defaultRequestSchema(
+export const updateMaterialBulkRequestApiSchema = defaultRequestSchema(
   z.object({
-    materialIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one material ID is required'),
+    materialIds: z.array(z.string()).min(1, 'At least one material ID is required'),
     updates: z
-      .array(z.custom<Partial<Omit<IMaterialDB, 'id'>>>())
+      .array(
+        z.custom<
+          Partial<Omit<IMaterialDB, 'id' | 'projectId' | 'uploadId'>> & {
+            projectId: string
+            uploadId: string
+          }
+        >()
+      )
       .min(1, 'At least one update is required'),
-    projectId: z.custom<Types.ObjectId>().optional(),
+    projectId: z.string(),
   })
 )
 
 // Delete material
-export const deleteMaterialRequestSchema = defaultRequestSchema(
+export const deleteMaterialRequestApiSchema = defaultRequestSchema(
   z.object({
-    materialId: z.custom<Types.ObjectId>(),
-    projectId: z.custom<Types.ObjectId>().optional(),
+    materialId: z.string(),
+    projectId: z.string(),
   })
 )
-export const deleteMaterialBulkRequestSchema = defaultRequestSchema(
+export const deleteMaterialBulkRequestApiSchema = defaultRequestSchema(
   z.object({
-    materialIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one material ID is required'),
-    projectId: z.custom<Types.ObjectId>().optional(),
+    materialIds: z.array(z.string()).min(1, 'At least one material ID is required'),
+    projectId: z.string(),
   })
 )
 
 // Create material types
-export type CreateMaterialRequest = z.infer<typeof createMaterialRequestSchema>
-export type CreateMaterialBulkRequest = z.infer<typeof createMaterialBulkRequestSchema>
+export type CreateMaterialRequestApi = z.infer<typeof createMaterialRequestApiSchema>
+export type CreateMaterialBulkRequestApi = z.infer<typeof createMaterialBulkRequestApiSchema>
 
 // Create EC3 match types
-export type CreateEC3MatchRequest = z.infer<typeof createEC3MatchRequestSchema>
-export type CreateEC3BulkMatchRequest = z.infer<typeof createEC3BulkMatchRequestSchema>
+export type CreateEC3MatchRequestApi = z.infer<typeof createEC3MatchRequestApiSchema>
+export type CreateEC3BulkMatchRequestApi = z.infer<typeof createEC3BulkMatchRequestApiSchema>
 
 // Get material types
-export type GetMaterialRequest = z.infer<typeof getMaterialRequestSchema>
-export type GetMaterialBulkRequest = z.infer<typeof getMaterialBulkRequestSchema>
+export type GetMaterialRequestApi = z.infer<typeof getMaterialRequestApiSchema>
+export type GetMaterialBulkRequestApi = z.infer<typeof getMaterialBulkRequestApiSchema>
 
 // Update material types
-export type UpdateMaterialRequest = z.infer<typeof updateMaterialRequestSchema>
-export type UpdateMaterialBulkRequest = z.infer<typeof updateMaterialBulkRequestSchema>
+export type UpdateMaterialRequestApi = z.infer<typeof updateMaterialRequestApiSchema>
+export type UpdateMaterialBulkRequestApi = z.infer<typeof updateMaterialBulkRequestApiSchema>
 
 // Delete material types
-export type DeleteMaterialRequest = z.infer<typeof deleteMaterialRequestSchema>
-export type DeleteMaterialBulkRequest = z.infer<typeof deleteMaterialBulkRequestSchema>
+export type DeleteMaterialRequestApi = z.infer<typeof deleteMaterialRequestApiSchema>
+export type DeleteMaterialBulkRequestApi = z.infer<typeof deleteMaterialBulkRequestApiSchema>

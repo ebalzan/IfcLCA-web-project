@@ -7,17 +7,24 @@ import {
 import { IProjectClient } from '@/interfaces/client/projects/IProjectClient'
 import { IProjectWithNestedDataClient } from '@/interfaces/client/projects/IProjectWithNestedData'
 import { Queries } from '@/queries'
-import { CreateProjectRequest, UpdateProjectRequest } from '@/schemas/api/projects/project-requests'
 import {
-  GetProjectBulkResponse,
-  GetProjectResponse,
-  GetProjectWithNestedDataBulkResponse,
-  GetProjectWithNestedDataResponse,
+  CreateProjectRequestApi,
+  DeleteProjectRequestApi,
+  UpdateProjectRequestApi,
+} from '@/schemas/api/projects/project-requests'
+import {
+  GetProjectBulkResponseApi,
+  GetProjectWithNestedDataBulkResponseApi,
+  CreateProjectResponseApi,
+  UpdateProjectResponseApi,
+  DeleteProjectResponseApi,
+  GetProjectResponseApi,
+  GetProjectWithNestedDataResponseApi,
 } from '@/schemas/api/projects/project-responses'
 
 // Query hooks
 export const useGetProject = (projectId: string) => {
-  return useTanStackQuery<GetProjectResponse, IProjectClient>(`/api/projects/${projectId}`, {
+  return useTanStackQuery<GetProjectResponseApi, IProjectClient>(`/api/projects/${projectId}`, {
     queryKey: [Queries.GET_PROJECT, projectId],
     staleTime: 1000 * 60 * 2, // 2 minutes
     select: ({ data }) => data,
@@ -25,7 +32,7 @@ export const useGetProject = (projectId: string) => {
 }
 
 export const useGetProjectWithNestedData = (projectId: string) => {
-  return useTanStackQuery<GetProjectWithNestedDataResponse, IProjectWithNestedDataClient>(
+  return useTanStackQuery<GetProjectWithNestedDataResponseApi, IProjectWithNestedDataClient>(
     `/api/projects/${projectId}/nested`,
     {
       queryKey: [Queries.GET_PROJECTS_NESTED, projectId],
@@ -36,7 +43,7 @@ export const useGetProjectWithNestedData = (projectId: string) => {
 }
 
 export const useGetProjectBulk = () => {
-  return useTanStackInfiniteQuery<GetProjectBulkResponse, IProjectClient[]>('/api/projects', {
+  return useTanStackInfiniteQuery<GetProjectBulkResponseApi, IProjectClient[]>('/api/projects', {
     queryKey: [Queries.GET_PROJECTS],
     initialPageParam: 1,
     select: data => {
@@ -50,7 +57,7 @@ export const useGetProjectBulk = () => {
 
 export const useGetProjectWithNestedDataBulk = () => {
   return useTanStackInfiniteQuery<
-    GetProjectWithNestedDataBulkResponse,
+    GetProjectWithNestedDataBulkResponseApi,
     IProjectWithNestedDataClient[]
   >('/api/projects/nested', {
     queryKey: [Queries.GET_PROJECTS_NESTED],
@@ -67,24 +74,27 @@ export const useGetProjectWithNestedDataBulk = () => {
 export const useCreateProject = () => {
   const router = useRouter()
 
-  return useTanStackMutation<GetProjectResponse, CreateProjectRequest>('/api/projects/create', {
-    method: 'POST',
-    mutationKey: [Queries.GET_PROJECTS],
-    showSuccessToast: true,
-    successMessage: 'Project has been created successfully',
-    showErrorToast: true,
-    invalidateQueries: [[Queries.GET_PROJECTS]],
-    onSuccess: ({ data }) => {
-      router.push(`/projects/${data._id}`)
-    },
-  })
+  return useTanStackMutation<CreateProjectResponseApi, CreateProjectRequestApi>(
+    '/api/projects/create',
+    {
+      method: 'POST',
+      mutationKey: [Queries.GET_PROJECTS],
+      showSuccessToast: true,
+      successMessage: 'Project has been created successfully',
+      showErrorToast: true,
+      invalidateQueries: [[Queries.GET_PROJECTS]],
+      onSuccess: ({ data }) => {
+        router.push(`/projects/${data._id}`)
+      },
+    }
+  )
 }
 
 // Mutation hooks
 export const useUpdateProject = (projectId: string) => {
   const router = useRouter()
 
-  return useTanStackMutation<GetProjectWithNestedDataResponse, UpdateProjectRequest>(
+  return useTanStackMutation<UpdateProjectResponseApi, UpdateProjectRequestApi>(
     `/api/projects/${projectId}`,
     {
       method: 'PATCH',
@@ -103,7 +113,7 @@ export const useUpdateProject = (projectId: string) => {
 export const useDeleteProject = () => {
   const router = useRouter()
 
-  return useTanStackMutation<void, string>('/api/projects', {
+  return useTanStackMutation<DeleteProjectResponseApi, DeleteProjectRequestApi>('/api/projects', {
     method: 'DELETE',
     mutationKey: [Queries.DELETE_PROJECT],
     showSuccessToast: true,

@@ -1,7 +1,7 @@
 import { Types } from 'mongoose'
 import { z } from 'zod'
 import IUploadDB from '@/interfaces/uploads/IUploadDB'
-import { defaultRequestSchema, paginationRequestSchema } from '../general'
+import { defaultRequestSchema, paginationRequestSchema } from '../../general'
 
 // Create upload
 export const createUploadRequestSchema = defaultRequestSchema(z.custom<Omit<IUploadDB, '_id'>>())

@@ -25,10 +25,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { useCreateProject } from '@/hooks/projects/use-project-operations'
-import {
-  CreateProjectRequest,
-  createProjectRequestSchema,
-} from '@/schemas/api/projects/project-requests'
 import { createProjectSchema, CreateProjectSchema } from '@/schemas/client/project-schemas'
 
 export default function ProjectsNewPage() {

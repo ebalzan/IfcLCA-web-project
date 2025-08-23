@@ -15,18 +15,16 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { MaterialsLibraryCardProps } from './MaterialsLibraryCardProps'
+import { MaterialsLibraryIFCBoxCardProps } from './MaterialsLibraryIFCBoxCardProps'
 
-export function MaterialsLibraryCard({
+export function MaterialsLibraryIFCBoxCard({
   material,
-  isSelected,
-  temporaryMatch,
+  isTemporaryMatch,
   autoSuggestedMatch,
-  onSelect,
-  onMatch,
+  onUnmatch,
   onDelete,
   onAcceptSuggestion,
-}: MaterialsLibraryCardProps) {
+}: MaterialsLibraryIFCBoxCardProps) {
   return (
     <div
       className={`
@@ -35,20 +33,14 @@ export function MaterialsLibraryCard({
         hover:bg-secondary/5 hover:scale-[1.02] hover:z-10
         group
         ${
-          isSelected
-            ? 'ring-2 ring-primary/50 ring-offset-1 shadow-sm bg-primary/5 z-10'
-            : 'hover:ring-1 hover:ring-primary/30'
-        }
-        ${
-          temporaryMatch
+          isTemporaryMatch
             ? 'animate-in zoom-in-95 duration-500 ease-spring slide-in-from-left-5'
             : ''
         }
         rounded-md my-2
-      `}
-      onClick={() => onSelect(material)}>
+      `}>
       {/* Match overlay */}
-      {temporaryMatch && (
+      {isTemporaryMatch && (
         <div className="absolute inset-0 bg-primary/5 animate-in fade-in duration-500 ease-spring">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-in zoom-in-50 duration-300 ease-spring">
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
@@ -68,7 +60,7 @@ export function MaterialsLibraryCard({
               className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8"
               onClick={e => {
                 e.stopPropagation()
-                onDelete(material)
+                onDelete(material._id)
               }}>
               <Trash2Icon className="h-4 w-4 text-destructive" />
             </Button>
@@ -85,7 +77,7 @@ export function MaterialsLibraryCard({
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={() => onDelete(material)}>
+                onClick={() => onDelete(material._id)}>
                 Delete
               </AlertDialogAction>
             </AlertDialogFooter>
@@ -112,33 +104,29 @@ export function MaterialsLibraryCard({
           )}
 
           {/* Match status */}
-          {temporaryMatch || material.openEPDMatch ? (
+          {isTemporaryMatch || material.ec3MatchId ? (
             <div className="mt-2 flex items-center justify-between gap-2 p-2 bg-secondary/20 rounded-md">
               <div className="flex-1 min-w-0">
-                {temporaryMatch ? (
+                {isTemporaryMatch ? (
                   <>
-                    <p className="font-medium text-sm truncate">{temporaryMatch.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      GWP: {temporaryMatch.gwp} kg CO₂-eq
-                    </p>
+                    <p className="font-medium text-sm truncate">{material.name}</p>
+                    <p className="text-sm text-muted-foreground">GWP: {material.gwp} kg CO₂-eq</p>
                   </>
-                ) : material.openEPDMatch ? (
+                ) : material.ec3MatchId ? (
                   <>
-                    <p className="font-medium text-sm truncate">{material.openEPDMatch.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      GWP: {material.openEPDMatch.gwp} kg CO₂-eq
-                    </p>
+                    <p className="font-medium text-sm truncate">{material.name}</p>
+                    <p className="text-sm text-muted-foreground">GWP: {material.gwp} kg CO₂-eq</p>
                   </>
                 ) : null}
               </div>
-              {temporaryMatch && (
+              {isTemporaryMatch && (
                 <Button
                   variant="ghost"
                   size="sm"
                   className="shrink-0"
                   onClick={e => {
                     e.stopPropagation()
-                    onMatch(material._id, null)
+                    onUnmatch(material._id, null)
                   }}>
                   Clear
                 </Button>
@@ -165,14 +153,14 @@ export function MaterialsLibraryCard({
                 className="shrink-0 border-yellow-400 text-yellow-700 hover:bg-yellow-50"
                 onClick={e => {
                   e.stopPropagation()
-                  onAcceptSuggestion(material._id, autoSuggestedMatch.openEPDId)
+                  onAcceptSuggestion(material._id, autoSuggestedMatch.ec3MatchId)
                 }}>
                 Accept
               </Button>
             </div>
           ) : (
             <div className="mt-2 p-2 bg-yellow-500/10 text-yellow-600 rounded-md text-sm">
-              Click to match with OpenEPD material
+              Click to match with EC3 material
             </div>
           )}
         </div>

@@ -10,17 +10,15 @@ export function MaterialsLibraryIFCBoxHeader({
   matchingProgress,
   searchValue,
   onSearchChange,
-  onPreviewChanges,
-  unappliedMatchesCount,
 }: MaterialsLibraryIFCBoxHeaderProps) {
   return (
-    <div className="p-4 border-b bg-secondary/10 flex-shrink-0">
+    <div className="border-b bg-secondary/10 flex-shrink-0">
       <div className="flex items-center justify-between mb-2">
         <h3 className="font-semibold flex items-center gap-2">
           <span>IFC Materials</span>
-          {materialsCount > 0 && (
+          {matchingProgress.matchedCount > 0 && (
             <Badge variant="secondary" className="animate-in fade-in">
-              {materialsCount} selected
+              {matchingProgress.matchedCount} matched
             </Badge>
           )}
         </h3>
@@ -38,7 +36,7 @@ export function MaterialsLibraryIFCBoxHeader({
               <Badge
                 variant={matchingProgress.percentage === 100 ? 'success' : 'secondary'}
                 className="text-xs">
-                {matchingProgress.matchedCount}/{matchingProgress.totalMaterials}
+                {matchingProgress.matchedCount}/{materialsCount}
               </Badge>
             </div>
           </div>
@@ -47,14 +45,14 @@ export function MaterialsLibraryIFCBoxHeader({
 
       <p className="text-sm text-muted-foreground mb-3">
         {materialsCount > 0
-          ? `Select an OpenEPD material to match with ${materialsCount} selected materials`
-          : 'Select materials from the left to match them with OpenEPD materials'}
+          ? `Select an EC3 material to match with ${materialsCount} selected materials`
+          : 'Select materials from the left to match them with EC3 materials'}
       </p>
 
       <div className="flex items-center gap-2">
         <MagnifyingGlassIcon className="h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search model materials..."
+          placeholder="Search IFC materials"
           value={searchValue}
           onChange={e => onSearchChange(e.target.value)}
           className="flex-1"

@@ -2,7 +2,7 @@ import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-re
 import { AuthenticatedRequest, getUserId, withAuthAndDB } from '@/lib/api-middleware'
 import { ProjectService } from '@/lib/services/project-service'
 import { validateQueryParams } from '@/lib/validation-middleware'
-import { searchQuerySchema } from '@/schemas/api/projects/search'
+import { searchQuerySchema } from '@/schemas/services/projects/search'
 
 async function searchProjects(request: AuthenticatedRequest) {
   try {

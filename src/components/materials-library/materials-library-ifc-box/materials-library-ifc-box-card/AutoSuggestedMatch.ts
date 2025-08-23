@@ -1,5 +1,6 @@
 export interface AutoSuggestedMatch {
-  openEPDId: string
+  materialId: string
+  ec3MatchId: string
   score: number
   name: string
 }

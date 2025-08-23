@@ -3,7 +3,7 @@ import { sendApiSuccessResponse } from '@/lib/api-error-response'
 import { getUserId } from '@/lib/api-middleware'
 import { parseIFCFile } from '@/lib/services/ifc/ifc-parser-client'
 import { AuthenticatedValidationRequest, withAuthAndValidation } from '@/lib/validation-middleware'
-import { ParseIFCFileRequest, parseIFCFileRequestSchema } from '@/schemas/api/ifc'
+import { ParseIFCFileRequest, parseIFCFileRequestSchema } from '@/schemas/services/ifc'
 
 async function parseIfc(request: AuthenticatedValidationRequest<ParseIFCFileRequest>) {
   try {

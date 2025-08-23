@@ -6,14 +6,15 @@ import {
   validatePathParams,
   withAuthAndValidationWithParams,
 } from '@/lib/validation-middleware'
-import { idParamSchema, IdParamSchema } from '@/schemas/api/general'
 import {
-  CreateEC3MatchRequest,
-  createEC3MatchRequestSchema,
+  CreateEC3MatchRequestApi,
+  createEC3MatchRequestApiSchema,
 } from '@/schemas/api/materials/material-requests'
+import { CreateEC3MatchResponseApi } from '@/schemas/api/materials/material-responses'
+import { idParamSchema, IdParamSchema } from '@/schemas/general'
 
 async function createEC3Match(
-  request: AuthenticatedValidationRequest<CreateEC3MatchRequest>,
+  request: AuthenticatedValidationRequest<CreateEC3MatchRequestApi>,
   context: { params: Promise<IdParamSchema> }
 ) {
   try {
@@ -26,15 +27,42 @@ async function createEC3Match(
       })
     }
 
+    if (!Types.ObjectId.isValid(updates.projectId)) {
+      return sendApiErrorResponse(new Error('Invalid project ID'), request, {
+        resource: 'project',
+      })
+    }
+
+    if (!Types.ObjectId.isValid(updates.uploadId)) {
+      return sendApiErrorResponse(new Error('Invalid upload ID'), request, {
+        resource: 'upload',
+      })
+    }
+
     const result = await MaterialService.createEC3Match({
       data: {
         materialId: new Types.ObjectId(materialId),
-        updates,
+        updates: {
+          ...updates,
+          projectId: new Types.ObjectId(updates.projectId),
+          uploadId: new Types.ObjectId(updates.uploadId),
+        },
       },
     })
 
-    return sendApiSuccessResponse(
-      result.data,
+    if (!result.data) {
+      return sendApiErrorResponse(new Error('Failed to match material with EC3 product'), request, {
+        operation: 'match',
+        resource: 'material',
+      })
+    }
+
+    return sendApiSuccessResponse<CreateEC3MatchResponseApi['data']>(
+      {
+        ...result.data,
+        _id: result.data._id.toString(),
+        materialId: result.data.materialId.toString(),
+      },
       'Material matched with EC3 product successfully',
       request
     )
@@ -43,6 +71,10 @@ async function createEC3Match(
   }
 }
 
-export const POST = withAuthAndValidationWithParams(createEC3MatchRequestSchema, createEC3Match, {
-  method: 'json',
-})
+export const POST = withAuthAndValidationWithParams(
+  createEC3MatchRequestApiSchema,
+  createEC3Match,
+  {
+    method: 'json',
+  }
+)

@@ -8,7 +8,7 @@ import {
   ApplyAutomaticMaterialMatchesResponse,
   ProcessElementsAndMaterialsFromIFCRequest,
   ProcessElementsAndMaterialsFromIFCResponse,
-} from '@/schemas/api/ifc'
+} from '@/schemas/services/ifc'
 import { MaterialService } from '../material-service'
 
 export class IFCProcessingService {
@@ -74,7 +74,6 @@ export class IFCProcessingService {
       // 3. Get all materials
       const materialBulkResult = await MaterialService.getMaterialBulk({
         data: {
-          materialIds: [],
           projectId,
           pagination: { page: 1, size: materialNames.size },
         },
@@ -208,7 +207,7 @@ export class IFCProcessingService {
    * Apply automatic matches to materials
    */
   static async applyAutomaticMaterialMatches({
-    data: { materialIds, materialNames, projectId },
+    data: { materialIds, projectId },
     session,
   }: ApplyAutomaticMaterialMatchesRequest): Promise<ApplyAutomaticMaterialMatchesResponse> {
     try {
@@ -220,8 +219,6 @@ export class IFCProcessingService {
       // 1. Get materials
       const materials = await MaterialService.getMaterialBulk({
         data: {
-          materialIds,
-          materialNames,
           projectId,
           pagination: { page: 1, size: materialIds.length },
         },
@@ -272,6 +269,7 @@ export class IFCProcessingService {
               ec3MatchId: match.ec3Match.id,
               score: match.score,
             })),
+            projectId,
           },
           session,
         })

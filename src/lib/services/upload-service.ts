@@ -11,7 +11,7 @@ import {
   UpdateUploadBulkRequest,
   DeleteUploadRequest,
   DeleteUploadBulkRequest,
-} from '@/schemas/api/uploads/upload-requests'
+} from '@/schemas/services/uploads/upload-requests'
 import {
   CreateUploadResponse,
   CreateUploadBulkResponse,
@@ -21,7 +21,7 @@ import {
   UpdateUploadBulkResponse,
   DeleteUploadResponse,
   DeleteUploadBulkResponse,
-} from '@/schemas/api/uploads/upload-responses'
+} from '@/schemas/services/uploads/upload-responses'
 import { withTransaction } from '@/utils/withTransaction'
 import {
   DatabaseError,

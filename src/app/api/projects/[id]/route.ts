@@ -7,11 +7,16 @@ import {
   validatePathParams,
   withAuthAndValidationWithParams,
 } from '@/lib/validation-middleware'
-import { idParamSchema, IdParamSchema } from '@/schemas/api/general'
 import {
-  UpdateProjectRequest,
-  updateProjectRequestSchema,
+  UpdateProjectRequestApi,
+  updateProjectRequestApiSchema,
 } from '@/schemas/api/projects/project-requests'
+import {
+  DeleteProjectResponseApi,
+  GetProjectResponseApi,
+  UpdateProjectResponseApi,
+} from '@/schemas/api/projects/project-responses'
+import { idParamSchema, IdParamSchema } from '@/schemas/general'
 
 async function getProject(
   request: AuthenticatedRequest,
@@ -31,14 +36,21 @@ async function getProject(
       data: { projectId: new Types.ObjectId(projectId), userId },
     })
 
-    return sendApiSuccessResponse(project.data, 'Project fetched successfully', request)
+    return sendApiSuccessResponse<GetProjectResponseApi['data']>(
+      {
+        ...project.data,
+        _id: project.data._id.toString(),
+      },
+      'Project fetched successfully',
+      request
+    )
   } catch (error: unknown) {
     return sendApiErrorResponse(error, request, { operation: 'fetch', resource: 'project' })
   }
 }
 
 async function updateProject(
-  request: AuthenticatedValidationRequest<UpdateProjectRequest>,
+  request: AuthenticatedValidationRequest<UpdateProjectRequestApi>,
   context: { params: Promise<IdParamSchema> }
 ) {
   try {
@@ -50,7 +62,14 @@ async function updateProject(
       data: { projectId: new Types.ObjectId(projectId), updates, userId },
     })
 
-    return sendApiSuccessResponse(editedProject.data, 'Project updated successfully', request)
+    return sendApiSuccessResponse<UpdateProjectResponseApi['data']>(
+      {
+        ...editedProject.data,
+        _id: editedProject.data._id.toString(),
+      },
+      'Project updated successfully',
+      request
+    )
   } catch (error: unknown) {
     return sendApiErrorResponse(error, request, { operation: 'update', resource: 'project' })
   }
@@ -68,14 +87,21 @@ export async function deleteProject(
       data: { projectId: new Types.ObjectId(projectId), userId },
     })
 
-    return sendApiSuccessResponse(result.data, 'Project deleted successfully', request)
+    return sendApiSuccessResponse<DeleteProjectResponseApi['data']>(
+      {
+        ...result.data,
+        _id: result.data._id.toString(),
+      },
+      'Project deleted successfully',
+      request
+    )
   } catch (error: unknown) {
     return sendApiErrorResponse(error, request, { operation: 'delete', resource: 'project' })
   }
 }
 
 export const GET = withAuthAndDBParams(getProject)
-export const PATCH = withAuthAndValidationWithParams(updateProjectRequestSchema, updateProject, {
+export const PATCH = withAuthAndValidationWithParams(updateProjectRequestApiSchema, updateProject, {
   method: 'json',
 })
 export const DELETE = withAuthAndDBParams(deleteProject)

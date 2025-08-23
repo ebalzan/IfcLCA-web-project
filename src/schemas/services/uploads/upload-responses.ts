@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import IUploadDB from '@/interfaces/uploads/IUploadDB'
-import { defaultResponseSchema, paginationResponseSchema } from '../general'
+import { defaultResponseSchema, paginationResponseSchema } from '../../general'
 
 // Create upload types
 export const createUploadResponseSchema = defaultResponseSchema(

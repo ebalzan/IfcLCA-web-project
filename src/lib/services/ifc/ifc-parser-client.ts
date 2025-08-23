@@ -1,6 +1,6 @@
 import { Types } from 'mongoose'
 import { logger } from '@/lib/logger'
-import { ParseIFCFileRequest, ParseIFCFileResponse } from '@/schemas/api/ifc'
+import { ParseIFCFileRequest, ParseIFCFileResponse } from '@/schemas/services/ifc'
 import { withTransaction } from '@/utils/withTransaction'
 import { IFCProcessingService } from './ifc-processing-service'
 // import { parseIfcWithWasm } from './ifc-wasm-parser'
@@ -61,7 +61,6 @@ export async function parseIFCFile({
       // Get all materials
       const materials = await MaterialService.getMaterialBulk({
         data: {
-          materialIds: [],
           projectId,
           pagination: { page: 1, size: materialCount },
         },

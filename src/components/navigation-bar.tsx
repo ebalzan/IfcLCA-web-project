@@ -49,7 +49,7 @@ import { useGetProjectWithNestedDataBulk } from '@/hooks/projects/use-project-op
 import { useDebounce } from '@/hooks/use-debounce'
 import { IProjectClient } from '@/interfaces/client/projects/IProjectClient'
 import { api } from '@/lib/fetch'
-import { SearchResult } from '@/schemas/api/projects/search'
+import { SearchResult } from '@/schemas/services/projects/search'
 import { cn } from '@/utils/cn'
 
 interface Notification {
