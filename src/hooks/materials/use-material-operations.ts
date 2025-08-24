@@ -30,8 +30,6 @@ export const useGetMaterial = (materialId: string) => {
 export const useGetMaterialBulk = (projectId?: string) => {
   const queryParams = projectId ? `?projectId=${projectId}` : ''
 
-  console.log('QUERY PARAMS', queryParams)
-
   return useTanStackInfiniteQuery<GetMaterialBulkResponseApi, IMaterialClient[]>(
     `/api/materials${queryParams}`,
     {

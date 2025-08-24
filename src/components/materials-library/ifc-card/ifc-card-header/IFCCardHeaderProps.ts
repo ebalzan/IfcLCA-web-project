@@ -1,4 +1,4 @@
-export interface MaterialsLibraryIFCBoxHeaderProps {
+export interface IFCCardHeaderProps {
   materialsCount: number
   matchingProgress: {
     matchedCount: number

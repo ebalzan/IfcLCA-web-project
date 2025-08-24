@@ -5,7 +5,7 @@ import { MaterialLibraryComponent } from '@/components/materials-library'
 export default function MaterialsLibraryPage() {
   return (
     <div className="main-container">
-      <div className="page-header mb-4">
+      <div className="page-header m-0">
         <div>
           <h1 className="page-title">Material Library</h1>
           <p className="page-description">

@@ -15,16 +15,16 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { MaterialsLibraryIFCBoxCardProps } from './MaterialsLibraryIFCBoxCardProps'
+import { IFCCardItemProps } from './IFCCardItemProps'
 
-export function MaterialsLibraryIFCBoxCard({
+export function IFCCardItem({
   material,
   isTemporaryMatch,
   autoSuggestedMatch,
   onUnmatch,
   onDelete,
   onAcceptSuggestion,
-}: MaterialsLibraryIFCBoxCardProps) {
+}: IFCCardItemProps) {
   return (
     <div
       className={`
@@ -37,7 +37,7 @@ export function MaterialsLibraryIFCBoxCard({
             ? 'animate-in zoom-in-95 duration-500 ease-spring slide-in-from-left-5'
             : ''
         }
-        rounded-md my-2
+        rounded-md
       `}>
       {/* Match overlay */}
       {isTemporaryMatch && (

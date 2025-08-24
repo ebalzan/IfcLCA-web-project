@@ -1,4 +1,4 @@
-import { AutoSuggestedMatch } from '@/components/materials-library/materials-library-ifc-box/materials-library-ifc-box-card/AutoSuggestedMatch'
+import { AutoSuggestedMatch } from '@/components/materials-library/ifc-card/ifc-card-item/AutoSuggestedMatch'
 import { IEC3Match } from '@/interfaces/materials/IEC3Match'
 
 export interface MaterialsLibraryStoreState {
@@ -6,4 +6,7 @@ export interface MaterialsLibraryStoreState {
   temporaryMatches: Omit<IEC3Match, '_id'>[]
   isOpenConfirmMatchesModal: boolean
   autoSuggestedMatches: AutoSuggestedMatch[]
+  ifcSearchValue: string
+  ec3SearchValue: string
+  isAutoScrollEnabled: boolean
 }

@@ -4,8 +4,8 @@ import { Queries } from '@/queries'
 import { useMaterialsLibraryStore } from './materials-library-store'
 
 export function useEC3Search() {
-  const { searchValue, setSearchValue } = useMaterialsLibraryStore()
-  const shouldSearch = searchValue.trim().length >= 2
+  const { ec3SearchValue, setEc3SearchValue } = useMaterialsLibraryStore()
+  const shouldSearch = ec3SearchValue.trim().length >= 2
 
   const {
     data: searchResults,
@@ -14,9 +14,9 @@ export function useEC3Search() {
     error: searchError,
     isError,
   } = useTanStackQuery<SearchEC3Response>(
-    `/api/materials/ec3/search?query=${encodeURIComponent(searchValue)}`,
+    `/api/materials/ec3/search?query=${encodeURIComponent(ec3SearchValue)}`,
     {
-      queryKey: [Queries.SEARCH_EC3, searchValue],
+      queryKey: [Queries.SEARCH_EC3, ec3SearchValue],
       enabled: shouldSearch,
       staleTime: 5 * 60 * 1000, // Cache results for 5 minutes
       retry: 2,
@@ -30,9 +30,9 @@ export function useEC3Search() {
 
   // Additional filtering can be done here if needed
   const filteredProducts = useMemo(() => {
-    if (!searchValue.trim() || !products.length) return products
+    if (!ec3SearchValue.trim() || !products.length) return products
 
-    const searchTermLower = searchValue.toLowerCase()
+    const searchTermLower = ec3SearchValue.toLowerCase()
     return products.filter(
       product =>
         product.name.toLowerCase().includes(searchTermLower) ||
@@ -40,14 +40,14 @@ export function useEC3Search() {
         product.category?.toLowerCase().includes(searchTermLower) ||
         product.description?.toLowerCase().includes(searchTermLower)
     )
-  }, [products, searchValue])
+  }, [products, ec3SearchValue])
 
   // Handle search term changes
   const handleSearchTermChange = useCallback(
     (value: string) => {
-      setSearchValue(value)
+      setEc3SearchValue(value)
     },
-    [setSearchValue]
+    [setEc3SearchValue]
   )
 
   // Manual search trigger (useful for search buttons)
@@ -59,8 +59,8 @@ export function useEC3Search() {
 
   // Clear search results
   const handleClearSearch = useCallback(() => {
-    setSearchValue('')
-  }, [setSearchValue])
+    setEc3SearchValue('')
+  }, [setEc3SearchValue])
 
   // Find best match for a specific material name
   const findBestMatch = useCallback(async (materialName: string) => {
@@ -79,13 +79,13 @@ export function useEC3Search() {
       displayed: filteredProducts.length,
       hasMore: searchResults?.hasMore || false,
       hasResults: filteredProducts.length > 0,
-      hasSearchTerm: searchValue.trim().length > 0,
+      hasSearchTerm: ec3SearchValue.trim().length > 0,
     }
-  }, [searchResults, filteredProducts, searchValue])
+  }, [searchResults, filteredProducts, ec3SearchValue])
 
   return {
     // State
-    searchValue,
+    ec3SearchValue,
     products,
     filteredProducts,
     isSearching,

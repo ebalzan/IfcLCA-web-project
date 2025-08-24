@@ -6,32 +6,23 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { EC3CardHeaderProps } from './EC3CardHeaderProps'
 
-interface EC3HeaderProps {
-  productsCount: number
-  searchTerm: string
-  isSearching: boolean
-  autoScrollEnabled: boolean
-  onSearchTermChange: (value: string) => void
-  onSearch: () => void
-  onAutoScrollChange: (enabled: boolean) => void
-}
-
-export function EC3Header({
-  productsCount,
+export function EC3CardHeader({
+  materialsCount,
   searchTerm,
   isSearching,
-  autoScrollEnabled,
+  isAutoScrollEnabled,
   onSearchTermChange,
   onSearch,
-  onAutoScrollChange,
-}: EC3HeaderProps) {
+  onIsAutoScrollEnabledChange,
+}: EC3CardHeaderProps) {
   return (
     <div className="p-4 border-b bg-secondary/10 flex-shrink-0">
       <div className="flex items-center justify-between mb-2">
         <h3 className="font-semibold flex items-center gap-2">
           <span>EC3 Materials Database</span>
-          <Badge variant="outline">{productsCount} materials</Badge>
+          <Badge variant="outline">{materialsCount} materials</Badge>
         </h3>
         <div className="flex items-center gap-2">
           <Label htmlFor="auto-scroll" className="text-sm text-muted-foreground">
@@ -39,8 +30,8 @@ export function EC3Header({
           </Label>
           <Switch
             id="auto-scroll"
-            checked={autoScrollEnabled}
-            onCheckedChange={onAutoScrollChange}
+            checked={isAutoScrollEnabled}
+            onCheckedChange={onIsAutoScrollEnabledChange}
           />
         </div>
       </div>

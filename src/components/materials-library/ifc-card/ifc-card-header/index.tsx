@@ -3,17 +3,17 @@
 import { MagnifyingGlassIcon } from '@radix-ui/react-icons'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { MaterialsLibraryIFCBoxHeaderProps } from './MaterialsLibraryIFCBoxHeaderProps'
+import { IFCCardHeaderProps } from './IFCCardHeaderProps'
 
-export function MaterialsLibraryIFCBoxHeader({
+export function IFCCardHeader({
   materialsCount,
   matchingProgress,
   searchValue,
   onSearchChange,
-}: MaterialsLibraryIFCBoxHeaderProps) {
+}: IFCCardHeaderProps) {
   return (
-    <div className="border-b bg-secondary/10 flex-shrink-0">
-      <div className="flex items-center justify-between mb-2">
+    <div className="flex flex-col gap-2 p-4 border-b">
+      <div className="flex items-center justify-between">
         <h3 className="font-semibold flex items-center gap-2">
           <span>IFC Materials</span>
           {matchingProgress.matchedCount > 0 && (
@@ -43,7 +43,7 @@ export function MaterialsLibraryIFCBoxHeader({
         </div>
       </div>
 
-      <p className="text-sm text-muted-foreground mb-3">
+      <p className="text-sm text-muted-foreground mb-2">
         {materialsCount > 0
           ? `Select an EC3 material to match with ${materialsCount} selected materials`
           : 'Select materials from the left to match them with EC3 materials'}

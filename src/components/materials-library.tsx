@@ -1,6 +1,5 @@
 'use client'
 
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import {
   Select,
   SelectContent,
@@ -11,35 +10,24 @@ import {
 import { useMaterialsLibraryStore } from '@/hooks/materials/materials-library/materials-library-store'
 import { useGetMaterialBulk } from '@/hooks/materials/use-material-operations'
 import { useGetProjectWithNestedDataBulk } from '@/hooks/projects/use-project-operations'
-import { MaterialsLibraryIFCBox } from './materials-library/materials-library-ifc-box'
+import { EC3Card } from './materials-library/ec3-card'
+import { IFCCard } from './materials-library/ifc-card'
 import { LoadingSpinner } from './ui/loading-spinner'
 
 export function MaterialLibraryComponent() {
-  const { selectedProject, setSelectedProject } = useMaterialsLibraryStore()
+  const {
+    selectedProject,
+    setSelectedProject,
+    ifcSearchValue,
+    setIfcSearchValue,
+    ec3SearchValue,
+    setEc3SearchValue,
+  } = useMaterialsLibraryStore()
   const { data: projectsWithNestedData } = useGetProjectWithNestedDataBulk()
 
   const { data: materialsData, isLoading: isMaterialsLoading } = useGetMaterialBulk(
     selectedProject === 'all' ? undefined : selectedProject
   )
-  console.log('SELECTED PROJECT', selectedProject)
-
-  // const {
-  //   selectedMaterials,
-  //   materialsCount,
-  //   selectedProject,
-  //   searchValue,
-  //   filteredMaterials,
-  //   setSelectedProject,
-  //   setSearchValue,
-  //   updateMaterials,
-  //   temporaryMatches,
-  //   isMatchingInProgress,
-  //   previewChanges,
-  //   isOpenMaterialChangesModal,
-  //   autoSuggestedMatches,
-  //   getMatchingProgress,
-  //   cancelMatch,
-  // } = useMaterialsLibraryStore()
 
   // const {
   //   acceptMatchWithConfetti,
@@ -146,8 +134,6 @@ export function MaterialLibraryComponent() {
   //   )
   // }
 
-  // console.log(materialsData)
-
   if (isMaterialsLoading) {
     return <LoadingSpinner />
   }
@@ -162,7 +148,7 @@ export function MaterialLibraryComponent() {
 
   return (
     <div className="flex gap-6 flex-col">
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-end gap-4">
         <Select value={selectedProject || 'all'} onValueChange={setSelectedProject}>
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Filter by Project" />
@@ -187,23 +173,21 @@ export function MaterialLibraryComponent() {
               )}
             </div> */}
       </div>
-      <div className="flex-1 items-center gap-6">
-        <Card className="h-full flex flex-col overflow-hidden">
-          <CardHeader>
-            <MaterialsLibraryIFCBox.Header
-              materialsCount={materialsData.length}
-              matchingProgress={{
-                matchedCount: 0,
-                percentage: 0,
-              }}
-              searchValue={''}
-              onSearchChange={() => {}}
-            />
-          </CardHeader>
+      <div className="flex gap-6">
+        <IFCCard.Root>
+          <IFCCard.Header
+            materialsCount={materialsData.length}
+            matchingProgress={{
+              matchedCount: 0,
+              percentage: 0,
+            }}
+            searchValue={ifcSearchValue}
+            onSearchChange={setIfcSearchValue}
+          />
 
-          <CardContent className="flex-1 p-6 min-h-0">
+          <IFCCard.Content>
             {materialsData.map(material => (
-              <MaterialsLibraryIFCBox.Card
+              <IFCCard.Item
                 key={material._id}
                 material={material}
                 isTemporaryMatch={false}
@@ -213,83 +197,36 @@ export function MaterialLibraryComponent() {
                 onAcceptSuggestion={() => {}}
               />
             ))}
-          </CardContent>
+          </IFCCard.Content>
+        </IFCCard.Root>
 
-          {/* <MaterialsLibraryIFCBox.Card /> */}
+        <EC3Card.Root>
+          <EC3Card.Header
+            productsCount={0}
+            searchTerm={ec3SearchValue}
+            isSearching={false}
+            autoScrollEnabled={false}
+            onSearchTermChange={setEc3SearchValue}
+            onSearch={() => {}}
+            onAutoScrollChange={() => {}}
+          />
 
-          {/* <CardContent className="flex-1 p-6 min-h-0">
-        <div className="grid grid-cols-2 gap-6 h-full">
-          // Left Box - IFC Materials Box
-          <div className="flex flex-col border rounded-lg overflow-hidden h-full">
-            <MaterialsLibraryIFCBox.Header
-              materialsCount={materialsCount}
-              matchingProgress={matchingProgress}
-              searchValue={searchValue}
-              onSearchChange={setSearchValue}
-              onPreviewChanges={showPreviewChanges}
-              unappliedMatchesCount={unappliedMatchesCount}
-            />
-
-            <div className="flex-1 overflow-y-auto min-h-0">
-              <div className="divide-y divide-transparent px-2">
-                {filteredMaterials.map(filteredMaterial => (
-                  <MaterialsLibraryIFCBox.Card
-                    key={filteredMaterial._id}
-                    material={filteredMaterial}
-                    isSelected={isSelected(filteredMaterial)}
-                    temporaryMatch={
-                      temporaryMatches[filteredMaterial._id]
-                        ? products.find(p => p.id === temporaryMatches[filteredMaterial._id]) ||
-                          null
-                        : null
-                    }
-                    autoSuggestedMatch={autoSuggestedMatches[filteredMaterial._id] || null}
-                    onSelect={handleMaterialSelect}
-                    onMatch={() =>
-                      acceptMatchWithConfetti(
-                        filteredMaterial.ec3MatchId?._id.toString() || '',
-                        filteredMaterial._id
-                      )
-                    }
-                    // onDelete={handleDeleteMaterial}
-                    onAcceptSuggestion={handleAcceptSuggestion}
-                  />
-                ))}
-              </div>
+          <EC3Card.Content>
+            <div className="p-2 divide-y">
+              {/* {materialsData.map(product => (
+                <EC3Card.Item
+                  key={product._id}
+                  material={product}
+                  isSelectable={false}
+                  onSelect={() => {}}
+                />
+              ))} */}
             </div>
-          </div>
-          // Right Box - OpenEPD Products
-          <div className="flex flex-col border rounded-lg overflow-hidden h-full">
-            <EC3Header
-              productsCount={products.length}
-              searchTerm={searchValue}
-              isSearching={isSearching}
-              autoScrollEnabled={autoScrollEnabled}
-              onSearchTermChange={handleSearchTermChange}
-              onSearch={handleSearch}
-              onAutoScrollChange={setAutoScrollEnabled}
-            />
+          </EC3Card.Content>
+        </EC3Card.Root>
 
-            <div className="flex-1 overflow-y-auto min-h-0" ref={ec3ListRef}>
-              <div className="divide-y">
-                {filteredProducts.map(product => (
-                  <EC3ProductCard
-                    key={product.id}
-                    product={product}
-                    isFavorite={favoriteProducts.includes(product.id)}
-                    isSelectable={selectedMaterialIds.length > 0}
-                    onSelect={handleEC3Select}
-                    // onToggleFavorite={handleToggleFavorite}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </CardContent> */}
-
-          {/* Preview Modal */}
-          {/* <MaterialChangesPreviewModal
+        {/* Preview Modal */}
+        {/* <MaterialChangesPreviewModal
         changes={previewChanges}
         isOpen={isOpenMaterialChangesModal}
         onClose={cancelMatch}
@@ -297,7 +234,6 @@ export function MaterialLibraryComponent() {
         onNavigateToProject={() => {}}
         isLoading={isMatchingInProgress}
       /> */}
-        </Card>
       </div>
     </div>
   )

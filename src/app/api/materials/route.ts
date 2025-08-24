@@ -63,7 +63,7 @@ async function getMaterialBulk(request: AuthenticatedRequest) {
       data: {
         pagination: {
           page: 1,
-          size: 10,
+          size: 50,
         },
       },
     })
@@ -76,12 +76,20 @@ async function getMaterialBulk(request: AuthenticatedRequest) {
       })
     }
 
-    const material = await MaterialService.getMaterialBulk({
-      data: {
-        projectId: projectId ? new Types.ObjectId(projectId) : undefined,
-        pagination: { page, size },
-      },
-    })
+    const material = await MaterialService.getMaterialBulk(
+      projectId
+        ? {
+            data: {
+              projectId: new Types.ObjectId(projectId),
+              pagination: { page, size },
+            },
+          }
+        : {
+            data: {
+              pagination: { page, size },
+            },
+          }
+    )
 
     // Convert ObjectIds to strings for API response
     const serializedData = {

@@ -10,6 +10,9 @@ const initialState: MaterialsLibraryStoreState = {
   temporaryMatches: [],
   isOpenConfirmMatchesModal: false,
   autoSuggestedMatches: [],
+  ifcSearchValue: '',
+  ec3SearchValue: '',
+  isAutoScrollEnabled: false,
 }
 
 export const useMaterialsLibraryStore = create<
@@ -23,6 +26,18 @@ export const useMaterialsLibraryStore = create<
         const newSelectedProject = projectId === 'all' ? 'all' : projectId
 
         set({ selectedProject: newSelectedProject })
+      },
+
+      setIfcSearchValue: (value: string) => {
+        set({ ifcSearchValue: value })
+      },
+
+      setEc3SearchValue: (value: string) => {
+        set({ ec3SearchValue: value })
+      },
+
+      setIsAutoScrollEnabled: (isAutoScrollEnabled: boolean) => {
+        set({ isAutoScrollEnabled })
       },
 
       confirmMatches: () => {

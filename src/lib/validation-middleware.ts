@@ -122,6 +122,41 @@ export const withValidation = <T>(
   }
 }
 
+// Deep merge utility function
+const deepMerge = (target: any, source: any): any => {
+  const result = { ...target }
+
+  for (const key in source) {
+    if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+      result[key] = deepMerge(result[key] || {}, source[key])
+    } else {
+      result[key] = source[key]
+    }
+  }
+
+  return result
+}
+
+// Map flat query parameters to nested structure based on common patterns
+const mapQueryParamsToNested = (searchParams: URLSearchParams): any => {
+  const result: any = {}
+
+  for (const [key, value] of searchParams) {
+    // Handle pagination parameters
+    if (key === 'page' || key === 'size' || key === 'limit') {
+      if (!result.data) result.data = {}
+      if (!result.data.pagination) result.data.pagination = {}
+      result.data.pagination[key] = parseInt(value, 10)
+    } else {
+      // All other parameters go into data
+      if (!result.data) result.data = {}
+      result.data[key] = value
+    }
+  }
+
+  return result
+}
+
 export const validateQueryParams = <T extends z.ZodSchema>(
   schema: T,
   request: NextRequest,
@@ -129,17 +164,9 @@ export const validateQueryParams = <T extends z.ZodSchema>(
 ): z.infer<T> => {
   const searchParams = request.nextUrl.searchParams
 
-  const queryObject: Record<string, string | number> = {}
+  const queryObject = mapQueryParamsToNested(searchParams)
 
-  for (const [key, value] of searchParams) {
-    if (key === 'page' || key === 'size' || key === 'limit') {
-      queryObject[key] = parseInt(value, 10)
-    } else {
-      queryObject[key] = value
-    }
-  }
-
-  const dataToValidate = defaults ? { ...defaults, ...queryObject } : queryObject
+  const dataToValidate = defaults ? deepMerge(defaults, queryObject) : queryObject
   return schema.parse(dataToValidate)
 }
 

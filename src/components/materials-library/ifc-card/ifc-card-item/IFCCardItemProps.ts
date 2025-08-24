@@ -1,7 +1,7 @@
 import { IMaterialClient } from '@/interfaces/client/materials/IMaterialClient'
 import { AutoSuggestedMatch } from './AutoSuggestedMatch'
 
-export interface MaterialsLibraryIFCBoxCardProps {
+export interface IFCCardItemProps {
   material: IMaterialClient
   isTemporaryMatch: boolean
   autoSuggestedMatch: AutoSuggestedMatch | null
