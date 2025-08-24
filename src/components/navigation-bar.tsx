@@ -526,7 +526,7 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
               setSelectedProjectId(null)
             }
           }}
-          onSuccess={(upload: { id: string }) => {
+          onSuccess={() => {
             setSelectedProjectId(null)
             router.push(`/projects/${selectedProjectId}`)
           }}

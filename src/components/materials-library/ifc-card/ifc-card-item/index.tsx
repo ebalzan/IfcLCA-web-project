@@ -30,7 +30,7 @@ export function IFCCardItem({
       className={`
         relative p-4 cursor-pointer
         transition-all duration-300 ease-out
-        hover:bg-secondary/5 hover:scale-[1.02] hover:z-10
+        hover:bg-secondary/10 hover:z-10
         group
         ${
           isTemporaryMatch
@@ -92,7 +92,7 @@ export function IFCCardItem({
             <h3 className="font-medium truncate">{material.name}</h3>
             {material.category && (
               <Badge variant="outline" className="shrink-0">
-                {material.category}
+                {material.category.name}
               </Badge>
             )}
           </div>

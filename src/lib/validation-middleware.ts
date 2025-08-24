@@ -143,7 +143,7 @@ const mapQueryParamsToNested = (searchParams: URLSearchParams): any => {
 
   for (const [key, value] of searchParams) {
     // Handle pagination parameters
-    if (key === 'page' || key === 'size' || key === 'limit') {
+    if (key === 'page' || key === 'size') {
       if (!result.data) result.data = {}
       if (!result.data.pagination) result.data.pagination = {}
       result.data.pagination[key] = parseInt(value, 10)

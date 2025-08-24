@@ -1,7 +1,6 @@
 'use client'
 
 import { MagnifyingGlassIcon, ReloadIcon } from '@radix-ui/react-icons'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -9,7 +8,6 @@ import { Switch } from '@/components/ui/switch'
 import { EC3CardHeaderProps } from './EC3CardHeaderProps'
 
 export function EC3CardHeader({
-  materialsCount,
   searchTerm,
   isSearching,
   isAutoScrollEnabled,
@@ -22,7 +20,6 @@ export function EC3CardHeader({
       <div className="flex items-center justify-between mb-2">
         <h3 className="font-semibold flex items-center gap-2">
           <span>EC3 Materials Database</span>
-          <Badge variant="outline">{materialsCount} materials</Badge>
         </h3>
         <div className="flex items-center gap-2">
           <Label htmlFor="auto-scroll" className="text-sm text-muted-foreground">

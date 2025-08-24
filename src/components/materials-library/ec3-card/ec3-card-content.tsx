@@ -1,5 +1,5 @@
 import { PropsWithChildren } from 'react'
 
 export function EC3CardContent({ children }: PropsWithChildren) {
-  return <div className="flex-1 overflow-y-auto min-h-0">{children}</div>
+  return <div className="flex-1 overflow-y-auto h-full py-4 custom-scrollbar">{children}</div>
 }

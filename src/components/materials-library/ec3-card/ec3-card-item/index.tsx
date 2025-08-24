@@ -20,8 +20,8 @@ export function EC3CardItem({ material, isSelectable, onSelect }: EC3CardItemPro
           </div>
 
           <div className="mt-1 space-y-1">
-            <p className="text-sm text-muted-foreground">Manufacturer: {material.manufacturer}</p>
-            <p className="text-sm text-muted-foreground">Category: {material.category}</p>
+            {/* <p className="text-sm text-muted-foreground">Manufacturer: {material.manufacturer}</p> */}
+            <p className="text-sm text-muted-foreground">Category: {material.category.name}</p>
             {material.gwp && (
               <p className="text-sm text-muted-foreground">
                 GWP: {material.gwp} kg CO₂-eq/{material.declaredUnit}

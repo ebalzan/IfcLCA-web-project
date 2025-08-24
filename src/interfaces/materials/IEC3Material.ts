@@ -2,7 +2,12 @@ export interface IEC3Material {
   id: string
   name: string
   manufacturer: string
-  category: string | null
+  category: {
+    id: string
+    name: string
+    description: string | null
+    declaredUnit: string | null
+  }
   description: string | null
   gwp: number | null // Global Warming Potential (kg CO2-eq)
   ubp: number | null // Environmental Damage Points

@@ -69,18 +69,18 @@ export const useTanStackInfiniteQuery = <TResponse, TTransformedData = TResponse
   url: string,
   options?: TanStackOptions &
     UseInfiniteQueryOptions<TResponse, Error, TTransformedData> & {
-      limit?: number
+      size?: number
     }
 ) => {
   const queryKey = options?.queryKey || [url]
-  const limit = options?.limit ?? 10
+  const size = options?.size ?? 50
 
   // Extract fetch-specific options, excluding TanStack-specific properties
   const {
     showErrorToast,
     showSuccessToast,
     successMessage,
-    limit: _limit,
+    size: _size,
     queryKey: _queryKey,
     queryFn: _queryFn,
     enabled: _enabled,
@@ -119,7 +119,7 @@ export const useTanStackInfiniteQuery = <TResponse, TTransformedData = TResponse
     queryKey,
     queryFn: async ({ pageParam = 1 }): Promise<TResponse> => {
       const separator = url.includes('?') ? '&' : '?'
-      const paginatedUrl = `${url}${separator}page=${pageParam}&limit=${limit}`
+      const paginatedUrl = `${url}${separator}page=${pageParam}&size=${size}`
       return api.get<TResponse>(paginatedUrl, fetchOptions)
     },
     getNextPageParam: options?.getNextPageParam || defaultGetNextPageParam,

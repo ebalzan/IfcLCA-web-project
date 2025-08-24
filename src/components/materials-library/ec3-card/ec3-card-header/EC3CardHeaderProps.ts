@@ -1,5 +1,4 @@
 export interface EC3CardHeaderProps {
-  materialsCount: number
   searchTerm: string
   isSearching: boolean
   isAutoScrollEnabled: boolean

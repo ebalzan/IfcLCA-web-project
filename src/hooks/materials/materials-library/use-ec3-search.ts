@@ -1,48 +1,52 @@
 import { useCallback, useMemo } from 'react'
-import { useTanStackQuery } from '@/hooks/use-tanstack-fetch'
+import { useTanStackInfiniteQuery } from '@/hooks/use-tanstack-fetch'
+import { IEC3Material } from '@/interfaces/materials/IEC3Material'
 import { Queries } from '@/queries'
+import { SearchMaterialsResponse } from '@/schemas/services/materials/search'
 import { useMaterialsLibraryStore } from './materials-library-store'
 
 export function useEC3Search() {
   const { ec3SearchValue, setEc3SearchValue } = useMaterialsLibraryStore()
-  const shouldSearch = ec3SearchValue.trim().length >= 2
+  const shouldSearch = ec3SearchValue.trim().length >= 4
 
   const {
     data: searchResults,
-    refetch: searchProducts,
+    refetch: searchMaterials,
     isLoading: isSearching,
     error: searchError,
     isError,
-  } = useTanStackQuery<SearchEC3Response>(
-    `/api/materials/ec3/search?query=${encodeURIComponent(ec3SearchValue)}`,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
+  } = useTanStackInfiniteQuery<SearchMaterialsResponse, IEC3Material[]>(
+    `/api/materials/search?${ec3SearchValue ? `name=${encodeURIComponent(ec3SearchValue.trim())}` : ''}`,
     {
       queryKey: [Queries.SEARCH_EC3, ec3SearchValue],
       enabled: shouldSearch,
-      staleTime: 5 * 60 * 1000, // Cache results for 5 minutes
+      staleTime: 5 * 60 * 1000,
       retry: 2,
+      select: data => {
+        return data.pages.flatMap(page => page.data.materials)
+      },
+      getNextPageParam: (lastPage, allPages, lastPageParam) =>
+        lastPage?.data?.pagination?.hasMore ? (lastPageParam as number) + 1 : undefined,
+      initialPageParam: 1,
     }
   )
 
-  // Memoized products from search results
-  const products = useMemo(() => {
-    return searchResults?.products || []
+  const EC3Materials = useMemo(() => {
+    try {
+      if (!searchResults || searchResults.length === 0) {
+        return []
+      }
+
+      return searchResults
+    } catch (error) {
+      console.error('Error processing EC3Materials:', error)
+      return []
+    }
   }, [searchResults])
 
-  // Additional filtering can be done here if needed
-  const filteredProducts = useMemo(() => {
-    if (!ec3SearchValue.trim() || !products.length) return products
-
-    const searchTermLower = ec3SearchValue.toLowerCase()
-    return products.filter(
-      product =>
-        product.name.toLowerCase().includes(searchTermLower) ||
-        product.manufacturer.toLowerCase().includes(searchTermLower) ||
-        product.category?.toLowerCase().includes(searchTermLower) ||
-        product.description?.toLowerCase().includes(searchTermLower)
-    )
-  }, [products, ec3SearchValue])
-
-  // Handle search term changes
   const handleSearchTermChange = useCallback(
     (value: string) => {
       setEc3SearchValue(value)
@@ -50,56 +54,33 @@ export function useEC3Search() {
     [setEc3SearchValue]
   )
 
-  // Manual search trigger (useful for search buttons)
   const handleSearch = useCallback(() => {
     if (shouldSearch) {
-      searchProducts()
+      searchMaterials()
     }
-  }, [shouldSearch, searchProducts])
+  }, [shouldSearch, searchMaterials])
 
-  // Clear search results
   const handleClearSearch = useCallback(() => {
     setEc3SearchValue('')
   }, [setEc3SearchValue])
 
-  // Find best match for a specific material name
-  const findBestMatch = useCallback(async (materialName: string) => {
-    try {
-      return await EC3Service.findBestMatch(materialName)
-    } catch (error) {
-      console.error('Error finding best match:', error)
-      return null
+  const handleLoadMore = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage()
     }
-  }, [])
-
-  // Search statistics
-  const searchStats = useMemo(() => {
-    return {
-      total: searchResults?.total || 0,
-      displayed: filteredProducts.length,
-      hasMore: searchResults?.hasMore || false,
-      hasResults: filteredProducts.length > 0,
-      hasSearchTerm: ec3SearchValue.trim().length > 0,
-    }
-  }, [searchResults, filteredProducts, ec3SearchValue])
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
   return {
-    // State
     ec3SearchValue,
-    products,
-    filteredProducts,
+    EC3Materials,
     isSearching,
     searchError,
     isError,
-    searchStats,
-
-    // Actions
-    handleSearch,
-    handleSearchTermChange,
-    handleClearSearch,
-    findBestMatch,
-
-    // Utilities
-    shouldSearch,
+    hasNextPage,
+    isFetchingNextPage,
+    handleEC3Search: handleSearch,
+    handleEC3SearchTermChange: handleSearchTermChange,
+    handleClearEC3Search: handleClearSearch,
+    handleLoadMore,
   }
 }

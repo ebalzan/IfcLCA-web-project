@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useMaterialsLibraryStore } from '@/hooks/materials/materials-library/materials-library-store'
+import { useEC3Search } from '@/hooks/materials/materials-library/use-ec3-search'
 import { useGetMaterialBulk } from '@/hooks/materials/use-material-operations'
 import { useGetProjectWithNestedDataBulk } from '@/hooks/projects/use-project-operations'
 import { EC3Card } from './materials-library/ec3-card'
@@ -15,19 +16,14 @@ import { IFCCard } from './materials-library/ifc-card'
 import { LoadingSpinner } from './ui/loading-spinner'
 
 export function MaterialLibraryComponent() {
-  const {
-    selectedProject,
-    setSelectedProject,
-    ifcSearchValue,
-    setIfcSearchValue,
-    ec3SearchValue,
-    setEc3SearchValue,
-  } = useMaterialsLibraryStore()
+  const { selectedProject, setSelectedProject, ifcSearchValue, setIfcSearchValue } =
+    useMaterialsLibraryStore()
   const { data: projectsWithNestedData } = useGetProjectWithNestedDataBulk()
-
   const { data: materialsData, isLoading: isMaterialsLoading } = useGetMaterialBulk(
     selectedProject === 'all' ? undefined : selectedProject
   )
+  const { ec3SearchValue, EC3Materials, isSearching, handleEC3Search, handleEC3SearchTermChange } =
+    useEC3Search()
 
   // const {
   //   acceptMatchWithConfetti,
@@ -35,15 +31,6 @@ export function MaterialLibraryComponent() {
   //   showPreviewChanges,
   //   confirmMatch,
   // } = useMaterialMatching()
-
-  // const {
-  //   // searchValue,
-  //   products,
-  //   isSearching,
-  //   filteredProducts,
-  //   handleSearch,
-  //   handleSearchTermChange,
-  // } = useEC3Search()
 
   // Local state
   // const [autoScrollEnabled, setAutoScrollEnabled] = useState<boolean>(true)
@@ -134,18 +121,6 @@ export function MaterialLibraryComponent() {
   //   )
   // }
 
-  if (isMaterialsLoading) {
-    return <LoadingSpinner />
-  }
-
-  if (!materialsData) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-gray-500">No materials found</p>
-      </div>
-    )
-  }
-
   return (
     <div className="flex gap-6 flex-col">
       <div className="flex justify-end gap-4">
@@ -176,7 +151,7 @@ export function MaterialLibraryComponent() {
       <div className="flex gap-6">
         <IFCCard.Root>
           <IFCCard.Header
-            materialsCount={materialsData.length}
+            materialsCount={materialsData?.length || 0}
             matchingProgress={{
               matchedCount: 0,
               percentage: 0,
@@ -186,42 +161,59 @@ export function MaterialLibraryComponent() {
           />
 
           <IFCCard.Content>
-            {materialsData.map(material => (
-              <IFCCard.Item
-                key={material._id}
-                material={material}
-                isTemporaryMatch={false}
-                autoSuggestedMatch={null}
-                onUnmatch={() => {}}
-                onDelete={() => {}}
-                onAcceptSuggestion={() => {}}
-              />
-            ))}
+            {isMaterialsLoading ? (
+              <div className="flex items-center justify-center h-full">
+                <LoadingSpinner />
+              </div>
+            ) : !materialsData ? (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-gray-500">No materials found</p>
+              </div>
+            ) : (
+              materialsData.map(material => (
+                <IFCCard.Item
+                  key={material._id}
+                  material={material}
+                  isTemporaryMatch={false}
+                  autoSuggestedMatch={null}
+                  onUnmatch={() => {}}
+                  onDelete={() => {}}
+                  onAcceptSuggestion={() => {}}
+                />
+              ))
+            )}
           </IFCCard.Content>
         </IFCCard.Root>
 
         <EC3Card.Root>
           <EC3Card.Header
-            productsCount={0}
             searchTerm={ec3SearchValue}
-            isSearching={false}
-            autoScrollEnabled={false}
-            onSearchTermChange={setEc3SearchValue}
-            onSearch={() => {}}
-            onAutoScrollChange={() => {}}
+            isSearching={isSearching}
+            isAutoScrollEnabled={false}
+            onSearchTermChange={handleEC3SearchTermChange}
+            onSearch={handleEC3Search}
+            onIsAutoScrollEnabledChange={() => {}}
           />
 
           <EC3Card.Content>
-            <div className="p-2 divide-y">
-              {/* {materialsData.map(product => (
+            {isSearching ? (
+              <div className="flex items-center justify-center h-full">
+                <LoadingSpinner />
+              </div>
+            ) : !EC3Materials ? (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-gray-500">No materials found</p>
+              </div>
+            ) : (
+              EC3Materials.map(ec3Material => (
                 <EC3Card.Item
-                  key={product._id}
-                  material={product}
+                  key={ec3Material.id}
+                  material={ec3Material}
                   isSelectable={false}
                   onSelect={() => {}}
                 />
-              ))} */}
-            </div>
+              ))
+            )}
           </EC3Card.Content>
         </EC3Card.Root>
 
