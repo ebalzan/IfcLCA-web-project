@@ -2,23 +2,28 @@
 
 import { MagnifyingGlassIcon } from '@radix-ui/react-icons'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { IFCCardHeaderProps } from './IFCCardHeaderProps'
 
 export function IFCCardHeader({
   materialsCount,
+  materialsSelectedCount,
   matchingProgress,
   searchValue,
   onSearchChange,
+  isSelectAllChecked,
+  onSelectAllCheckedChange,
 }: IFCCardHeaderProps) {
   return (
     <div className="flex flex-col gap-2 p-4 border-b">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold flex items-center gap-2">
           <span>IFC Materials</span>
-          {matchingProgress.matchedCount > 0 && (
+          {materialsSelectedCount > 0 && (
             <Badge variant="secondary" className="animate-in fade-in">
-              {matchingProgress.matchedCount} matched
+              {materialsSelectedCount} selected
             </Badge>
           )}
         </h3>
@@ -49,7 +54,7 @@ export function IFCCardHeader({
           : 'Select materials from the left to match them with EC3 materials'}
       </p>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 mb-2">
         <MagnifyingGlassIcon className="h-4 w-4 text-muted-foreground" />
         <Input
           placeholder="Search IFC materials"
@@ -57,6 +62,15 @@ export function IFCCardHeader({
           onChange={e => onSearchChange(e.target.value)}
           className="flex-1"
         />
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id="select-all"
+          checked={isSelectAllChecked}
+          onCheckedChange={onSelectAllCheckedChange}
+        />
+        <Label htmlFor="select-all">Select all</Label>
       </div>
     </div>
   )

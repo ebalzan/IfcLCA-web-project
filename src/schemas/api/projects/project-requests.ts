@@ -1,81 +1,77 @@
-import { Types } from 'mongoose'
 import { z } from 'zod'
 import IProjectDB from '@/interfaces/projects/IProjectDB'
-import { defaultRequestSchema, paginationRequestSchema } from '@/schemas/general'
+import { defaultRequestSchemaApi, defaultQuerySchema } from '@/schemas/general'
 
 // Create project
-export const createProjectRequestApiSchema = defaultRequestSchema(
-  z.object({
+export const createProjectRequestApiSchema = defaultRequestSchemaApi({
+  pathParams: z.object({}),
+  query: z.object({}),
+  data: z.object({
     project: z.custom<Omit<IProjectDB, '_id' | 'userId'>>(),
-    userId: z.string(),
-  })
-)
-export const createProjectBulkRequestApiSchema = defaultRequestSchema(
-  z.object({
+  }),
+})
+export const createProjectBulkRequestApiSchema = defaultRequestSchemaApi({
+  pathParams: z.object({}),
+  query: z.object({}),
+  data: z.object({
     projects: z.array(z.custom<Omit<IProjectDB, '_id' | 'userId'>>()),
-    userId: z.string(),
-  })
-)
+  }),
+})
 
 // Get project
-export const getProjectRequestApiSchema = defaultRequestSchema(
-  z.object({
-    projectId: z.string(),
-    userId: z.string(),
-  })
-)
-export const getProjectBulkRequestApiSchema = defaultRequestSchema(
-  z.object({
-    projectIds: z.array(z.string()),
-    userId: z.string(),
-    pagination: paginationRequestSchema,
-  })
-)
+export const getProjectRequestApiSchema = defaultRequestSchemaApi({
+  pathParams: z.object({ id: z.string() }),
+  query: z.object({}),
+  data: z.object({}),
+})
+export const getProjectBulkRequestApiSchema = defaultRequestSchemaApi({
+  pathParams: z.object({}),
+  query: defaultQuerySchema(z.object({})),
+  data: z.object({}),
+})
 
 // Get project with nested data
-export const getProjectWithNestedDataRequestApiSchema = defaultRequestSchema(
-  z.object({
-    projectId: z.string(),
-    userId: z.string(),
-  })
-)
-export const getProjectWithNestedDataBulkRequestApiSchema = defaultRequestSchema(
-  z.object({
-    projectIds: z.array(z.string()),
-    userId: z.string(),
-    pagination: paginationRequestSchema,
-  })
-)
+export const getProjectWithNestedDataRequestApiSchema = defaultRequestSchemaApi({
+  pathParams: z.object({ id: z.string() }),
+  query: z.object({}),
+  data: z.object({}),
+})
+export const getProjectWithNestedDataBulkRequestApiSchema = defaultRequestSchemaApi({
+  pathParams: z.object({}),
+  query: defaultQuerySchema(z.object({})),
+  data: z.object({}),
+})
 
 // Update project
-export const updateProjectRequestApiSchema = defaultRequestSchema(
-  z.object({
-    projectId: z.string(),
+export const updateProjectRequestApiSchema = defaultRequestSchemaApi({
+  pathParams: z.object({ id: z.string() }),
+  query: z.object({}),
+  data: z.object({
     updates: z.custom<Partial<Omit<IProjectDB, '_id' | 'userId'>>>(),
-    userId: z.string(),
-  })
-)
-export const updateProjectBulkRequestApiSchema = defaultRequestSchema(
-  z.object({
+  }),
+})
+export const updateProjectBulkRequestApiSchema = defaultRequestSchemaApi({
+  pathParams: z.object({}),
+  query: z.object({}),
+  data: z.object({
     projectIds: z.array(z.string()),
     updates: z.array(z.custom<Partial<Omit<IProjectDB, '_id' | 'userId'>>>()),
-    userId: z.string(),
-  })
-)
+  }),
+})
 
 // Delete project
-export const deleteProjectRequestApiSchema = defaultRequestSchema(
-  z.object({
-    projectId: z.string(),
-    userId: z.string(),
-  })
-)
-export const deleteProjectBulkRequestApiSchema = defaultRequestSchema(
-  z.object({
+export const deleteProjectRequestApiSchema = defaultRequestSchemaApi({
+  pathParams: z.object({ id: z.string() }),
+  query: z.object({}),
+  data: z.object({}),
+})
+export const deleteProjectBulkRequestApiSchema = defaultRequestSchemaApi({
+  pathParams: z.object({}),
+  query: z.object({}),
+  data: z.object({
     projectIds: z.array(z.string()),
-    userId: z.string(),
-  })
-)
+  }),
+})
 
 // Create project types
 export type CreateProjectRequestApi = z.infer<typeof createProjectRequestApiSchema>

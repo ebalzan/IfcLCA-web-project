@@ -1,17 +1,20 @@
 import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
 import { getUserId } from '@/lib/api-middleware'
 import { ProjectService } from '@/lib/services/project-service'
-import { AuthenticatedValidationRequest, withAuthAndValidation } from '@/lib/validation-middleware'
+import { withAuthAndDBValidation } from '@/lib/validation-middleware'
+import { AuthenticatedValidationRequest } from '@/lib/validation-middleware/types'
 import {
   CreateProjectRequestApi,
   createProjectRequestApiSchema,
 } from '@/schemas/api/projects/project-requests'
 import { CreateProjectResponseApi } from '@/schemas/api/projects/project-responses'
 
-async function createProject(request: AuthenticatedValidationRequest<CreateProjectRequestApi>) {
+async function createProject(
+  request: AuthenticatedValidationRequest<CreateProjectRequestApi['data']>
+) {
   try {
     const userId = getUserId(request)
-    const { project } = request.validatedData.data
+    const { project } = request.validatedData
 
     const result = await ProjectService.createProject({
       data: { project, userId },
@@ -30,6 +33,10 @@ async function createProject(request: AuthenticatedValidationRequest<CreateProje
   }
 }
 
-export const POST = withAuthAndValidation(createProjectRequestApiSchema, createProject, {
-  method: 'json',
+export const POST = withAuthAndDBValidation({
+  dataSchema: createProjectRequestApiSchema.shape.data,
+  handler: createProject,
+  options: {
+    method: 'json',
+  },
 })

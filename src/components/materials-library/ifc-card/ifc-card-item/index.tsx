@@ -19,8 +19,10 @@ import { IFCCardItemProps } from './IFCCardItemProps'
 
 export function IFCCardItem({
   material,
+  isSelected,
   isTemporaryMatch,
   autoSuggestedMatch,
+  onSelect,
   onUnmatch,
   onDelete,
   onAcceptSuggestion,
@@ -28,9 +30,10 @@ export function IFCCardItem({
   return (
     <div
       className={`
+        ${isSelected ? 'bg-primary/10' : 'hover:bg-secondary/30'}
         relative p-4 cursor-pointer
         transition-all duration-300 ease-out
-        hover:bg-secondary/10 hover:z-10
+        hover:z-10
         group
         ${
           isTemporaryMatch
@@ -38,7 +41,8 @@ export function IFCCardItem({
             : ''
         }
         rounded-md
-      `}>
+      `}
+      onClick={() => onSelect(material._id)}>
       {/* Match overlay */}
       {isTemporaryMatch && (
         <div className="absolute inset-0 bg-primary/5 animate-in fade-in duration-500 ease-spring">

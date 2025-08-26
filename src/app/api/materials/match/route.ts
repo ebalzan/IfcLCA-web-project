@@ -1,7 +1,8 @@
 import { Types } from 'mongoose'
 import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
 import { MaterialService } from '@/lib/services/material-service'
-import { AuthenticatedValidationRequest, withAuthAndValidation } from '@/lib/validation-middleware'
+import { withAuthAndDBValidation } from '@/lib/validation-middleware'
+import { AuthenticatedValidationRequest } from '@/lib/validation-middleware/types'
 import {
   CreateEC3BulkMatchRequestApi,
   createEC3BulkMatchRequestApiSchema,
@@ -9,20 +10,19 @@ import {
 import { CreateEC3BulkMatchResponseApi } from '@/schemas/api/materials/material-responses'
 
 async function createEC3BulkMatch(
-  request: AuthenticatedValidationRequest<CreateEC3BulkMatchRequestApi>
+  request: AuthenticatedValidationRequest<CreateEC3BulkMatchRequestApi['data']>
 ) {
   try {
-    const { materialIds, updates, projectId } = request.validatedData.data
+    const { materialIds, updates } = request.validatedData
 
     const results = await MaterialService.createEC3BulkMatch({
       data: {
         materialIds: materialIds.map(id => new Types.ObjectId(id)),
         updates: updates.map(update => ({
           ...update,
-          projectId: new Types.ObjectId(projectId),
+          projectId: new Types.ObjectId(update.projectId),
           uploadId: new Types.ObjectId(update.uploadId),
         })),
-        projectId: new Types.ObjectId(projectId),
       },
     })
 
@@ -40,6 +40,10 @@ async function createEC3BulkMatch(
   }
 }
 
-export const POST = withAuthAndValidation(createEC3BulkMatchRequestApiSchema, createEC3BulkMatch, {
-  method: 'json',
+export const POST = withAuthAndDBValidation({
+  dataSchema: createEC3BulkMatchRequestApiSchema.shape.data,
+  handler: createEC3BulkMatch,
+  options: {
+    method: 'json',
+  },
 })

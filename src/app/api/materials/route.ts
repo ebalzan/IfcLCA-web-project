@@ -1,17 +1,22 @@
 import { Types } from 'mongoose'
 import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
-import { AuthenticatedRequest, withAuthAndDB } from '@/lib/api-middleware'
+import { AuthenticatedRequest } from '@/lib/api-middleware'
 import { MaterialService } from '@/lib/services/material-service'
 import {
-  AuthenticatedValidationRequest,
-  validateQueryParams,
-  withAuthAndValidation,
+  withAuthAndDBQueryParams,
+  withAuthAndDBValidation,
+  withAuthAndDBValidationWithQueryParams,
 } from '@/lib/validation-middleware'
+import {
+  AuthenticatedValidationRequest,
+  ValidationContext,
+} from '@/lib/validation-middleware/types'
 import {
   CreateMaterialBulkRequestApi,
   createMaterialBulkRequestApiSchema,
   DeleteMaterialBulkRequestApi,
   deleteMaterialBulkRequestApiSchema,
+  GetMaterialBulkRequestApi,
   getMaterialBulkRequestApiSchema,
   UpdateMaterialBulkRequestApi,
   updateMaterialBulkRequestApiSchema,
@@ -19,15 +24,16 @@ import {
 import {
   CreateMaterialBulkResponseApi,
   DeleteMaterialBulkResponseApi,
-  GetMaterialBulkResponseApi,
   UpdateMaterialBulkResponseApi,
 } from '@/schemas/api/materials/material-responses'
 
 async function createMaterialBulk(
-  request: AuthenticatedValidationRequest<CreateMaterialBulkRequestApi>
+  request: AuthenticatedValidationRequest<CreateMaterialBulkRequestApi['data']>,
+  context: ValidationContext<never, CreateMaterialBulkRequestApi['query']>
 ) {
   try {
-    const { materials, projectId } = request.validatedData.data
+    const { materials } = request.validatedData
+    const { projectId } = context.query
 
     const materialsWithProjectId = materials.map(material => ({
       ...material,
@@ -57,18 +63,13 @@ async function createMaterialBulk(
   }
 }
 
-async function getMaterialBulk(request: AuthenticatedRequest) {
+async function getMaterialBulk(
+  request: AuthenticatedRequest,
+  context: ValidationContext<never, GetMaterialBulkRequestApi['query']>
+) {
   try {
-    const queryParams = validateQueryParams(getMaterialBulkRequestApiSchema, request, {
-      data: {
-        pagination: {
-          page: 1,
-          size: 50,
-        },
-      },
-    })
-    const { projectId } = queryParams.data
-    const { page, size } = queryParams.data.pagination
+    const { projectId, pagination } = context.query
+    const { page, size } = pagination
 
     if (projectId && !Types.ObjectId.isValid(projectId)) {
       return sendApiErrorResponse(new Error('Invalid project ID'), request, {
@@ -109,28 +110,21 @@ async function getMaterialBulk(request: AuthenticatedRequest) {
 }
 
 async function updateMaterialBulk(
-  request: AuthenticatedValidationRequest<UpdateMaterialBulkRequestApi>
+  request: AuthenticatedValidationRequest<UpdateMaterialBulkRequestApi['data']>
 ) {
   try {
-    const { materialIds, updates, projectId } = request.validatedData.data
-
-    if (!Types.ObjectId.isValid(projectId)) {
-      return sendApiErrorResponse(new Error('Invalid project ID'), request, {
-        resource: 'project',
-      })
-    }
+    const { materialIds, updates } = request.validatedData
 
     const updatesWithObjectId = updates.map(update => ({
       ...update,
       uploadId: new Types.ObjectId(update.uploadId),
-      projectId: new Types.ObjectId(projectId),
+      projectId: new Types.ObjectId(update.projectId),
     }))
 
     const results = await MaterialService.updateMaterialBulk({
       data: {
         materialIds: materialIds.map(id => new Types.ObjectId(id)),
         updates: updatesWithObjectId,
-        projectId: new Types.ObjectId(projectId),
       },
     })
 
@@ -150,21 +144,14 @@ async function updateMaterialBulk(
 }
 
 async function deleteMaterialBulk(
-  request: AuthenticatedValidationRequest<DeleteMaterialBulkRequestApi>
+  request: AuthenticatedValidationRequest<DeleteMaterialBulkRequestApi['data']>
 ) {
   try {
-    const { materialIds, projectId } = request.validatedData.data
-
-    if (!Types.ObjectId.isValid(projectId)) {
-      return sendApiErrorResponse(new Error('Invalid project ID'), request, {
-        resource: 'project',
-      })
-    }
+    const { materialIds } = request.validatedData
 
     const results = await MaterialService.deleteMaterialBulk({
       data: {
         materialIds: materialIds.map(id => new Types.ObjectId(id)),
-        projectId: new Types.ObjectId(projectId),
       },
     })
 
@@ -183,17 +170,29 @@ async function deleteMaterialBulk(
   }
 }
 
-export const POST = withAuthAndValidation(createMaterialBulkRequestApiSchema, createMaterialBulk, {
-  method: 'json',
-})
-export const GET = withAuthAndDB(getMaterialBulk)
-export const PUT = withAuthAndValidation(updateMaterialBulkRequestApiSchema, updateMaterialBulk, {
-  method: 'json',
-})
-export const DELETE = withAuthAndValidation(
-  deleteMaterialBulkRequestApiSchema,
-  deleteMaterialBulk,
-  {
+export const POST = withAuthAndDBValidationWithQueryParams({
+  dataSchema: createMaterialBulkRequestApiSchema.shape.data,
+  queryParamsSchema: createMaterialBulkRequestApiSchema.shape.query,
+  handler: createMaterialBulk,
+  options: {
     method: 'json',
-  }
-)
+  },
+})
+export const GET = withAuthAndDBQueryParams({
+  queryParamsSchema: getMaterialBulkRequestApiSchema.shape.query,
+  handler: getMaterialBulk,
+})
+export const PUT = withAuthAndDBValidation({
+  dataSchema: updateMaterialBulkRequestApiSchema.shape.data,
+  handler: updateMaterialBulk,
+  options: {
+    method: 'json',
+  },
+})
+export const DELETE = withAuthAndDBValidation({
+  dataSchema: deleteMaterialBulkRequestApiSchema.shape.data,
+  handler: deleteMaterialBulk,
+  options: {
+    method: 'json',
+  },
+})

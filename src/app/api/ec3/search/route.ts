@@ -4,33 +4,39 @@ import { AuthenticatedRequest, withAuthAndDB } from '@/lib/api-middleware'
 import { api } from '@/lib/fetch'
 import { validateQueryParams } from '@/lib/validation-middleware'
 import {
-  searchMaterialsRequestSchema,
-  SearchMaterialsResponse,
-} from '@/schemas/services/materials/search'
+  searchEC3MaterialsRequestSchemaApi,
+  SearchEC3MaterialsResponseApi,
+} from '@/schemas/api/ec3/search'
 
-async function searchMaterials(request: AuthenticatedRequest) {
+async function searchEC3Materials(request: AuthenticatedRequest) {
   try {
-    const queryParams = validateQueryParams(searchMaterialsRequestSchema, request, {
-      query: {
+    const queryParams = validateQueryParams(
+      searchEC3MaterialsRequestSchemaApi.shape.query,
+      request,
+      {
         sortBy: '+name',
-      },
-      pagination: {
-        page: 1,
-        size: 50,
-      },
-    })
+        pagination: {
+          page: 1,
+          size: 50,
+        },
+      }
+    )
 
-    const { query, pagination } = queryParams
+    if (!queryParams) {
+      return sendApiErrorResponse(new Error('Invalid query parameters'), request)
+    }
+
+    const { pagination, sortBy, name } = queryParams
     const { page, size } = pagination
 
     const params = new URLSearchParams()
 
-    if (query?.name?.trim()) {
-      params.set('name__like', query.name.trim())
+    if (sortBy?.trim()) {
+      params.set('sort_by', sortBy.trim())
     }
 
-    if (query?.sortBy?.trim()) {
-      params.set('sort_by', query.sortBy.trim())
+    if (name?.trim()) {
+      params.set('name__like', name.trim())
     }
 
     params.set('page_number', page.toString())
@@ -48,7 +54,7 @@ async function searchMaterials(request: AuthenticatedRequest) {
       }
     )
 
-    return sendApiSuccessResponse<SearchMaterialsResponse['data']>(
+    return sendApiSuccessResponse<SearchEC3MaterialsResponseApi['data']>(
       {
         materials: ec3Materials,
         pagination: {
@@ -67,4 +73,4 @@ async function searchMaterials(request: AuthenticatedRequest) {
   }
 }
 
-export const GET = withAuthAndDB(searchMaterials)
+export const GET = withAuthAndDB(searchEC3Materials)

@@ -26,12 +26,7 @@ import {
   GetProjectWithNestedDataResponse,
   GetProjectWithNestedDataBulkResponse,
 } from '@/schemas/services/projects/project-responses'
-import {
-  QueryConditions,
-  SearchProjectsRequest,
-  SearchProjectsResponse,
-  SortObject,
-} from '@/schemas/services/projects/search'
+import { SearchProjectsRequest, SearchProjectsResponse } from '@/schemas/services/projects/search'
 import { withTransaction } from '@/utils/withTransaction'
 import {
   DatabaseError,
@@ -901,61 +896,23 @@ export class ProjectService {
    * Search projects by name or description
    */
   static async searchProjects({
-    data: { userId, searchTerm, all, dateFrom, dateTo, sortBy, sortOrder, pagination },
+    data: { userId, name, sortBy, pagination },
     session,
   }: SearchProjectsRequest): Promise<SearchProjectsResponse> {
     try {
       const { page, size } = pagination
-
-      // Build query conditions with proper typing
-      const queryConditions: QueryConditions = {
-        userId,
-      }
-
-      // Add search condition if not fetching all projects and searchTerm is provided
-      if (!all && searchTerm && searchTerm.trim()) {
-        try {
-          queryConditions.$text = { $search: searchTerm }
-        } catch {
-          queryConditions.$or = [
-            { name: { $regex: searchTerm, $options: 'i' } },
-            { description: { $regex: searchTerm, $options: 'i' } },
-          ]
-        }
-      }
-
-      // Add date range filtering
-      if (dateFrom || dateTo) {
-        queryConditions.createdAt = {}
-        if (dateFrom) {
-          queryConditions.createdAt.$gte = new Date(dateFrom)
-        }
-        if (dateTo) {
-          queryConditions.createdAt.$lte = new Date(dateTo)
-        }
-      }
-
-      // Build sort object with proper typing
-      const sortObject: SortObject = {
-        [sortBy || 'name']: sortOrder === 'desc' ? -1 : 1,
-      }
-
-      // Calculate pagination
       const skip = (page - 1) * size
 
-      // Get total count for pagination
-      const total = await Project.countDocuments(queryConditions).session(session || null)
+      const total = await Project.countDocuments({ name, userId }).session(session || null)
 
-      // Get paginated results
-      const projects = await Project.find(queryConditions)
-        .select('name description _id userId indicators createdAt updatedAt')
-        .sort(sortObject)
+      const projects = await Project.find({ name, userId })
+        .select('name _id userId createdAt updatedAt')
+        .sort({ [sortBy || 'name']: 1 })
         .skip(skip)
         .limit(size)
         .session(session || null)
         .lean()
 
-      // Calculate pagination metadata
       const totalPages = Math.ceil(total / size)
       const hasMore = page < totalPages
 

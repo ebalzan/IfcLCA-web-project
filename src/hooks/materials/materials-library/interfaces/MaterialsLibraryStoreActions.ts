@@ -5,6 +5,8 @@ export interface MaterialsLibraryStoreActions {
   setIfcSearchValue: (value: string) => void
   setEc3SearchValue: (value: string) => void
   setIsAutoScrollEnabled: (isAutoScrollEnabled: boolean) => void
+  setSelectedMaterials: (materials: string[]) => void
+  setIsSelectAllChecked: (isSelectAllChecked: boolean) => void
   confirmMatches: () => void
   acceptMatch: (match: Omit<IEC3Match, '_id'>) => void
   acceptAllMatches: () => void

@@ -1,11 +1,6 @@
 import { Types } from 'mongoose'
 import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
 import { UploadService } from '@/lib/services/upload-service'
-import {
-  AuthenticatedValidationRequest,
-  validatePathParams,
-  withAuthAndValidationWithParams,
-} from '@/lib/validation-middleware'
 import { IdParamSchema, idParamSchema } from '@/schemas/general'
 import {
   DeleteUploadRequest,
@@ -15,14 +10,22 @@ import {
   UpdateUploadRequest,
   updateUploadRequestSchema,
 } from '@/schemas/services/uploads/upload-requests'
+import {
+  AuthenticatedValidationRequest,
+  ValidationContext,
+} from '@/lib/validation-middleware/types'
+import {
+  withAuthAndDBPathParams,
+  withAuthAndDBValidationWithPathParams,
+} from '@/lib/validation-middleware'
 
 async function getUpload(
   request: AuthenticatedValidationRequest<GetUploadRequest>,
-  context: { params: Promise<IdParamSchema> }
+  context: ValidationContext<{ id: string }, never>
 ) {
   try {
-    const { id: uploadId } = await validatePathParams(idParamSchema, context.params)
     const { projectId } = request.validatedData.data
+    const { id: uploadId } = await context.params
 
     if (!Types.ObjectId.isValid(uploadId)) {
       return sendApiErrorResponse(new Error('Invalid upload ID'), request, {
@@ -42,11 +45,11 @@ async function getUpload(
 
 async function updateUpload(
   request: AuthenticatedValidationRequest<UpdateUploadRequest>,
-  context: { params: Promise<IdParamSchema> }
+  context: ValidationContext<{ id: string }, never>
 ) {
   try {
-    const { id: uploadId } = await validatePathParams(idParamSchema, context.params)
     const { updates, projectId } = request.validatedData.data
+    const { id: uploadId } = await context.params
 
     if (!Types.ObjectId.isValid(uploadId)) {
       return sendApiErrorResponse(new Error('Invalid upload ID'), request, {
@@ -66,11 +69,11 @@ async function updateUpload(
 
 async function deleteUpload(
   request: AuthenticatedValidationRequest<DeleteUploadRequest>,
-  context: { params: Promise<IdParamSchema> }
+  context: ValidationContext<{ id: string }, never>
 ) {
   try {
-    const { id: uploadId } = await validatePathParams(idParamSchema, context.params)
     const { projectId } = request.validatedData.data
+    const { id: uploadId } = await context.params
 
     if (!Types.ObjectId.isValid(uploadId)) {
       return sendApiErrorResponse(new Error('Invalid upload ID'), request, {
@@ -88,12 +91,24 @@ async function deleteUpload(
   }
 }
 
-export const GET = withAuthAndValidationWithParams(getUploadRequestSchema, getUpload, {
-  method: 'json',
+export const GET = withAuthAndDBValidationWithPathParams({
+  dataSchema: getUploadRequestSchema.shape.data,
+  pathParamsSchema: idParamSchema,
+  handler: getUpload,
 })
-export const PUT = withAuthAndValidationWithParams(updateUploadRequestSchema, updateUpload, {
-  method: 'json',
+export const PUT = withAuthAndDBPathParams({
+  dataSchema: updateUploadRequestSchema.shape.data,
+  pathParamsSchema: idParamSchema,
+  handler: updateUpload,
+  options: {
+    method: 'json',
+  },
 })
-export const DELETE = withAuthAndValidationWithParams(deleteUploadRequestSchema, deleteUpload, {
-  method: 'json',
+export const DELETE = withAuthAndDBPathParams({
+  dataSchema: deleteUploadRequestSchema.shape.data,
+  pathParamsSchema: idParamSchema,
+  handler: deleteUpload,
+  options: {
+    method: 'json',
+  },
 })

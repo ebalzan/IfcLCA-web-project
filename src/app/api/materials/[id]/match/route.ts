@@ -1,25 +1,24 @@
 import { Types } from 'mongoose'
 import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
 import { MaterialService } from '@/lib/services/material-service'
+import { withAuthAndDBValidationWithQueryParams } from '@/lib/validation-middleware'
 import {
   AuthenticatedValidationRequest,
-  validatePathParams,
-  withAuthAndValidationWithParams,
-} from '@/lib/validation-middleware'
+  ValidationContext,
+} from '@/lib/validation-middleware/types'
 import {
   CreateEC3MatchRequestApi,
   createEC3MatchRequestApiSchema,
 } from '@/schemas/api/materials/material-requests'
 import { CreateEC3MatchResponseApi } from '@/schemas/api/materials/material-responses'
-import { idParamSchema, IdParamSchema } from '@/schemas/general'
 
 async function createEC3Match(
-  request: AuthenticatedValidationRequest<CreateEC3MatchRequestApi>,
-  context: { params: Promise<IdParamSchema> }
+  request: AuthenticatedValidationRequest<CreateEC3MatchRequestApi['data']>,
+  context: ValidationContext<never, CreateEC3MatchRequestApi['query']>
 ) {
   try {
-    const { id: materialId } = await validatePathParams(idParamSchema, context.params)
-    const { updates } = request.validatedData.data
+    const { materialId } = context.query
+    const { updates } = request.validatedData
 
     if (!Types.ObjectId.isValid(materialId)) {
       return sendApiErrorResponse(new Error('Invalid material ID'), request, {
@@ -71,10 +70,11 @@ async function createEC3Match(
   }
 }
 
-export const POST = withAuthAndValidationWithParams(
-  createEC3MatchRequestApiSchema,
-  createEC3Match,
-  {
+export const POST = withAuthAndDBValidationWithQueryParams({
+  dataSchema: createEC3MatchRequestApiSchema.shape.data,
+  queryParamsSchema: createEC3MatchRequestApiSchema.shape.query,
+  handler: createEC3Match,
+  options: {
     method: 'json',
-  }
-)
+  },
+})

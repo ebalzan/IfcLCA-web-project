@@ -1,5 +1,6 @@
 'use client'
 
+import { useCallback, useEffect } from 'react'
 import {
   Select,
   SelectContent,
@@ -16,8 +17,16 @@ import { IFCCard } from './materials-library/ifc-card'
 import { LoadingSpinner } from './ui/loading-spinner'
 
 export function MaterialLibraryComponent() {
-  const { selectedProject, setSelectedProject, ifcSearchValue, setIfcSearchValue } =
-    useMaterialsLibraryStore()
+  const {
+    selectedProject,
+    setSelectedProject,
+    ifcSearchValue,
+    setIfcSearchValue,
+    setSelectedMaterials,
+    selectedMaterials,
+    isSelectAllChecked,
+    setIsSelectAllChecked,
+  } = useMaterialsLibraryStore()
   const { data: projectsWithNestedData } = useGetProjectWithNestedDataBulk()
   const { data: materialsData, isLoading: isMaterialsLoading } = useGetMaterialBulk(
     selectedProject === 'all' ? undefined : selectedProject
@@ -32,9 +41,30 @@ export function MaterialLibraryComponent() {
   //   confirmMatch,
   // } = useMaterialMatching()
 
+  const handleIFCMaterialSelect = useCallback(
+    (materialId: string) => {
+      const isAlreadySelected = selectedMaterials.some(id => id === materialId)
+      setSelectedMaterials(
+        isAlreadySelected
+          ? selectedMaterials.filter(id => id !== materialId)
+          : [...selectedMaterials, materialId]
+      )
+    },
+    [selectedMaterials, setSelectedMaterials]
+  )
+
+  const handleSelectAll = useCallback(() => {
+    setSelectedMaterials(
+      isSelectAllChecked ? [] : materialsData?.map(material => material._id) || []
+    )
+    setIsSelectAllChecked(!isSelectAllChecked)
+  }, [setSelectedMaterials, isSelectAllChecked, materialsData, setIsSelectAllChecked])
+
+  useEffect(() => {
+    setIsSelectAllChecked(selectedMaterials.length === (materialsData?.length || 0))
+  }, [selectedMaterials, materialsData, setIsSelectAllChecked])
+
   // Local state
-  // const [autoScrollEnabled, setAutoScrollEnabled] = useState<boolean>(true)
-  // const [favoriteProducts, setFavoriteProducts] = useState<string[]>([])
   // const ec3ListRef = useRef<HTMLDivElement>(null)
 
   // Update materials when projects data changes
@@ -108,19 +138,6 @@ export function MaterialLibraryComponent() {
   //   [autoScrollEnabled]
   // )
 
-  // // Loading and error states
-  // if (isProjectsWithStatsLoading) {
-  //   return <LoadingSpinner />
-  // }
-
-  // if (projectsWithStatsError) {
-  //   return (
-  //     <div className="flex items-center justify-center h-full">
-  //       <p className="text-red-500">Error loading materials library</p>
-  //     </div>
-  //   )
-  // }
-
   return (
     <div className="flex gap-6 flex-col">
       <div className="flex justify-end gap-4">
@@ -151,7 +168,10 @@ export function MaterialLibraryComponent() {
       <div className="flex gap-6">
         <IFCCard.Root>
           <IFCCard.Header
+            isSelectAllChecked={isSelectAllChecked}
+            onSelectAllCheckedChange={handleSelectAll}
             materialsCount={materialsData?.length || 0}
+            materialsSelectedCount={selectedMaterials.length}
             matchingProgress={{
               matchedCount: 0,
               percentage: 0,
@@ -174,6 +194,8 @@ export function MaterialLibraryComponent() {
                 <IFCCard.Item
                   key={material._id}
                   material={material}
+                  isSelected={selectedMaterials.includes(material._id)}
+                  onSelect={handleIFCMaterialSelect}
                   isTemporaryMatch={false}
                   autoSuggestedMatch={null}
                   onUnmatch={() => {}}
@@ -200,7 +222,7 @@ export function MaterialLibraryComponent() {
               <div className="flex items-center justify-center h-full">
                 <LoadingSpinner />
               </div>
-            ) : !EC3Materials ? (
+            ) : !EC3Materials || EC3Materials.length === 0 ? (
               <div className="flex items-center justify-center h-full">
                 <p className="text-gray-500">No materials found</p>
               </div>

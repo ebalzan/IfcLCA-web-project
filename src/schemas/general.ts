@@ -1,5 +1,6 @@
 import { ClientSession } from 'mongoose'
 import { z } from 'zod'
+import { DefaultRequest } from '@/interfaces/DefaultRequest'
 
 // ID param
 export const idParamSchema = z.object({
@@ -114,6 +115,18 @@ export const createFileValidationSchema = (options: {
 }
 
 // Default request schema
+export const defaultRequestSchemaApi = <PATHPARAMS, QUERY, DATA>({
+  pathParams,
+  query,
+  data,
+}: DefaultRequest<z.ZodSchema<PATHPARAMS>, z.ZodSchema<QUERY>, z.ZodSchema<DATA>>) => {
+  return z.object({
+    pathParams,
+    query,
+    data,
+  })
+}
+
 export const defaultRequestSchema = <T>(schema: z.ZodSchema<T>) =>
   z.object({
     data: schema,
@@ -128,6 +141,14 @@ export const defaultResponseSchema = <T>(schema: z.ZodSchema<T>) =>
     data: schema,
   })
 
+export const defaultQuerySchema = <T>(schema: z.ZodSchema<T>) =>
+  z.intersection(
+    schema,
+    z.object({
+      pagination: paginationRequestSchema,
+    })
+  )
+
 // ID param
 export type IdParamSchema = z.infer<typeof idParamSchema>
 
@@ -139,3 +160,6 @@ export type PaginationResponse = z.infer<typeof paginationResponseSchema>
 export type FileValidation = z.infer<typeof fileValidationSchema>
 export type IfcFileValidation = z.infer<typeof ifcFileValidationSchema>
 export type ImageFileValidation = z.infer<typeof imageFileValidationSchema>
+
+// Search request
+export type QueryRequest<T> = z.infer<ReturnType<typeof defaultQuerySchema<T>>>

@@ -1,13 +1,17 @@
 import { useCallback, useMemo } from 'react'
+import { useDebounce } from '@/hooks/use-debounce'
 import { useTanStackInfiniteQuery } from '@/hooks/use-tanstack-fetch'
 import { IEC3Material } from '@/interfaces/materials/IEC3Material'
 import { Queries } from '@/queries'
-import { SearchMaterialsResponse } from '@/schemas/services/materials/search'
+import { SearchMaterialsResponse } from '@/schemas/api/ec3/search'
 import { useMaterialsLibraryStore } from './materials-library-store'
 
 export function useEC3Search() {
   const { ec3SearchValue, setEc3SearchValue } = useMaterialsLibraryStore()
-  const shouldSearch = ec3SearchValue.trim().length >= 4
+  const debouncedSearchValue = useDebounce(ec3SearchValue, 1000)
+
+  // Always enable the query to fetch initial materials
+  const shouldSearch = true
 
   const {
     data: searchResults,
@@ -19,9 +23,9 @@ export function useEC3Search() {
     fetchNextPage,
     isFetchingNextPage,
   } = useTanStackInfiniteQuery<SearchMaterialsResponse, IEC3Material[]>(
-    `/api/materials/search?${ec3SearchValue ? `name=${encodeURIComponent(ec3SearchValue.trim())}` : ''}`,
+    `/api/materials/search${debouncedSearchValue ? `?name=${encodeURIComponent(debouncedSearchValue.trim())}` : ''}`,
     {
-      queryKey: [Queries.SEARCH_EC3, ec3SearchValue],
+      queryKey: [Queries.SEARCH_EC3, debouncedSearchValue],
       enabled: shouldSearch,
       staleTime: 5 * 60 * 1000,
       retry: 2,
@@ -55,10 +59,8 @@ export function useEC3Search() {
   )
 
   const handleSearch = useCallback(() => {
-    if (shouldSearch) {
-      searchMaterials()
-    }
-  }, [shouldSearch, searchMaterials])
+    searchMaterials()
+  }, [searchMaterials])
 
   const handleClearSearch = useCallback(() => {
     setEc3SearchValue('')

@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
+import { z } from 'zod'
 import { sendApiErrorResponse } from './api-error-response'
 import { logger } from './logger'
 import { connectToDatabase } from './mongodb'
+import { validateQueryParams } from './validation-middleware'
+import { ValidationContext } from './validation-middleware/types'
 
 export interface AuthenticatedRequest extends NextRequest {
   userId: string
@@ -10,17 +13,39 @@ export interface AuthenticatedRequest extends NextRequest {
 
 export type ApiHandler = (request: AuthenticatedRequest) => Promise<NextResponse>
 
-export type ApiHandlerWithParams<P> = (
+export type ApiHandlerWithContext<PATH_PARAMS, QUERY_PARAMS> = (
   request: AuthenticatedRequest,
-  context: { params: Promise<P> }
+  context: ValidationContext<PATH_PARAMS, QUERY_PARAMS>
 ) => Promise<NextResponse>
 
 export type PublicApiHandler = (request: NextRequest) => Promise<NextResponse>
 
-export type PublicApiHandlerWithParams<P> = (
+export type PublicApiHandlerWithContext<PATH_PARAMS, QUERY_PARAMS> = (
   request: NextRequest,
-  context: { params: Promise<P> }
+  context: ValidationContext<PATH_PARAMS, QUERY_PARAMS>
 ) => Promise<NextResponse>
+
+/**
+ * Helper function to get authenticated user ID from request
+ */
+export function getUserId(request: AuthenticatedRequest): string {
+  return request.userId
+}
+
+/**
+ * Middleware wrapper for public API routes that only need database connection
+ */
+export function withDB(handler: PublicApiHandler): PublicApiHandler {
+  return async (request: NextRequest) => {
+    try {
+      await connectToDatabase()
+      return await handler(request)
+    } catch (error: unknown) {
+      logger.error('❌ [API Middleware] Error in withDB:', error)
+      return sendApiErrorResponse(error, request, { operation: 'middleware' })
+    }
+  }
+}
 
 /**
  * API middleware that uses Clerk auth and adds database connection with enhanced error handling
@@ -49,10 +74,12 @@ export function withAuthAndDB(handler: ApiHandler): ApiHandler {
 }
 
 /**
- * API middleware for routes with dynamic parameters
+ * API middleware that uses Clerk auth and adds database connection with enhanced error handling
  */
-export function withAuthAndDBParams<P>(handler: ApiHandlerWithParams<P>): ApiHandlerWithParams<P> {
-  return async (request: NextRequest, context: { params: Promise<P> }) => {
+export function withAuthAndDBWithPathParams<PATH_PARAMS>(
+  handler: ApiHandlerWithContext<PATH_PARAMS, never>
+): ApiHandlerWithContext<PATH_PARAMS, never> {
+  return async (request: NextRequest, context: ValidationContext<PATH_PARAMS, never>) => {
     try {
       const { userId } = await auth()
       if (!userId) {
@@ -68,47 +95,44 @@ export function withAuthAndDBParams<P>(handler: ApiHandlerWithParams<P>): ApiHan
 
       return await handler(authenticatedRequest, context)
     } catch (error: unknown) {
-      logger.error('❌ [API Middleware] Error in withAuthAndDBParams:', error)
+      logger.error('❌ [API Middleware] Error in withAuthAndDBWithPathParams:', error)
       return sendApiErrorResponse(error, request, { operation: 'middleware' })
     }
   }
 }
 
 /**
- * Middleware wrapper for public API routes that only need database connection
+ * API middleware that uses Clerk auth and adds database connection with enhanced error handling
  */
-export function withDB(handler: PublicApiHandler): PublicApiHandler {
-  return async (request: NextRequest) => {
+export function withAuthAndDBWithQueryParams<QUERY_PARAMS>(
+  queryParamsSchema: z.ZodSchema<QUERY_PARAMS>,
+  handler: ApiHandlerWithContext<never, QUERY_PARAMS>
+): ApiHandlerWithContext<never, QUERY_PARAMS> {
+  return async (request: NextRequest, context: ValidationContext<never, QUERY_PARAMS>) => {
     try {
+      const { userId } = await auth()
+      if (!userId) {
+        return sendApiErrorResponse(new Error('Authentication required'), request, {
+          operation: 'authenticate',
+        })
+      }
+
       await connectToDatabase()
-      return await handler(request)
+
+      const authenticatedRequest = request as AuthenticatedRequest
+      authenticatedRequest.userId = userId
+
+      // Create the context here
+      const validatedQueryParams = validateQueryParams(queryParamsSchema, authenticatedRequest)
+      const queryContext: ValidationContext<never, QUERY_PARAMS> = {
+        params: Promise.resolve({} as never),
+        query: validatedQueryParams,
+      }
+
+      return await handler(authenticatedRequest, queryContext)
     } catch (error: unknown) {
-      logger.error('❌ [API Middleware] Error in withDB:', error)
+      logger.error('❌ [API Middleware] Error in withAuthAndDBWithQueryParams:', error)
       return sendApiErrorResponse(error, request, { operation: 'middleware' })
     }
   }
-}
-
-/**
- * Middleware wrapper for public API routes with dynamic parameters
- */
-export function withDBParams<P>(
-  handler: PublicApiHandlerWithParams<P>
-): PublicApiHandlerWithParams<P> {
-  return async (request: NextRequest, context: { params: Promise<P> }) => {
-    try {
-      await connectToDatabase()
-      return await handler(request, context)
-    } catch (error: unknown) {
-      logger.error('❌ [API Middleware] Error in withDBParams:', error)
-      return sendApiErrorResponse(error, request, { operation: 'middleware' })
-    }
-  }
-}
-
-/**
- * Helper function to get authenticated user ID from request
- */
-export function getUserId(request: AuthenticatedRequest): string {
-  return request.userId
 }

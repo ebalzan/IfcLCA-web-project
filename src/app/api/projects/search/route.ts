@@ -1,24 +1,27 @@
 import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
-import { AuthenticatedRequest, getUserId, withAuthAndDB } from '@/lib/api-middleware'
+import { AuthenticatedRequest, getUserId } from '@/lib/api-middleware'
 import { ProjectService } from '@/lib/services/project-service'
-import { validateQueryParams } from '@/lib/validation-middleware'
-import { searchQuerySchema } from '@/schemas/services/projects/search'
+import { withAuthAndDBQueryParams } from '@/lib/validation-middleware'
+import { ValidationContext } from '@/lib/validation-middleware/types'
+import {
+  SearchProjectsRequestApi,
+  searchProjectsRequestSchemaApi,
+} from '@/schemas/api/projects/search'
 
-async function searchProjects(request: AuthenticatedRequest) {
+async function searchProjects(
+  request: AuthenticatedRequest,
+  context: ValidationContext<never, SearchProjectsRequestApi['query']>
+) {
   try {
     const userId = getUserId(request)
-    const queryParams = validateQueryParams(searchQuerySchema, request)
-    const { q: searchTerm, all, dateFrom, dateTo, sortBy, sortOrder, page, size } = queryParams
+    const { name, sortBy, pagination } = context.query
+    const { page, size } = pagination
 
     const response = await ProjectService.searchProjects({
       data: {
         userId,
-        searchTerm,
-        all,
-        dateFrom,
-        dateTo,
+        name,
         sortBy,
-        sortOrder,
         pagination: {
           page,
           size,
@@ -32,4 +35,7 @@ async function searchProjects(request: AuthenticatedRequest) {
   }
 }
 
-export const GET = withAuthAndDB(searchProjects)
+export const GET = withAuthAndDBQueryParams({
+  queryParamsSchema: searchProjectsRequestSchemaApi.shape.query,
+  handler: searchProjects,
+})

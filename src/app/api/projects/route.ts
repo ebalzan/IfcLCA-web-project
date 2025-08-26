@@ -1,17 +1,19 @@
 import { Types } from 'mongoose'
 import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
-import { AuthenticatedRequest, getUserId, withAuthAndDB } from '@/lib/api-middleware'
+import { AuthenticatedRequest, getUserId } from '@/lib/api-middleware'
 import { ProjectService } from '@/lib/services/project-service'
+import { withAuthAndDBQueryParams, withAuthAndDBValidation } from '@/lib/validation-middleware'
 import {
   AuthenticatedValidationRequest,
-  validateQueryParams,
-  withAuthAndValidation,
-} from '@/lib/validation-middleware'
+  ValidationContext,
+} from '@/lib/validation-middleware/types'
 import {
   CreateProjectBulkRequestApi,
   createProjectBulkRequestApiSchema,
   DeleteProjectBulkRequestApi,
   deleteProjectBulkRequestApiSchema,
+  GetProjectBulkRequestApi,
+  getProjectBulkRequestApiSchema,
   UpdateProjectBulkRequestApi,
   updateProjectBulkRequestApiSchema,
 } from '@/schemas/api/projects/project-requests'
@@ -21,14 +23,13 @@ import {
   GetProjectBulkResponseApi,
   UpdateProjectBulkResponseApi,
 } from '@/schemas/api/projects/project-responses'
-import { paginationRequestSchema } from '@/schemas/general'
 
 async function createProjectBulk(
-  request: AuthenticatedValidationRequest<CreateProjectBulkRequestApi>
+  request: AuthenticatedValidationRequest<CreateProjectBulkRequestApi['data']>
 ) {
   try {
     const userId = getUserId(request)
-    const { projects } = request.validatedData.data
+    const { projects } = request.validatedData
 
     const result = await ProjectService.createProjectBulk({
       data: { projects, userId },
@@ -47,14 +48,14 @@ async function createProjectBulk(
   }
 }
 
-async function getProjectBulk(request: AuthenticatedRequest) {
+async function getProjectBulk(
+  request: AuthenticatedRequest,
+  context: ValidationContext<never, GetProjectBulkRequestApi['query']>
+) {
   try {
     const userId = getUserId(request)
-    const queryParams = validateQueryParams(paginationRequestSchema, request, {
-      page: 1,
-      size: 10,
-    })
-    const { page, size } = queryParams
+    const { pagination } = context.query
+    const { page, size } = pagination
 
     const projects = await ProjectService.getProjectBulk({
       data: { userId, pagination: { page, size } },
@@ -77,11 +78,11 @@ async function getProjectBulk(request: AuthenticatedRequest) {
 }
 
 async function updateProjectBulk(
-  request: AuthenticatedValidationRequest<UpdateProjectBulkRequestApi>
+  request: AuthenticatedValidationRequest<UpdateProjectBulkRequestApi['data']>
 ) {
   try {
     const userId = getUserId(request)
-    const { projectIds, updates } = request.validatedData.data
+    const { projectIds, updates } = request.validatedData
 
     const result = await ProjectService.updateProjectBulk({
       data: { projectIds: projectIds.map(id => new Types.ObjectId(id)), updates, userId },
@@ -101,11 +102,11 @@ async function updateProjectBulk(
 }
 
 async function deleteProjectBulk(
-  request: AuthenticatedValidationRequest<DeleteProjectBulkRequestApi>
+  request: AuthenticatedValidationRequest<DeleteProjectBulkRequestApi['data']>
 ) {
   try {
     const userId = getUserId(request)
-    const { projectIds } = request.validatedData.data
+    const { projectIds } = request.validatedData
 
     const result = await ProjectService.deleteProjectBulk({
       data: { projectIds: projectIds.map(id => new Types.ObjectId(id)), userId },
@@ -124,13 +125,28 @@ async function deleteProjectBulk(
   }
 }
 
-export const POST = withAuthAndValidation(createProjectBulkRequestApiSchema, createProjectBulk, {
-  method: 'json',
+export const POST = withAuthAndDBValidation({
+  dataSchema: createProjectBulkRequestApiSchema.shape.data,
+  handler: createProjectBulk,
+  options: {
+    method: 'json',
+  },
 })
-export const GET = withAuthAndDB(getProjectBulk)
-export const PUT = withAuthAndValidation(updateProjectBulkRequestApiSchema, updateProjectBulk, {
-  method: 'json',
+export const GET = withAuthAndDBQueryParams({
+  queryParamsSchema: getProjectBulkRequestApiSchema.shape.query,
+  handler: getProjectBulk,
 })
-export const DELETE = withAuthAndValidation(deleteProjectBulkRequestApiSchema, deleteProjectBulk, {
-  method: 'json',
+export const PUT = withAuthAndDBValidation({
+  dataSchema: updateProjectBulkRequestApiSchema.shape.data,
+  handler: updateProjectBulk,
+  options: {
+    method: 'json',
+  },
+})
+export const DELETE = withAuthAndDBValidation({
+  dataSchema: deleteProjectBulkRequestApiSchema.shape.data,
+  handler: deleteProjectBulk,
+  options: {
+    method: 'json',
+  },
 })

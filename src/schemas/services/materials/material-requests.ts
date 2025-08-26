@@ -1,5 +1,6 @@
 import { Types } from 'mongoose'
 import { z } from 'zod'
+import { IEC3Match } from '@/interfaces/materials/IEC3Match'
 import IMaterialDB from '@/interfaces/materials/IMaterialDB'
 import { defaultRequestSchema, paginationRequestSchema } from '@/schemas/general'
 
@@ -19,7 +20,8 @@ export const createEC3MatchRequestSchema = defaultRequestSchema(
   z.object({
     materialId: z.custom<Types.ObjectId>(),
     updates: z.custom<
-      Partial<Omit<IMaterialDB, 'id' | 'ec3MatchId'>> & { score: number; ec3MatchId: string }
+      Partial<Omit<IMaterialDB, 'id' | 'ec3MatchId'>> &
+        Pick<IEC3Match, 'score' | 'ec3MatchId' | 'autoMatched'>
     >(),
   })
 )
@@ -29,11 +31,11 @@ export const createEC3BulkMatchRequestSchema = defaultRequestSchema(
     updates: z
       .array(
         z.custom<
-          Partial<Omit<IMaterialDB, 'id' | 'ec3MatchId'>> & { score: number; ec3MatchId: string }
+          Partial<Omit<IMaterialDB, 'id' | 'ec3MatchId'>> &
+            Pick<IEC3Match, 'score' | 'ec3MatchId' | 'autoMatched'>
         >()
       )
       .min(1, 'At least one update is required'),
-    projectId: z.custom<Types.ObjectId>(),
   })
 )
 
@@ -41,7 +43,6 @@ export const createEC3BulkMatchRequestSchema = defaultRequestSchema(
 export const getMaterialRequestSchema = defaultRequestSchema(
   z.object({
     materialId: z.custom<Types.ObjectId>(),
-    projectId: z.custom<Types.ObjectId>(),
   })
 )
 export const getMaterialBulkRequestSchema = defaultRequestSchema(
@@ -56,7 +57,6 @@ export const updateMaterialRequestSchema = defaultRequestSchema(
   z.object({
     materialId: z.custom<Types.ObjectId>(),
     updates: z.custom<Partial<Omit<IMaterialDB, 'id'>>>(),
-    projectId: z.custom<Types.ObjectId>(),
   })
 )
 export const updateMaterialBulkRequestSchema = defaultRequestSchema(
@@ -65,7 +65,6 @@ export const updateMaterialBulkRequestSchema = defaultRequestSchema(
     updates: z
       .array(z.custom<Partial<Omit<IMaterialDB, 'id'>>>())
       .min(1, 'At least one update is required'),
-    projectId: z.custom<Types.ObjectId>(),
   })
 )
 
@@ -73,13 +72,11 @@ export const updateMaterialBulkRequestSchema = defaultRequestSchema(
 export const deleteMaterialRequestSchema = defaultRequestSchema(
   z.object({
     materialId: z.custom<Types.ObjectId>(),
-    projectId: z.custom<Types.ObjectId>(),
   })
 )
 export const deleteMaterialBulkRequestSchema = defaultRequestSchema(
   z.object({
     materialIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one material ID is required'),
-    projectId: z.custom<Types.ObjectId>(),
   })
 )
 

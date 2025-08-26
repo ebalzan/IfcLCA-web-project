@@ -8,6 +8,8 @@ import { MaterialsLibraryStoreState } from './interfaces/MaterialsLibraryStoreSt
 const initialState: MaterialsLibraryStoreState = {
   selectedProject: 'all',
   temporaryMatches: [],
+  selectedMaterials: [],
+  isSelectAllChecked: false,
   isOpenConfirmMatchesModal: false,
   autoSuggestedMatches: [],
   ifcSearchValue: '',
@@ -38,6 +40,14 @@ export const useMaterialsLibraryStore = create<
 
       setIsAutoScrollEnabled: (isAutoScrollEnabled: boolean) => {
         set({ isAutoScrollEnabled })
+      },
+
+      setSelectedMaterials: (materials: string[]) => {
+        set({ selectedMaterials: materials })
+      },
+
+      setIsSelectAllChecked: (isSelectAllChecked: boolean) => {
+        set({ isSelectAllChecked })
       },
 
       confirmMatches: () => {

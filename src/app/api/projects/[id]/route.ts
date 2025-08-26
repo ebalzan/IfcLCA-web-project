@@ -1,13 +1,18 @@
 import { Types } from 'mongoose'
 import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
-import { AuthenticatedRequest, getUserId, withAuthAndDBParams } from '@/lib/api-middleware'
+import { AuthenticatedRequest, getUserId } from '@/lib/api-middleware'
 import { ProjectService } from '@/lib/services/project-service'
+import { withAuthAndDBPathParams } from '@/lib/validation-middleware'
+import { withAuthAndDBValidationWithPathParams } from '@/lib/validation-middleware'
 import {
   AuthenticatedValidationRequest,
-  validatePathParams,
-  withAuthAndValidationWithParams,
-} from '@/lib/validation-middleware'
+  ValidationContext,
+} from '@/lib/validation-middleware/types'
 import {
+  DeleteProjectRequestApi,
+  deleteProjectRequestApiSchema,
+  GetProjectRequestApi,
+  getProjectRequestApiSchema,
   UpdateProjectRequestApi,
   updateProjectRequestApiSchema,
 } from '@/schemas/api/projects/project-requests'
@@ -16,15 +21,14 @@ import {
   GetProjectResponseApi,
   UpdateProjectResponseApi,
 } from '@/schemas/api/projects/project-responses'
-import { idParamSchema, IdParamSchema } from '@/schemas/general'
 
 async function getProject(
   request: AuthenticatedRequest,
-  context: { params: Promise<IdParamSchema> }
+  context: ValidationContext<GetProjectRequestApi['pathParams'], never>
 ) {
   try {
     const userId = getUserId(request)
-    const { id: projectId } = await validatePathParams(idParamSchema, context.params)
+    const { id: projectId } = await context.params
 
     if (!Types.ObjectId.isValid(projectId)) {
       return sendApiErrorResponse(new Error('Invalid project ID'), request, {
@@ -50,13 +54,13 @@ async function getProject(
 }
 
 async function updateProject(
-  request: AuthenticatedValidationRequest<UpdateProjectRequestApi>,
-  context: { params: Promise<IdParamSchema> }
+  request: AuthenticatedValidationRequest<UpdateProjectRequestApi['data']>,
+  context: ValidationContext<UpdateProjectRequestApi['pathParams'], never>
 ) {
   try {
     const userId = getUserId(request)
-    const { id: projectId } = await validatePathParams(idParamSchema, context.params)
-    const { updates } = request.validatedData.data
+    const { id: projectId } = await context.params
+    const { updates } = request.validatedData
 
     const editedProject = await ProjectService.updateProject({
       data: { projectId: new Types.ObjectId(projectId), updates, userId },
@@ -77,11 +81,11 @@ async function updateProject(
 
 export async function deleteProject(
   request: AuthenticatedRequest,
-  context: { params: Promise<IdParamSchema> }
+  context: ValidationContext<DeleteProjectRequestApi['pathParams'], never>
 ) {
   try {
     const userId = getUserId(request)
-    const { id: projectId } = await validatePathParams(idParamSchema, context.params)
+    const { id: projectId } = await context.params
 
     const result = await ProjectService.deleteProject({
       data: { projectId: new Types.ObjectId(projectId), userId },
@@ -100,8 +104,19 @@ export async function deleteProject(
   }
 }
 
-export const GET = withAuthAndDBParams(getProject)
-export const PATCH = withAuthAndValidationWithParams(updateProjectRequestApiSchema, updateProject, {
-  method: 'json',
+export const GET = withAuthAndDBPathParams({
+  pathParamsSchema: getProjectRequestApiSchema.shape.pathParams,
+  handler: getProject,
 })
-export const DELETE = withAuthAndDBParams(deleteProject)
+export const PATCH = withAuthAndDBValidationWithPathParams({
+  dataSchema: updateProjectRequestApiSchema.shape.data,
+  pathParamsSchema: updateProjectRequestApiSchema.shape.pathParams,
+  handler: updateProject,
+  options: {
+    method: 'json',
+  },
+})
+export const DELETE = withAuthAndDBPathParams({
+  pathParamsSchema: deleteProjectRequestApiSchema.shape.pathParams,
+  handler: deleteProject,
+})

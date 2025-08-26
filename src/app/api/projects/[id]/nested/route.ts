@@ -1,18 +1,22 @@
 import { Types } from 'mongoose'
 import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
-import { AuthenticatedRequest, getUserId, withAuthAndDBParams } from '@/lib/api-middleware'
+import { AuthenticatedRequest, getUserId } from '@/lib/api-middleware'
 import { ProjectService } from '@/lib/services/project-service'
-import { validatePathParams } from '@/lib/validation-middleware'
+import { withAuthAndDBPathParams } from '@/lib/validation-middleware'
+import { ValidationContext } from '@/lib/validation-middleware/types'
+import {
+  GetProjectWithNestedDataRequestApi,
+  getProjectWithNestedDataRequestApiSchema,
+} from '@/schemas/api/projects/project-requests'
 import { GetProjectWithNestedDataResponseApi } from '@/schemas/api/projects/project-responses'
-import { idParamSchema, IdParamSchema } from '@/schemas/general'
 
 async function getProjectWithNestedData(
   request: AuthenticatedRequest,
-  context: { params: Promise<IdParamSchema> }
+  context: ValidationContext<GetProjectWithNestedDataRequestApi['pathParams'], never>
 ) {
   try {
     const userId = getUserId(request)
-    const { id: projectId } = await validatePathParams(idParamSchema, context.params)
+    const { id: projectId } = await context.params
 
     if (!Types.ObjectId.isValid(projectId)) {
       return sendApiErrorResponse(new Error('Invalid project ID'), request, {
@@ -66,4 +70,7 @@ async function getProjectWithNestedData(
   }
 }
 
-export const GET = withAuthAndDBParams(getProjectWithNestedData)
+export const GET = withAuthAndDBPathParams({
+  pathParamsSchema: getProjectWithNestedDataRequestApiSchema.shape.pathParams,
+  handler: getProjectWithNestedData,
+})
