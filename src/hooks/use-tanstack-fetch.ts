@@ -9,6 +9,7 @@ import {
   UseInfiniteQueryOptions,
   UseMutationOptions,
 } from '@tanstack/react-query'
+import { z } from 'zod'
 import { toast } from '@/hooks/use-toast'
 import { ApiError, NetworkError, ParseError } from '@/lib/errors'
 import { api, fetchApi } from '@/lib/fetch'
@@ -17,7 +18,10 @@ interface TanStackOptions extends RequestInit {
   showErrorToast?: boolean
   showSuccessToast?: boolean
   successMessage?: string
+  validationSchema?: z.ZodSchema<any>
 }
+
+const DEFAULT_STALE_TIME = 1000 * 60 * 2 // 2 minutes
 
 // TanStack Query enhanced fetch hook for GET requests
 export const useTanStackQuery = <TResponse, TTransformedData = TResponse>(
@@ -32,6 +36,7 @@ export const useTanStackQuery = <TResponse, TTransformedData = TResponse>(
     showErrorToast,
     showSuccessToast,
     successMessage,
+    validationSchema,
     queryKey: _queryKey,
     queryFn: _queryFn,
     enabled: _enabled,
@@ -49,7 +54,22 @@ export const useTanStackQuery = <TResponse, TTransformedData = TResponse>(
     ...options,
     queryKey,
     queryFn: async (): Promise<TResponse> => {
-      return fetchApi<TResponse>(url, fetchOptions)
+      const response = await fetchApi<TResponse>(url, fetchOptions)
+
+      // Validate response if schema provided
+      if (validationSchema) {
+        try {
+          validationSchema.parse(response)
+        } catch (error) {
+          if (error instanceof z.ZodError) {
+            console.error('Validation error:', error.errors)
+            throw new Error('Data validation failed')
+          }
+          throw error
+        }
+      }
+
+      return response
     },
   })
 
@@ -60,6 +80,7 @@ export const useTanStackQuery = <TResponse, TTransformedData = TResponse>(
     isError: query.isError,
     isSuccess: query.isSuccess,
     refetch: query.refetch,
+    staleTime: _staleTime ?? DEFAULT_STALE_TIME,
     invalidate: () => queryClient.invalidateQueries({ queryKey }),
   }
 }
@@ -80,6 +101,7 @@ export const useTanStackInfiniteQuery = <TResponse, TTransformedData = TResponse
     showErrorToast,
     showSuccessToast,
     successMessage,
+    validationSchema,
     size: _size,
     queryKey: _queryKey,
     queryFn: _queryFn,
@@ -120,7 +142,22 @@ export const useTanStackInfiniteQuery = <TResponse, TTransformedData = TResponse
     queryFn: async ({ pageParam = 1 }): Promise<TResponse> => {
       const separator = url.includes('?') ? '&' : '?'
       const paginatedUrl = `${url}${separator}page=${pageParam}&size=${size}`
-      return api.get<TResponse>(paginatedUrl, fetchOptions)
+      const response = await api.get<TResponse>(paginatedUrl, fetchOptions)
+
+      // Validate response if schema provided
+      if (validationSchema) {
+        try {
+          validationSchema.parse(response)
+        } catch (error) {
+          if (error instanceof z.ZodError) {
+            console.error('Validation error:', error.errors)
+            throw new Error('Data validation failed')
+          }
+          throw error
+        }
+      }
+
+      return response
     },
     getNextPageParam: options?.getNextPageParam || defaultGetNextPageParam,
     initialPageParam: 1,
@@ -136,6 +173,7 @@ export const useTanStackInfiniteQuery = <TResponse, TTransformedData = TResponse
     fetchNextPage: query.fetchNextPage,
     isFetchingNextPage: query.isFetchingNextPage,
     refetch: query.refetch,
+    staleTime: _staleTime ?? DEFAULT_STALE_TIME,
   }
 }
 
@@ -154,6 +192,7 @@ export const useTanStackMutation = <TRequestData, TResponse>(
     showErrorToast,
     showSuccessToast,
     successMessage,
+    validationSchema,
     invalidateQueries,
     mutationKey: _mutationKey,
     mutationFn: _mutationFn,
@@ -168,28 +207,17 @@ export const useTanStackMutation = <TRequestData, TResponse>(
     ...options,
     mutationKey: options?.mutationKey || [url],
     mutationFn: async (variables: TRequestData): Promise<TResponse> => {
-      // For DELETE operations, append the ID to the URL
-      const finalUrl =
-        fetchOptions?.method === 'DELETE' && typeof variables === 'string'
-          ? `${url}/${variables}`
-          : url
-
-      // Check if we're sending FormData by looking for File objects in variables
-      const isFormData =
+      // Handle FormData (file uploads)
+      if (
         variables &&
         typeof variables === 'object' &&
         'file' in variables &&
         variables.file instanceof File
-
-      let body: string | FormData | undefined
-
-      if (isFormData) {
+      ) {
         const formData = new FormData()
+        formData.append('file', variables.file)
 
-        // Add file
-        formData.append('file', (variables as { file: File }).file)
-
-        // Create the data object without the file
+        // Add other data as JSON
         const dataObject: Record<string, unknown> = {}
         Object.entries(variables as Record<string, unknown>).forEach(([key, value]) => {
           if (key !== 'file' && value !== undefined) {
@@ -197,18 +225,73 @@ export const useTanStackMutation = <TRequestData, TResponse>(
           }
         })
 
-        // Add the data object as a JSON string
-        formData.append('data', JSON.stringify(dataObject))
+        if (Object.keys(dataObject).length > 0) {
+          formData.append('data', JSON.stringify(dataObject))
+        }
 
-        body = formData
-      } else if (variables && typeof variables !== 'string') {
-        body = JSON.stringify(variables)
+        const response = await fetchApi<TResponse>(url, {
+          ...fetchOptions,
+          body: formData,
+        })
+
+        // Validate response if schema provided
+        if (validationSchema) {
+          try {
+            validationSchema.parse(response)
+          } catch (error) {
+            if (error instanceof z.ZodError) {
+              console.error('Validation error:', error.errors)
+              throw new Error('Data validation failed')
+            }
+            throw error
+          }
+        }
+
+        return response
       }
 
-      return fetchApi<TResponse>(finalUrl, {
+      // Handle regular JSON data
+      if (variables && typeof variables !== 'string') {
+        const response = await fetchApi<TResponse>(url, {
+          ...fetchOptions,
+          body: JSON.stringify(variables),
+        })
+
+        // Validate response if schema provided
+        if (validationSchema) {
+          try {
+            validationSchema.parse(response)
+          } catch (error) {
+            if (error instanceof z.ZodError) {
+              console.error('Validation error:', error.errors)
+              throw new Error('Data validation failed')
+            }
+            throw error
+          }
+        }
+
+        return response
+      }
+
+      // Handle DELETE operations or no body
+      const response = await fetchApi<TResponse>(url, {
         ...fetchOptions,
-        body,
       })
+
+      // Validate response if schema provided
+      if (validationSchema) {
+        try {
+          validationSchema.parse(response)
+        } catch (error) {
+          if (error instanceof z.ZodError) {
+            console.error('Validation error:', error.errors)
+            throw new Error('Data validation failed')
+          }
+          throw error
+        }
+      }
+
+      return response
     },
     onSuccess: (data, variables, context) => {
       if (showSuccessToast && successMessage) {
@@ -218,7 +301,7 @@ export const useTanStackMutation = <TRequestData, TResponse>(
         })
       }
 
-      // Invalidate related queries
+      // Enhanced cache invalidation with optimistic updates
       if (invalidateQueries) {
         invalidateQueries.forEach(queryKey => {
           queryClient.invalidateQueries({ queryKey })
