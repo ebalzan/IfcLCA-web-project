@@ -65,15 +65,22 @@ export function MaterialLibraryComponent() {
   )
 
   const handleSelectAll = useCallback(() => {
-    setSelectedMaterials(
-      isSelectAllChecked ? [] : materialsData?.map(material => material._id) || []
-    )
-    setIsSelectAllChecked(!isSelectAllChecked)
-  }, [setSelectedMaterials, isSelectAllChecked, materialsData, setIsSelectAllChecked])
+    if (isSelectAllChecked) {
+      setSelectedMaterials([])
+    } else {
+      setSelectedMaterials(materialsData?.map(material => material._id) || [])
+    }
+  }, [setSelectedMaterials, isSelectAllChecked, materialsData])
 
   useEffect(() => {
-    setIsSelectAllChecked(selectedMaterials.length === (materialsData?.length || 0))
+    const allSelected =
+      selectedMaterials.length === (materialsData?.length || 0) && (materialsData?.length || 0) > 0
+    setIsSelectAllChecked(allSelected)
   }, [selectedMaterials, materialsData, setIsSelectAllChecked])
+
+  // useEffect(() => {
+  //   console.log('isSelectAllChecked', isSelectAllChecked)
+  // }, [isSelectAllChecked])
 
   // Local state
   // const ec3ListRef = useRef<HTMLDivElement>(null)
