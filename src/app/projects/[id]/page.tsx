@@ -163,10 +163,6 @@ const UploadsTab = ({
             {project?.uploads?.length || 0}
           </Badge>
         </h2>
-        <Button onClick={onUpload} variant="outline">
-          <UploadCloud className="h-4 w-4 mr-2" />
-          Add New Ifc
-        </Button>
       </div>
       {!project?.uploads || project.uploads.length === 0 ? (
         <EmptyState
