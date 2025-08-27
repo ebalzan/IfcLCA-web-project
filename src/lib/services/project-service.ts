@@ -1635,11 +1635,7 @@ export class ProjectService {
           Material.deleteMany({ projectId }).session(useSession),
         ])
 
-        if (
-          uploads.deletedCount !== 1 ||
-          elements.deletedCount !== 1 ||
-          materials.deletedCount !== 1
-        ) {
+        if (uploads.deletedCount < 1 || elements.deletedCount < 1 || materials.deletedCount < 1) {
           throw new ProjectDeleteError('Failed to delete project')
         }
 

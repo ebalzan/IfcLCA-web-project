@@ -11,7 +11,7 @@ const ec3Schema = new Schema<IEC3Match, IEC3MatchModel>(
     autoMatched: { type: Boolean, required: false, default: false },
   },
   {
-    collection: 'EC3Matches',
+    collection: 'ec3_matches',
     strict: false,
   }
 )
@@ -21,4 +21,4 @@ ec3Schema.index({ ec3MatchId: 1, materialId: 1 })
 
 // Create or update the model
 export const EC3Match: IEC3MatchModel = (models.EC3Match ||
-  model('EC3Match', ec3Schema, 'EC3Matches')) as IEC3MatchModel
+  model('EC3Match', ec3Schema, 'ec3_matches')) as IEC3MatchModel
