@@ -23,11 +23,8 @@ const initialState: MaterialsLibraryStoreState = {
     'gwp',
     'ubp',
     'penre',
-    'unit',
     'density',
     'declared_unit',
-    'valid_from',
-    'valid_to',
   ],
   ec3SearchSortBy: '+name',
 }

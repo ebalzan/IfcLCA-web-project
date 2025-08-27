@@ -21,7 +21,7 @@ async function searchEC3Materials(
     const params = new URLSearchParams()
 
     if (fields) {
-      params.set('fields', fields.join(','))
+      params.set('fields', fields)
     }
     params.set('page_number', page.toString())
     params.set('page_size', size.toString())
@@ -33,7 +33,7 @@ async function searchEC3Materials(
     }
 
     const ec3Materials = await api.get<IEC3Material[]>(
-      `${process.env.EC3_API_URL}/industry_epds?${params.toString()}`,
+      `${process.env.EC3_API_URL}/industry_epds?${decodeURIComponent(params.toString())}`,
       {
         headers: {
           Authorization: `Bearer ${process.env.EC3_API_KEY}`,

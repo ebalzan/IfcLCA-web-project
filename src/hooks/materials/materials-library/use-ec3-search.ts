@@ -35,11 +35,11 @@ export function useEC3Search() {
     fetchNextPage,
     isFetchingNextPage,
   } = useTanStackInfiniteQuery<SearchEC3MaterialsResponseApi, IEC3MaterialClient[]>(
-    `/api/ec3/search?${ec3SearchParams.toString()}`,
+    `/api/ec3/search?${decodeURIComponent(ec3SearchParams.toString())}`,
     {
       queryKey: [Queries.SEARCH_EC3, debouncedSearchValue],
       enabled: shouldSearch,
-      staleTime: 5 * 60 * 1000,
+      staleTime: 5 * 60 * 1000, // 5 minutes
       retry: 2,
       select: data => {
         return data.pages.flatMap(page => page.data.materials)
