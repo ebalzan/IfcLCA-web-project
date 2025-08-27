@@ -4,7 +4,6 @@ import { useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { ReloadIcon } from '@radix-ui/react-icons'
 import { UploadCloud } from 'lucide-react'
-import { Types } from 'mongoose'
 import { useDropzone } from 'react-dropzone'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useCreateUpload } from '@/hooks/uploads/use-upload-operations'
@@ -43,15 +42,10 @@ export function UploadModal({ open, onOpenChange, projectId, onSuccess }: Upload
         logger.debug('Sending parsed data to server for processing')
 
         const response = await createUpload({
-          data: {
-            projectId: new Types.ObjectId(projectId),
-            elements,
-            filename: file.name,
-            userId: '',
-          },
+          projectId,
+          elements,
+          filename: file.name,
         })
-
-        console.log('🔄 Response:', response)
 
         if (!response.success) {
           throw new Error('Failed to process IFC data on server')

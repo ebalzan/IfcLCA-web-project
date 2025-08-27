@@ -2,11 +2,6 @@ import { ClientSession } from 'mongoose'
 import { z } from 'zod'
 import { DefaultRequest } from '@/interfaces/DefaultRequest'
 
-// ID param
-export const idParamSchema = z.object({
-  id: z.string().min(1),
-})
-
 // Pagination
 export const paginationRequestSchema = z.object({
   size: z.number().min(1).max(50),
@@ -145,12 +140,9 @@ export const defaultQuerySchema = <T>(schema: z.ZodSchema<T>) =>
   z.intersection(
     schema,
     z.object({
-      pagination: paginationRequestSchema,
+      pagination: paginationRequestSchema.optional(),
     })
   )
-
-// ID param
-export type IdParamSchema = z.infer<typeof idParamSchema>
 
 // Pagination
 export type PaginationRequest = z.infer<typeof paginationRequestSchema>

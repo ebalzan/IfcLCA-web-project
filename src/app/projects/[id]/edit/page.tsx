@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { LoaderIcon, Pencil, ArrowLeft, Trash2 } from 'lucide-react'
-import { Types } from 'mongoose'
 import { useForm } from 'react-hook-form'
 import { Breadcrumbs } from '@/components/breadcrumbs'
 import { DeleteProjectDialog } from '@/components/delete-project-dialog'
@@ -19,19 +18,26 @@ import {
   useGetProject,
   useUpdateProject,
 } from '@/hooks/projects/use-project-operations'
-import { UpdateProjectSchema, updateProjectSchema } from '@/schemas/client/project-schemas'
+import {
+  updateProjectFormSchema,
+  UpdateProjectFormSchema,
+} from '@/schemas/client/forms/project-schemas'
 
 export default function EditProjectPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const router = useRouter()
   const params = useParams<{ id: string }>()
   const projectId = params.id
-  const { data: project, isLoading: isLoadingProject } = useGetProject(projectId)
-  const { mutate: updateProject, isLoading: isUpdatingProject } = useUpdateProject(projectId)
-  const { mutate: deleteProject, isLoading: isDeletingProject } = useDeleteProject()
+  const { data: project, isLoading: isLoadingProject } = useGetProject({ id: projectId })
+  const { mutate: updateProject, isLoading: isUpdatingProject } = useUpdateProject({
+    id: projectId,
+  })
+  const { mutate: deleteProject, isLoading: isDeletingProject } = useDeleteProject({
+    id: projectId,
+  })
 
-  const form = useForm<UpdateProjectSchema>({
-    resolver: zodResolver(updateProjectSchema),
+  const form = useForm<UpdateProjectFormSchema>({
+    resolver: zodResolver(updateProjectFormSchema),
     defaultValues: {
       name: project?.name || '',
       description: project?.description || '',
@@ -39,7 +45,6 @@ export default function EditProjectPage() {
   })
   const {
     register,
-    getValues,
     handleSubmit,
     reset,
     formState: { isDirty },
@@ -117,14 +122,8 @@ export default function EditProjectPage() {
           <form
             onSubmit={handleSubmit(data =>
               updateProject({
-                data: {
-                  projectId: new Types.ObjectId(projectId),
-                  updates: {
-                    ...data,
-                    updatedAt: new Date(),
-                  },
-                  userId: '',
-                },
+                ...data,
+                updatedAt: new Date(),
               })
             )}
             className="space-y-6">
@@ -158,7 +157,7 @@ export default function EditProjectPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => router.back()}
+                onClick={router.back}
                 disabled={isUpdatingProject}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Cancel

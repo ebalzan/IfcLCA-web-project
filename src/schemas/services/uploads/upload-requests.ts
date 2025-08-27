@@ -1,14 +1,19 @@
 import { Types } from 'mongoose'
 import { z } from 'zod'
 import IUploadDB from '@/interfaces/uploads/IUploadDB'
-import { defaultRequestSchema, paginationRequestSchema } from '../../general'
+import { defaultRequestSchema, paginationRequestSchema } from '@/schemas/general'
 
 // Create upload
-export const createUploadRequestSchema = defaultRequestSchema(z.custom<Omit<IUploadDB, '_id'>>())
+export const createUploadRequestSchema = defaultRequestSchema(
+  z.object({
+    upload: z.custom<Omit<IUploadDB, '_id' | 'userId'>>(),
+    userId: z.string(),
+  })
+)
 export const createUploadBulkRequestSchema = defaultRequestSchema(
   z.object({
     uploads: z.array(z.custom<Omit<IUploadDB, '_id' | 'userId'>>()),
-    projectId: z.custom<Types.ObjectId>().optional(),
+    projectId: z.custom<Types.ObjectId>(),
     userId: z.string(),
   })
 )
@@ -17,14 +22,18 @@ export const createUploadBulkRequestSchema = defaultRequestSchema(
 export const getUploadRequestSchema = defaultRequestSchema(
   z.object({
     uploadId: z.custom<Types.ObjectId>(),
-    projectId: z.custom<Types.ObjectId>().optional(),
   })
 )
 export const getUploadBulkRequestSchema = defaultRequestSchema(
   z.object({
-    uploadIds: z.array(z.custom<Types.ObjectId>()),
-    projectId: z.custom<Types.ObjectId>().optional(),
-    pagination: paginationRequestSchema,
+    uploadIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one upload ID is required'),
+    pagination: paginationRequestSchema.optional(),
+  })
+)
+export const getUploadBulkByProjectRequestSchema = defaultRequestSchema(
+  z.object({
+    projectId: z.custom<Types.ObjectId>(),
+    pagination: paginationRequestSchema.optional(),
   })
 )
 
@@ -33,14 +42,14 @@ export const updateUploadRequestSchema = defaultRequestSchema(
   z.object({
     uploadId: z.custom<Types.ObjectId>(),
     updates: z.custom<Partial<Omit<IUploadDB, '_id'>>>(),
-    projectId: z.custom<Types.ObjectId>().optional(),
   })
 )
 export const updateUploadBulkRequestSchema = defaultRequestSchema(
   z.object({
-    uploadIds: z.array(z.custom<Types.ObjectId>()),
-    updates: z.array(z.custom<Partial<Omit<IUploadDB, '_id'>>>()),
-    projectId: z.custom<Types.ObjectId>().optional(),
+    uploadIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one upload ID is required'),
+    updates: z
+      .array(z.custom<Partial<Omit<IUploadDB, '_id'>>>())
+      .min(1, 'At least one update is required'),
   })
 )
 
@@ -48,13 +57,11 @@ export const updateUploadBulkRequestSchema = defaultRequestSchema(
 export const deleteUploadRequestSchema = defaultRequestSchema(
   z.object({
     uploadId: z.custom<Types.ObjectId>(),
-    projectId: z.custom<Types.ObjectId>().optional(),
   })
 )
 export const deleteUploadBulkRequestSchema = defaultRequestSchema(
   z.object({
-    uploadIds: z.array(z.custom<Types.ObjectId>()),
-    projectId: z.custom<Types.ObjectId>().optional(),
+    uploadIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one upload ID is required'),
   })
 )
 
@@ -74,6 +81,7 @@ export type CreateUploadBulkRequest = z.infer<typeof createUploadBulkRequestSche
 // Get upload types
 export type GetUploadRequest = z.infer<typeof getUploadRequestSchema>
 export type GetUploadBulkRequest = z.infer<typeof getUploadBulkRequestSchema>
+export type GetUploadBulkByProjectRequest = z.infer<typeof getUploadBulkByProjectRequestSchema>
 
 // Update upload types
 export type UpdateUploadRequest = z.infer<typeof updateUploadRequestSchema>

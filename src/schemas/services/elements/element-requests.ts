@@ -1,7 +1,7 @@
 import { Types } from 'mongoose'
 import { z } from 'zod'
 import { IElementDB } from '@/interfaces/elements/IElementDB'
-import { defaultRequestSchema, paginationRequestSchema } from '../../general'
+import { defaultRequestSchema, paginationRequestSchema } from '@/schemas/general'
 
 // Create element
 export const createElementRequestSchema = defaultRequestSchema(z.custom<Omit<IElementDB, '_id'>>())

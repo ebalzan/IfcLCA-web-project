@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@clerk/clerk-react'
 import { Plus, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
@@ -16,12 +17,13 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   useDeleteProject,
-  useGetProjectWithNestedDataBulk,
+  useGetProjectWithNestedDataBulkByUser,
 } from '@/hooks/projects/use-project-operations'
 import { DeleteProjectDialog } from './delete-project-dialog'
 import ProjectCard from './project-card'
 
 export function ProjectOverview() {
+  const { userId } = useAuth()
   const {
     data: projects,
     isLoading,
@@ -29,11 +31,11 @@ export function ProjectOverview() {
     error,
     hasNextPage,
     fetchNextPage,
-  } = useGetProjectWithNestedDataBulk()
+  } = useGetProjectWithNestedDataBulkByUser({ userId: userId || '' })
   const router = useRouter()
   const hasProjects = projects && projects.length > 0
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null)
-  const { mutate: deleteProject } = useDeleteProject()
+  const { mutate: deleteProject } = useDeleteProject({ id: deleteProjectId || '' })
 
   if (isLoading) {
     return (

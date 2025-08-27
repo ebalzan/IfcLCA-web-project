@@ -26,6 +26,15 @@ export const getProjectRequestApiSchema = defaultRequestSchemaApi({
 })
 export const getProjectBulkRequestApiSchema = defaultRequestSchemaApi({
   pathParams: z.object({}),
+  query: defaultQuerySchema(
+    z.object({
+      projectIds: z.array(z.string()).min(1, 'At least one project ID is required'),
+    })
+  ),
+  data: z.object({}),
+})
+export const getProjectBulkByUserRequestApiSchema = defaultRequestSchemaApi({
+  pathParams: z.object({ id: z.string() }),
   query: defaultQuerySchema(z.object({})),
   data: z.object({}),
 })
@@ -38,6 +47,15 @@ export const getProjectWithNestedDataRequestApiSchema = defaultRequestSchemaApi(
 })
 export const getProjectWithNestedDataBulkRequestApiSchema = defaultRequestSchemaApi({
   pathParams: z.object({}),
+  query: defaultQuerySchema(
+    z.object({
+      projectIds: z.array(z.string()).min(1, 'At least one project ID is required'),
+    })
+  ),
+  data: z.object({}),
+})
+export const getProjectWithNestedDataBulkByUserRequestApiSchema = defaultRequestSchemaApi({
+  pathParams: z.object({ id: z.string() }),
   query: defaultQuerySchema(z.object({})),
   data: z.object({}),
 })
@@ -80,6 +98,7 @@ export type CreateProjectBulkRequestApi = z.infer<typeof createProjectBulkReques
 // Get project types
 export type GetProjectRequestApi = z.infer<typeof getProjectRequestApiSchema>
 export type GetProjectBulkRequestApi = z.infer<typeof getProjectBulkRequestApiSchema>
+export type GetProjectBulkByUserRequestApi = z.infer<typeof getProjectBulkByUserRequestApiSchema>
 
 // Get project with nested data types
 export type GetProjectWithNestedDataRequestApi = z.infer<
@@ -87,6 +106,9 @@ export type GetProjectWithNestedDataRequestApi = z.infer<
 >
 export type GetProjectWithNestedDataBulkRequestApi = z.infer<
   typeof getProjectWithNestedDataBulkRequestApiSchema
+>
+export type GetProjectWithNestedDataBulkByUserRequestApi = z.infer<
+  typeof getProjectWithNestedDataBulkByUserRequestApiSchema
 >
 
 // Update project types

@@ -16,8 +16,9 @@ export const createMaterialRequestApiSchema = defaultRequestSchemaApi({
 })
 export const createMaterialBulkRequestApiSchema = defaultRequestSchemaApi({
   pathParams: z.object({}),
-  query: defaultQuerySchema(z.object({ projectId: z.string() })),
+  query: z.object({}),
   data: z.object({
+    projectId: z.string(),
     materials: z.array(
       z.custom<
         Omit<IMaterialDB, '_id' | 'ec3MatchId' | 'projectId' | 'uploadId'> & {
@@ -32,8 +33,9 @@ export const createMaterialBulkRequestApiSchema = defaultRequestSchemaApi({
 // Create EC3 match
 export const createEC3MatchRequestApiSchema = defaultRequestSchemaApi({
   pathParams: z.object({}),
-  query: defaultQuerySchema(z.object({ materialId: z.string() })),
+  query: z.object({}),
   data: z.object({
+    materialId: z.string(),
     updates: z.custom<
       Partial<Omit<IMaterialDB, 'id' | 'ec3MatchId' | 'projectId' | 'uploadId'>> & {
         projectId: string
@@ -68,7 +70,16 @@ export const getMaterialRequestApiSchema = defaultRequestSchemaApi({
 })
 export const getMaterialBulkRequestApiSchema = defaultRequestSchemaApi({
   pathParams: z.object({}),
-  query: defaultQuerySchema(z.object({ projectId: z.string().optional() })),
+  query: defaultQuerySchema(
+    z.object({
+      materialIds: z.array(z.string()).min(1, 'At least one material ID is required'),
+    })
+  ),
+  data: z.object({}),
+})
+export const getMaterialBulkByProjectRequestApiSchema = defaultRequestSchemaApi({
+  pathParams: z.object({}),
+  query: defaultQuerySchema(z.object({ projectId: z.string() })),
   data: z.object({}),
 })
 
@@ -128,6 +139,9 @@ export type CreateEC3BulkMatchRequestApi = z.infer<typeof createEC3BulkMatchRequ
 // Get material types
 export type GetMaterialRequestApi = z.infer<typeof getMaterialRequestApiSchema>
 export type GetMaterialBulkRequestApi = z.infer<typeof getMaterialBulkRequestApiSchema>
+export type GetMaterialBulkByProjectRequestApi = z.infer<
+  typeof getMaterialBulkByProjectRequestApiSchema
+>
 
 // Update material types
 export type UpdateMaterialRequestApi = z.infer<typeof updateMaterialRequestApiSchema>

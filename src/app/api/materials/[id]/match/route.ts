@@ -1,11 +1,8 @@
 import { Types } from 'mongoose'
 import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
 import { MaterialService } from '@/lib/services/material-service'
-import { withAuthAndDBValidationWithQueryParams } from '@/lib/validation-middleware'
-import {
-  AuthenticatedValidationRequest,
-  ValidationContext,
-} from '@/lib/validation-middleware/types'
+import { withAuthAndDBValidation } from '@/lib/validation-middleware'
+import { AuthenticatedValidationRequest } from '@/lib/validation-middleware/types'
 import {
   CreateEC3MatchRequestApi,
   createEC3MatchRequestApiSchema,
@@ -13,12 +10,10 @@ import {
 import { CreateEC3MatchResponseApi } from '@/schemas/api/materials/material-responses'
 
 async function createEC3Match(
-  request: AuthenticatedValidationRequest<CreateEC3MatchRequestApi['data']>,
-  context: ValidationContext<never, CreateEC3MatchRequestApi['query']>
+  request: AuthenticatedValidationRequest<CreateEC3MatchRequestApi['data']>
 ) {
   try {
-    const { materialId } = context.query
-    const { updates } = request.validatedData
+    const { materialId, updates } = request.validatedData
 
     if (!Types.ObjectId.isValid(materialId)) {
       return sendApiErrorResponse(new Error('Invalid material ID'), request, {
@@ -49,7 +44,7 @@ async function createEC3Match(
       },
     })
 
-    if (!result.data) {
+    if (!result) {
       return sendApiErrorResponse(new Error('Failed to match material with EC3 product'), request, {
         operation: 'match',
         resource: 'material',
@@ -58,9 +53,9 @@ async function createEC3Match(
 
     return sendApiSuccessResponse<CreateEC3MatchResponseApi['data']>(
       {
-        ...result.data,
-        _id: result.data._id.toString(),
-        materialId: result.data.materialId.toString(),
+        ...result,
+        _id: result._id.toString(),
+        materialId: result.materialId.toString(),
       },
       'Material matched with EC3 product successfully',
       request
@@ -70,9 +65,8 @@ async function createEC3Match(
   }
 }
 
-export const POST = withAuthAndDBValidationWithQueryParams({
+export const POST = withAuthAndDBValidation({
   dataSchema: createEC3MatchRequestApiSchema.shape.data,
-  queryParamsSchema: createEC3MatchRequestApiSchema.shape.query,
   handler: createEC3Match,
   options: {
     method: 'json',

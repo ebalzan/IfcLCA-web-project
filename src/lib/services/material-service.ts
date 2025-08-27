@@ -1,5 +1,5 @@
+import { Types } from 'mongoose'
 import { IEC3Material } from '@/interfaces/materials/IEC3Material'
-import IMaterialDB from '@/interfaces/materials/IMaterialDB'
 import {
   MaterialNotFoundError,
   MaterialUpdateError,
@@ -19,6 +19,7 @@ import {
   CreateMaterialRequest,
   DeleteMaterialBulkRequest,
   DeleteMaterialRequest,
+  GetMaterialBulkByProjectRequest,
   GetMaterialBulkRequest,
   GetMaterialRequest,
   UpdateMaterialBulkRequest,
@@ -35,22 +36,10 @@ import {
   GetMaterialResponse,
   GetMaterialBulkResponse,
   DeleteMaterialBulkResponse,
+  GetMaterialBulkByProjectResponse,
 } from '@/schemas/services/materials/material-responses'
 import { withTransaction } from '@/utils/withTransaction'
 import { api } from '../fetch'
-
-// updateProjectEmissions && calculateProjectTotals && recalculateElementsForMaterials ONLY
-// interface IPopulatedElementMaterials {
-//   materials: {
-//     material: {
-//       density: number
-//       ec3MatchId: ILCAIndicators
-//     }
-//     volume: number
-//     fraction: number
-//     thickness?: number
-//   }[]
-// }
 
 export class MaterialService {
   // Cache configuration
@@ -70,11 +59,9 @@ export class MaterialService {
         { session: session || null }
       )
 
-      return {
-        success: true,
-        data: createResult,
-        message: 'Material created successfully',
-      }
+      const newMaterial = createResult.toObject()
+
+      return newMaterial
     } catch (error: unknown) {
       logger.error('❌ [Material Service] Error in createMaterial:', error)
 
@@ -95,35 +82,29 @@ export class MaterialService {
     data: { projectId, materials },
     session,
   }: CreateMaterialBulkRequest): Promise<CreateMaterialBulkResponse> {
-    return withTransaction(async useSession => {
-      try {
-        const createResult = await Material.insertMany(
-          materials.map(material => ({
-            ...material,
-            projectId,
-          })),
-          {
-            session: useSession,
-          }
-        )
+    try {
+      const newMaterialsResult = await Material.insertMany(
+        materials.map(material => ({
+          ...material,
+          projectId,
+        })),
+        { session: session || null }
+      )
 
-        return {
-          success: true,
-          data: createResult,
-          message: 'Materials created successfully',
-        }
-      } catch (error: unknown) {
-        logger.error('❌ [Material Service] Error in createMaterialBulk:', error)
+      const newMaterials = newMaterialsResult.map(material => material.toObject())
 
-        if (isAppError(error)) {
-          throw error
-        }
+      return newMaterials
+    } catch (error: unknown) {
+      logger.error('❌ [Material Service] Error in createMaterialBulk:', error)
 
-        throw new MaterialCreateError(
-          error instanceof Error ? error.message : 'Failed to create materials'
-        )
+      if (isAppError(error)) {
+        throw error
       }
-    }, session)
+
+      throw new MaterialCreateError(
+        error instanceof Error ? error.message : 'Failed to create materials'
+      )
+    }
   }
 
   /**
@@ -135,32 +116,24 @@ export class MaterialService {
   }: CreateEC3MatchRequest): Promise<CreateEC3MatchResponse> {
     return withTransaction(async useSession => {
       try {
-        // 1. Check if material exists
-        const material = await Material.findById(materialId).session(useSession).lean()
+        await this.getMaterial({
+          data: { materialId },
+          session: useSession,
+        })
 
-        if (!material) {
-          throw new MaterialNotFoundError(materialId.toString())
-        }
-
-        // 2. Check if material is already matched
         const existingMatch = await EC3Match.findOne({ materialId }).session(useSession).lean()
 
         if (existingMatch) {
-          return {
-            success: true,
-            data: existingMatch,
-            message: 'Material already matched to EC3',
-          }
+          return existingMatch
         }
 
-        // 3. Update material
         await this.updateMaterial({
           data: { materialId, updates },
           session: useSession,
         })
 
         const { ec3MatchId, score, autoMatched } = updates
-        // 3. Create EC3 match record
+
         const createMatchResult = await EC3Match.insertOne(
           {
             materialId,
@@ -177,11 +150,7 @@ export class MaterialService {
 
         const createdMatch = createMatchResult.toObject()
 
-        return {
-          success: true,
-          data: createdMatch,
-          message: 'Material matched to EC3 successfully',
-        }
+        return createdMatch
       } catch (error: unknown) {
         logger.error('❌ [Material Service] Error in createEC3Match:', error)
 
@@ -205,7 +174,6 @@ export class MaterialService {
   }: CreateEC3BulkMatchRequest): Promise<CreateEC3BulkMatchResponse> {
     return withTransaction(async useSession => {
       try {
-        // 1. Check if the materials are already matched to EC3
         const existingMatches = await EC3Match.find({
           materialId: { $in: materialIds },
         })
@@ -213,20 +181,14 @@ export class MaterialService {
           .lean()
 
         if (existingMatches.length > 0) {
-          return {
-            success: true,
-            data: existingMatches,
-            message: 'Materials already matched to EC3',
-          }
+          return existingMatches
         }
 
-        // 2. Update materials with EC3 matches
         await this.updateMaterialBulk({
           data: { materialIds, updates },
           session: useSession,
         })
 
-        // 3. Create EC3 matches
         const bulkOperations = materialIds.map((materialId, index) => ({
           insertOne: {
             document: {
@@ -238,13 +200,15 @@ export class MaterialService {
           },
         }))
         const bulkWriteResult = await EC3Match.bulkWrite(bulkOperations, { session: useSession })
-        const matches = Object.values(bulkWriteResult.insertedIds)
+        const matchIds: Types.ObjectId[] = Object.values(bulkWriteResult.insertedIds)
 
-        return {
-          success: true,
-          data: matches,
-          message: 'Materials matched to EC3 successfully',
-        }
+        const matches = await EC3Match.find({
+          _id: { $in: matchIds },
+        })
+          .session(useSession)
+          .lean()
+
+        return matches
       } catch (error: unknown) {
         logger.error('❌ [Material Service] Error in createEC3BulkMatch:', error)
 
@@ -267,23 +231,17 @@ export class MaterialService {
     session,
   }: GetMaterialRequest): Promise<GetMaterialResponse> {
     try {
-      // 1. Fetch material
       const material = await Material.findOne({
         _id: materialId,
       })
         .session(session || null)
         .lean()
 
-      // 2. Check if material exists
       if (!material) {
         throw new MaterialNotFoundError(materialId.toString())
       }
 
-      return {
-        success: true,
-        data: material,
-        message: 'Material fetched successfully',
-      }
+      return material
     } catch (error: unknown) {
       logger.error('❌ [Material Service] Error in getMaterial:', error)
 
@@ -302,60 +260,42 @@ export class MaterialService {
    * Get multiple materials by their IDs
    */
   static async getMaterialBulk({
-    data: { projectId, pagination },
+    data: { materialIds, pagination },
     session,
   }: GetMaterialBulkRequest): Promise<GetMaterialBulkResponse> {
     return withTransaction(async useSession => {
-      try {
-        const { page, size } = pagination
-        const skip = (page - 1) * size
-
-        // 1. Handle different scenarios based on projectId presence
-        if (!projectId) {
-          // When no projectId is provided, fetch all materials in batches
-          // Use the requested size as batch size, but with a reasonable minimum
-          const batchSize = Math.max(size, 50)
-          let allMaterials: IMaterialDB[] = []
-          let currentPage = 1
-          let hasMore = true
-
-          while (hasMore) {
-            const batch = await Material.find()
-              .session(useSession)
-              .limit(batchSize)
-              .skip((currentPage - 1) * batchSize)
-              .lean()
-
-            if (batch.length === 0) {
-              hasMore = false
-            } else {
-              allMaterials = allMaterials.concat(batch)
-              hasMore = batch.length === batchSize
-              currentPage++
-            }
-          }
-
-          if (allMaterials.length === 0) {
-            throw new MaterialNotFoundError('all materials')
-          }
-
-          return {
-            success: true,
-            data: {
-              materials: allMaterials,
-              pagination: {
-                page: 1,
-                size: allMaterials.length,
-                totalCount: allMaterials.length,
-                hasMore: false,
-                totalPages: 1,
-              },
-            },
-            message: 'All materials fetched successfully in batches',
-          }
-        } else {
+      if (!pagination) {
+        try {
           const materials = await Material.find({
-            projectId,
+            _id: { $in: materialIds },
+          })
+            .session(useSession)
+            .lean()
+
+          if (!materials || materials.length === 0) {
+            throw new MaterialNotFoundError(materialIds.join(', '))
+          }
+
+          return { materials }
+        } catch (error: unknown) {
+          logger.error('❌ [Material Service] Error in getMaterialBulk:', error)
+
+          if (isAppError(error)) {
+            throw error
+          }
+
+          throw new DatabaseError(
+            error instanceof Error ? error.message : 'Failed to fetch materials',
+            'read'
+          )
+        }
+      } else {
+        try {
+          const { page, size } = pagination
+          const skip = (page - 1) * size
+
+          const materials = await Material.find({
+            _id: { $in: materialIds },
           })
             .session(useSession)
             .limit(size)
@@ -363,41 +303,104 @@ export class MaterialService {
             .lean()
 
           if (!materials || materials.length === 0) {
-            throw new MaterialNotFoundError(projectId.toString())
+            throw new MaterialNotFoundError(materialIds.join(', '))
           }
 
-          // 3. Get total count for pagination metadata
           const totalCount = await Material.countDocuments({
-            projectId,
+            _id: { $in: materialIds },
           }).session(useSession)
           const hasMore = page * size < totalCount
 
           return {
-            success: true,
-            data: {
-              materials,
-              pagination: {
-                page,
-                size,
-                totalCount,
-                hasMore,
-                totalPages: Math.ceil(totalCount / size),
-              },
+            materials,
+            pagination: {
+              page,
+              size,
+              totalCount,
+              hasMore,
+              totalPages: Math.ceil(totalCount / size),
             },
-            message: 'Materials fetched successfully',
           }
-        }
-      } catch (error: unknown) {
-        logger.error('❌ [Material Service] Error in getMaterialBulk:', error)
+        } catch (error: unknown) {
+          logger.error('❌ [Material Service] Error in getMaterialBulk with pagination:', error)
 
-        if (isAppError(error)) {
-          throw error
-        }
+          if (isAppError(error)) {
+            throw error
+          }
 
-        throw new DatabaseError(
-          error instanceof Error ? error.message : 'Failed to fetch materials',
-          'read'
-        )
+          throw new DatabaseError(
+            error instanceof Error ? error.message : 'Failed to fetch materials',
+            'read'
+          )
+        }
+      }
+    }, session)
+  }
+
+  /**
+   * Get multiple materials by project ID
+   */
+  static async getMaterialBulkByProject({
+    data: { projectId, pagination },
+    session,
+  }: GetMaterialBulkByProjectRequest): Promise<GetMaterialBulkByProjectResponse> {
+    return withTransaction(async useSession => {
+      if (!pagination) {
+        try {
+          const materials = await Material.find({ projectId }).session(useSession).lean()
+
+          if (!materials || materials.length === 0) {
+            throw new MaterialNotFoundError(projectId.toString())
+          }
+
+          return { materials }
+        } catch (error: unknown) {
+          logger.error('❌ [Material Service] Error in getMaterialBulkByProject:', error)
+
+          if (isAppError(error)) {
+            throw error
+          }
+
+          throw new DatabaseError(
+            error instanceof Error ? error.message : 'Failed to fetch materials',
+            'read'
+          )
+        }
+      } else {
+        try {
+          const { page, size } = pagination
+          const skip = (page - 1) * size
+
+          const materials = await Material.find({ projectId })
+            .session(useSession)
+            .limit(size)
+            .skip(skip)
+            .lean()
+
+          const totalCount = await Material.countDocuments({ projectId }).session(useSession)
+
+          return {
+            materials,
+            pagination: {
+              page,
+              size,
+              totalCount,
+              hasMore: page * size < totalCount,
+              totalPages: Math.ceil(totalCount / size),
+            },
+          }
+        } catch (error: unknown) {
+          logger.error('❌ [Material Service] Error in getMaterialBulkByProject:', error)
+
+          if (isAppError(error)) {
+            throw error
+          }
+
+          throw new DatabaseError(
+            error instanceof Error ? error.message : 'Failed to fetch materials',
+            'read'
+          )
+        }
       }
     }, session)
   }
@@ -412,13 +415,11 @@ export class MaterialService {
     return withTransaction(
       async useSession => {
         try {
-          // 1. Check if material exists
           await this.getMaterial({
             data: { materialId },
             session: useSession,
           })
 
-          // 3. Update material
           const updateResult = await Material.findOneAndUpdate(
             {
               _id: materialId,
@@ -429,19 +430,16 @@ export class MaterialService {
                 updatedAt: new Date(),
               },
             },
-            { session: useSession, upsert: false, new: true }
+            { upsert: false, new: true }
           )
+            .session(useSession)
+            .lean()
 
-          // 4. Check if update was successful
           if (!updateResult) {
             throw new MaterialUpdateError(`Failed to update material: ${materialId}`)
           }
 
-          return {
-            success: true,
-            data: updateResult,
-            message: 'Material updated successfully',
-          }
+          return updateResult
         } catch (error: unknown) {
           logger.error('❌ [Material Service] Error in updateMaterial:', error)
 
@@ -468,53 +466,47 @@ export class MaterialService {
   }: UpdateMaterialBulkRequest): Promise<UpdateMaterialBulkResponse> {
     return withTransaction(
       async useSession => {
-        // 1. Update materials
-        const materialUpdatePromises = materialIds.map(async (materialId, index) => {
-          try {
-            // 1. Check if material exists
-            await this.getMaterial({
-              data: { materialId },
-              session: useSession,
-            })
+        if (materialIds.length !== updates.length) {
+          throw new MaterialUpdateError('Material IDs and updates arrays must have the same length')
+        }
 
-            // 2. Update material individually
-            const updatedMaterial = await Material.findOneAndUpdate(
-              {
-                _id: materialId,
-              },
-              {
-                $set: {
-                  ...updates[index],
-                  updatedAt: new Date(),
-                },
-              },
-              {
-                session: useSession,
-                upsert: false,
-                new: true,
-              }
-            )
-
-            // 3. Check if update was successful
-            if (!updatedMaterial) {
-              throw new MaterialUpdateError(`Failed to update material: ${materialId}`)
-            }
-
-            return updatedMaterial
-          } catch (error: unknown) {
-            logger.error('❌ [Material Service] Error in updateMaterialBulk:', error)
-            throw error
-          }
+        const { materials: existingMaterials } = await this.getMaterialBulk({
+          data: { materialIds },
+          session: useSession,
         })
 
-        // 3. Check if updates were successful
-        const materials = await Promise.all(materialUpdatePromises)
-
-        return {
-          success: true,
-          data: materials,
-          message: 'Materials updated successfully',
+        if (existingMaterials.length !== materialIds.length) {
+          const foundIds = existingMaterials.map(m => m._id.toString())
+          const missingIds = materialIds.filter(id => !foundIds.includes(id.toString()))
+          throw new MaterialNotFoundError(`Materials not found: ${missingIds.join(', ')}`)
         }
+
+        const bulkOps = materialIds.map((materialId, index) => ({
+          updateOne: {
+            filter: { _id: materialId },
+            update: {
+              $set: {
+                ...updates[index],
+                updatedAt: new Date(),
+              },
+            },
+          },
+        }))
+
+        const bulkResult = await Material.bulkWrite(bulkOps, { session: useSession })
+
+        if (bulkResult.modifiedCount !== materialIds.length) {
+          throw new MaterialUpdateError(
+            `Expected to update ${materialIds.length} materials, but only updated ${bulkResult.modifiedCount}`
+          )
+        }
+
+        const { materials: updatedMaterials } = await this.getMaterialBulk({
+          data: { materialIds },
+          session: useSession,
+        })
+
+        return updatedMaterials
       },
       session,
       'updateMaterialBulk'
@@ -530,13 +522,11 @@ export class MaterialService {
   }: DeleteMaterialRequest): Promise<DeleteMaterialResponse> {
     return withTransaction(async useSession => {
       try {
-        // 1. Check if material exists
         await this.getMaterial({
           data: { materialId },
           session: useSession,
         })
 
-        // 2. Delete the material
         const deleteResult = await Material.findOneAndDelete({
           _id: materialId,
         })
@@ -547,7 +537,6 @@ export class MaterialService {
           throw new MaterialDeleteError('Failed to delete material')
         }
 
-        // 4. Create a material deletion record
         await MaterialDeletion.insertOne(
           [
             {
@@ -559,11 +548,7 @@ export class MaterialService {
           { session: useSession }
         )
 
-        return {
-          success: true,
-          data: deleteResult,
-          message: 'Material deleted successfully',
-        }
+        return deleteResult
       } catch (error: unknown) {
         logger.error('❌ [Material Service] Error in deleteMaterial:', error)
 
@@ -587,18 +572,17 @@ export class MaterialService {
   }: DeleteMaterialBulkRequest): Promise<DeleteMaterialBulkResponse> {
     return withTransaction(async useSession => {
       try {
-        // 1. Check if materials exist
-        const materials = await Material.find({
-          _id: { $in: materialIds },
+        const { materials } = await this.getMaterialBulk({
+          data: { materialIds },
+          session: useSession,
         })
-          .session(useSession)
-          .lean()
 
         if (materials.length !== materialIds.length) {
-          throw new MaterialNotFoundError(materialIds.toString())
+          const foundIds = materials.map(m => m._id.toString())
+          const missingIds = materialIds.filter(id => !foundIds.includes(id.toString()))
+          throw new MaterialNotFoundError(`Materials not found: ${missingIds.join(', ')}`)
         }
 
-        // 3. Delete the materials
         const deleteResult = await Material.deleteMany({
           _id: { $in: materialIds },
         })
@@ -609,7 +593,6 @@ export class MaterialService {
           throw new MaterialDeleteError('Failed to delete materials')
         }
 
-        // 4. Create material deletion records
         await MaterialDeletion.insertMany(
           materials.map(material => ({
             projectId: material.projectId,
@@ -619,11 +602,7 @@ export class MaterialService {
           { session: useSession }
         )
 
-        return {
-          success: true,
-          data: materials,
-          message: 'Materials deleted successfully',
-        }
+        return materials
       } catch (error: unknown) {
         logger.error('❌ [Material Service] Error in deleteMaterialBulk:', error)
 
@@ -647,7 +626,6 @@ export class MaterialService {
     const cleanedName = materialName.trim()
 
     try {
-      // Try exact match first
       const ec3Materials = await api.get<IEC3Material[]>(
         `${process.env.EC3_API_URL}/industry_epds?name__like=${cleanedName}`,
         {

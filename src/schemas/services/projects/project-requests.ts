@@ -1,7 +1,7 @@
 import { Types } from 'mongoose'
 import { z } from 'zod'
 import IProjectDB from '@/interfaces/projects/IProjectDB'
-import { defaultRequestSchema, paginationRequestSchema } from '../../general'
+import { defaultRequestSchema, paginationRequestSchema } from '@/schemas/general'
 
 // Create project
 export const createProjectRequestSchema = defaultRequestSchema(
@@ -26,8 +26,14 @@ export const getProjectRequestSchema = defaultRequestSchema(
 )
 export const getProjectBulkRequestSchema = defaultRequestSchema(
   z.object({
+    projectIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one project ID is required'),
+    pagination: paginationRequestSchema.optional(),
+  })
+)
+export const getProjectBulkByUserRequestSchema = defaultRequestSchema(
+  z.object({
     userId: z.string(),
-    pagination: paginationRequestSchema,
+    pagination: paginationRequestSchema.optional(),
   })
 )
 
@@ -40,8 +46,14 @@ export const getProjectWithNestedDataRequestSchema = defaultRequestSchema(
 )
 export const getProjectWithNestedDataBulkRequestSchema = defaultRequestSchema(
   z.object({
+    projectIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one project ID is required'),
+    pagination: paginationRequestSchema.optional(),
+  })
+)
+export const getProjectWithNestedDataBulkByUserRequestSchema = defaultRequestSchema(
+  z.object({
     userId: z.string(),
-    pagination: paginationRequestSchema,
+    pagination: paginationRequestSchema.optional(),
   })
 )
 
@@ -55,8 +67,10 @@ export const updateProjectRequestSchema = defaultRequestSchema(
 )
 export const updateProjectBulkRequestSchema = defaultRequestSchema(
   z.object({
-    projectIds: z.array(z.custom<Types.ObjectId>()),
-    updates: z.array(z.custom<Partial<Omit<IProjectDB, '_id' | 'userId'>>>()),
+    projectIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one project ID is required'),
+    updates: z
+      .array(z.custom<Partial<Omit<IProjectDB, '_id' | 'userId'>>>())
+      .min(1, 'At least one update is required'),
     userId: z.string(),
   })
 )
@@ -70,7 +84,7 @@ export const deleteProjectRequestSchema = defaultRequestSchema(
 )
 export const deleteProjectBulkRequestSchema = defaultRequestSchema(
   z.object({
-    projectIds: z.array(z.custom<Types.ObjectId>()),
+    projectIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one project ID is required'),
     userId: z.string(),
   })
 )
@@ -82,11 +96,15 @@ export type CreateProjectBulkRequest = z.infer<typeof createProjectBulkRequestSc
 // Get project types
 export type GetProjectRequest = z.infer<typeof getProjectRequestSchema>
 export type GetProjectBulkRequest = z.infer<typeof getProjectBulkRequestSchema>
+export type GetProjectBulkByUserRequest = z.infer<typeof getProjectBulkByUserRequestSchema>
 
 // Get project with nested data types
 export type GetProjectWithNestedDataRequest = z.infer<typeof getProjectWithNestedDataRequestSchema>
 export type GetProjectWithNestedDataBulkRequest = z.infer<
   typeof getProjectWithNestedDataBulkRequestSchema
+>
+export type GetProjectWithNestedDataBulkByUserRequest = z.infer<
+  typeof getProjectWithNestedDataBulkByUserRequestSchema
 >
 
 // Update project types

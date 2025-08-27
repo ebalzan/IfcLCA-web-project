@@ -24,16 +24,15 @@ import {
 import {
   CreateMaterialBulkResponseApi,
   DeleteMaterialBulkResponseApi,
+  GetMaterialBulkResponseApi,
   UpdateMaterialBulkResponseApi,
 } from '@/schemas/api/materials/material-responses'
 
 async function createMaterialBulk(
-  request: AuthenticatedValidationRequest<CreateMaterialBulkRequestApi['data']>,
-  context: ValidationContext<never, CreateMaterialBulkRequestApi['query']>
+  request: AuthenticatedValidationRequest<CreateMaterialBulkRequestApi['data']>
 ) {
   try {
-    const { materials } = request.validatedData
-    const { projectId } = context.query
+    const { materials, projectId } = request.validatedData
 
     const materialsWithProjectId = materials.map(material => ({
       ...material,
@@ -49,7 +48,7 @@ async function createMaterialBulk(
     })
 
     return sendApiSuccessResponse<CreateMaterialBulkResponseApi['data']>(
-      results.data.map(material => ({
+      results.map(material => ({
         ...material,
         _id: material._id.toString(),
         projectId: material.projectId.toString(),
@@ -68,42 +67,41 @@ async function getMaterialBulk(
   context: ValidationContext<never, GetMaterialBulkRequestApi['query']>
 ) {
   try {
-    const { projectId, pagination } = context.query
-    const { page, size } = pagination
+    const { materialIds, pagination } = context.query
+    const { page, size } = pagination || { page: 1, size: 50 }
 
-    if (projectId && !Types.ObjectId.isValid(projectId)) {
+    if (!materialIds.every(id => Types.ObjectId.isValid(id))) {
       return sendApiErrorResponse(new Error('Invalid project ID'), request, {
         resource: 'project',
       })
     }
 
-    const material = await MaterialService.getMaterialBulk(
-      projectId
-        ? {
-            data: {
-              projectId: new Types.ObjectId(projectId),
-              pagination: { page, size },
-            },
-          }
-        : {
-            data: {
-              pagination: { page, size },
-            },
-          }
+    const material = await MaterialService.getMaterialBulk({
+      data: {
+        materialIds: materialIds.map(id => new Types.ObjectId(id)),
+        pagination: { page, size },
+      },
+    })
+
+    return sendApiSuccessResponse<GetMaterialBulkResponseApi['data']>(
+      {
+        materials: material.materials.map(material => ({
+          ...material,
+          _id: material._id.toString(),
+          projectId: material.projectId.toString(),
+          uploadId: material.uploadId.toString(),
+        })),
+        pagination: {
+          page,
+          size,
+          hasMore: material.pagination?.hasMore || false,
+          totalCount: material.pagination?.totalCount || 0,
+          totalPages: material.pagination?.totalPages || 0,
+        },
+      },
+      'Materials fetched successfully',
+      request
     )
-
-    // Convert ObjectIds to strings for API response
-    const serializedData = {
-      ...material.data,
-      materials: material.data.materials.map(material => ({
-        ...material,
-        _id: material._id.toString(),
-        projectId: material.projectId.toString(),
-        uploadId: material.uploadId?.toString() || null,
-      })),
-    }
-
-    return sendApiSuccessResponse(serializedData, 'Material fetched successfully', request)
   } catch (error: unknown) {
     return sendApiErrorResponse(error, request, { operation: 'fetch', resource: 'material' })
   }
@@ -115,21 +113,38 @@ async function updateMaterialBulk(
   try {
     const { materialIds, updates } = request.validatedData
 
-    const updatesWithObjectId = updates.map(update => ({
-      ...update,
-      uploadId: new Types.ObjectId(update.uploadId),
-      projectId: new Types.ObjectId(update.projectId),
-    }))
+    if (!materialIds.every(id => Types.ObjectId.isValid(id))) {
+      return sendApiErrorResponse(new Error('Invalid material ID'), request, {
+        operation: 'update bulk',
+        resource: 'materials',
+      })
+    }
+
+    if (
+      !updates.every(
+        update =>
+          Types.ObjectId.isValid(update.uploadId) || Types.ObjectId.isValid(update.projectId)
+      )
+    ) {
+      return sendApiErrorResponse(new Error('Invalid project or upload ID'), request, {
+        operation: 'update bulk',
+        resource: 'materials',
+      })
+    }
 
     const results = await MaterialService.updateMaterialBulk({
       data: {
         materialIds: materialIds.map(id => new Types.ObjectId(id)),
-        updates: updatesWithObjectId,
+        updates: updates.map(update => ({
+          ...update,
+          uploadId: new Types.ObjectId(update.uploadId),
+          projectId: new Types.ObjectId(update.projectId),
+        })),
       },
     })
 
     return sendApiSuccessResponse<UpdateMaterialBulkResponseApi['data']>(
-      results.data.map(material => ({
+      results.map(material => ({
         ...material,
         _id: material._id.toString(),
         projectId: material.projectId.toString(),
@@ -149,6 +164,13 @@ async function deleteMaterialBulk(
   try {
     const { materialIds } = request.validatedData
 
+    if (!materialIds.every(id => Types.ObjectId.isValid(id))) {
+      return sendApiErrorResponse(new Error('Invalid material ID'), request, {
+        operation: 'delete bulk',
+        resource: 'materials',
+      })
+    }
+
     const results = await MaterialService.deleteMaterialBulk({
       data: {
         materialIds: materialIds.map(id => new Types.ObjectId(id)),
@@ -156,7 +178,7 @@ async function deleteMaterialBulk(
     })
 
     return sendApiSuccessResponse<DeleteMaterialBulkResponseApi['data']>(
-      results.data.map(material => ({
+      results.map(material => ({
         ...material,
         _id: material._id.toString(),
         projectId: material.projectId.toString(),

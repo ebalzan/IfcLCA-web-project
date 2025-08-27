@@ -49,6 +49,15 @@ export interface WithAuthAndQueryParams<QUERY_PARAMS> {
   ) => Promise<NextResponse>
 }
 
+export interface WithAuthAndPathAndQueryParams<PATH_PARAMS, QUERY_PARAMS> {
+  pathParamsSchema: z.ZodSchema<PATH_PARAMS>
+  queryParamsSchema: z.ZodSchema<QUERY_PARAMS>
+  handler: (
+    request: AuthenticatedRequest,
+    context: ValidationContext<PATH_PARAMS, QUERY_PARAMS>
+  ) => Promise<NextResponse>
+}
+
 export interface WithAuthAndValidation<DATA> {
   dataSchema: z.ZodSchema<DATA>
   handler: (request: AuthenticatedValidationRequest<DATA>) => Promise<NextResponse>

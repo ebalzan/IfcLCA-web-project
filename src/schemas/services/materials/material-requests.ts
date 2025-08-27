@@ -47,8 +47,14 @@ export const getMaterialRequestSchema = defaultRequestSchema(
 )
 export const getMaterialBulkRequestSchema = defaultRequestSchema(
   z.object({
-    projectId: z.custom<Types.ObjectId>().optional(),
-    pagination: paginationRequestSchema,
+    materialIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one material ID is required'),
+    pagination: paginationRequestSchema.optional(),
+  })
+)
+export const getMaterialBulkByProjectRequestSchema = defaultRequestSchema(
+  z.object({
+    projectId: z.custom<Types.ObjectId>(),
+    pagination: paginationRequestSchema.optional(),
   })
 )
 
@@ -91,6 +97,7 @@ export type CreateEC3BulkMatchRequest = z.infer<typeof createEC3BulkMatchRequest
 // Get material types
 export type GetMaterialRequest = z.infer<typeof getMaterialRequestSchema>
 export type GetMaterialBulkRequest = z.infer<typeof getMaterialBulkRequestSchema>
+export type GetMaterialBulkByProjectRequest = z.infer<typeof getMaterialBulkByProjectRequestSchema>
 
 // Update material types
 export type UpdateMaterialRequest = z.infer<typeof updateMaterialRequestSchema>

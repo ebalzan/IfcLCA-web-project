@@ -101,19 +101,16 @@ export default function ProjectsNewPage() {
           <form
             onSubmit={handleSubmit(data =>
               createProject({
-                data: {
-                  project: {
-                    ...data,
-                    indicators: {
-                      gwp: 0,
-                      ubp: 0,
-                      penre: 0,
-                      lastCalculated: new Date(),
-                    },
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
+                project: {
+                  ...data,
+                  indicators: {
+                    gwp: 0,
+                    ubp: 0,
+                    penre: 0,
+                    lastCalculated: new Date(),
                   },
-                  userId: '',
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
                 },
               })
             )}>

@@ -42,8 +42,8 @@ async function getProject(
 
     return sendApiSuccessResponse<GetProjectResponseApi['data']>(
       {
-        ...project.data,
-        _id: project.data._id.toString(),
+        ...project,
+        _id: project._id.toString(),
       },
       'Project fetched successfully',
       request
@@ -62,14 +62,20 @@ async function updateProject(
     const { id: projectId } = await context.params
     const { updates } = request.validatedData
 
+    if (!Types.ObjectId.isValid(projectId)) {
+      return sendApiErrorResponse(new Error('Invalid project ID'), request, {
+        resource: 'project',
+      })
+    }
+
     const editedProject = await ProjectService.updateProject({
       data: { projectId: new Types.ObjectId(projectId), updates, userId },
     })
 
     return sendApiSuccessResponse<UpdateProjectResponseApi['data']>(
       {
-        ...editedProject.data,
-        _id: editedProject.data._id.toString(),
+        ...editedProject,
+        _id: editedProject._id.toString(),
       },
       'Project updated successfully',
       request
@@ -87,14 +93,20 @@ export async function deleteProject(
     const userId = getUserId(request)
     const { id: projectId } = await context.params
 
+    if (!Types.ObjectId.isValid(projectId)) {
+      return sendApiErrorResponse(new Error('Invalid project ID'), request, {
+        resource: 'project',
+      })
+    }
+
     const result = await ProjectService.deleteProject({
       data: { projectId: new Types.ObjectId(projectId), userId },
     })
 
     return sendApiSuccessResponse<DeleteProjectResponseApi['data']>(
       {
-        ...result.data,
-        _id: result.data._id.toString(),
+        ...result,
+        _id: result._id.toString(),
       },
       'Project deleted successfully',
       request

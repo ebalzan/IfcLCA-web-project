@@ -30,9 +30,9 @@ async function getProjectWithNestedData(
 
     return sendApiSuccessResponse<GetProjectWithNestedDataResponseApi['data']>(
       {
-        ...project.data,
-        _id: project.data._id.toString(),
-        elements: project.data.elements.map(element => ({
+        ...project,
+        _id: project._id.toString(),
+        elements: project.elements.map(element => ({
           ...element,
           _id: element._id.toString(),
           projectId: element.projectId.toString(),
@@ -48,19 +48,19 @@ async function getProjectWithNestedData(
             uploadId: material.uploadId?.toString() || null,
           })),
         })),
-        materials: project.data.materials.map(material => ({
+        materials: project.materials.map(material => ({
           ...material,
           _id: material._id.toString(),
           projectId: material.projectId.toString(),
           uploadId: material.uploadId?.toString() || null,
         })),
-        uploads: project.data.uploads.map(upload => ({
+        uploads: project.uploads.map(upload => ({
           ...upload,
           _id: upload._id.toString(),
           projectId: upload.projectId.toString(),
         })),
-        totalIndicators: project.data.totalIndicators,
-        _count: project.data._count,
+        totalIndicators: project.totalIndicators,
+        _count: project._count,
       } as GetProjectWithNestedDataResponseApi['data'],
       'Project fetched successfully',
       request

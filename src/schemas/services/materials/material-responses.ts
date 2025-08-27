@@ -1,40 +1,34 @@
 import { z } from 'zod'
 import { IEC3Match } from '@/interfaces/materials/IEC3Match'
 import IMaterialDB from '@/interfaces/materials/IMaterialDB'
-import { defaultResponseSchema, paginationResponseSchema } from '@/schemas/general'
+import { paginationResponseSchema } from '@/schemas/general'
 
 // Create material types
-export const createMaterialResponseSchema = defaultResponseSchema(z.custom<IMaterialDB>())
-export const createMaterialBulkResponseSchema = defaultResponseSchema(
-  z.array(z.custom<IMaterialDB>())
-)
+export const createMaterialResponseSchema = z.custom<IMaterialDB>()
+export const createMaterialBulkResponseSchema = z.array(z.custom<IMaterialDB>())
 
 // Create EC3 match types
-export const createEC3MatchResponseSchema = defaultResponseSchema(z.custom<IEC3Match | null>())
-export const createEC3BulkMatchResponseSchema = defaultResponseSchema(
-  z.array(z.custom<IEC3Match>())
-)
+export const createEC3MatchResponseSchema = z.custom<IEC3Match | null>()
+export const createEC3BulkMatchResponseSchema = z.array(z.custom<IEC3Match>())
 
 // Get material types
-export const getMaterialResponseSchema = defaultResponseSchema(z.custom<IMaterialDB>())
-export const getMaterialBulkResponseSchema = defaultResponseSchema(
-  z.object({
-    materials: z.array(z.custom<IMaterialDB>()),
-    pagination: paginationResponseSchema,
-  })
-)
+export const getMaterialResponseSchema = z.custom<IMaterialDB>()
+export const getMaterialBulkResponseSchema = z.object({
+  materials: z.array(z.custom<IMaterialDB>()),
+  pagination: paginationResponseSchema.optional(),
+})
+export const getMaterialBulkByProjectResponseSchema = z.object({
+  materials: z.array(z.custom<IMaterialDB>()),
+  pagination: paginationResponseSchema.optional(),
+})
 
 // Update material types
-export const updateMaterialResponseSchema = defaultResponseSchema(z.custom<IMaterialDB>())
-export const updateMaterialBulkResponseSchema = defaultResponseSchema(
-  z.array(z.custom<IMaterialDB>())
-)
+export const updateMaterialResponseSchema = z.custom<IMaterialDB>()
+export const updateMaterialBulkResponseSchema = z.array(z.custom<IMaterialDB>())
 
 // Delete material types
-export const deleteMaterialResponseSchema = defaultResponseSchema(z.custom<IMaterialDB>())
-export const deleteMaterialBulkResponseSchema = defaultResponseSchema(
-  z.array(z.custom<IMaterialDB>())
-)
+export const deleteMaterialResponseSchema = z.custom<IMaterialDB>()
+export const deleteMaterialBulkResponseSchema = z.array(z.custom<IMaterialDB>())
 
 // Create material types
 export type CreateMaterialResponse = z.infer<typeof createMaterialResponseSchema>
@@ -47,6 +41,9 @@ export type CreateEC3BulkMatchResponse = z.infer<typeof createEC3BulkMatchRespon
 // Get material types
 export type GetMaterialResponse = z.infer<typeof getMaterialResponseSchema>
 export type GetMaterialBulkResponse = z.infer<typeof getMaterialBulkResponseSchema>
+export type GetMaterialBulkByProjectResponse = z.infer<
+  typeof getMaterialBulkByProjectResponseSchema
+>
 
 // Update material types
 export type UpdateMaterialResponse = z.infer<typeof updateMaterialResponseSchema>

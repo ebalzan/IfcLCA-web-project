@@ -1,7 +1,5 @@
-import { FilterQuery } from 'mongoose'
-import IUploadDB from '@/interfaces/uploads/IUploadDB'
 import { logger } from '@/lib/logger'
-import { Upload } from '@/models'
+import { Element, Material, Upload } from '@/models'
 import {
   CreateUploadRequest,
   CreateUploadBulkRequest,
@@ -11,6 +9,7 @@ import {
   UpdateUploadBulkRequest,
   DeleteUploadRequest,
   DeleteUploadBulkRequest,
+  GetUploadBulkByProjectRequest,
 } from '@/schemas/services/uploads/upload-requests'
 import {
   CreateUploadResponse,
@@ -21,6 +20,7 @@ import {
   UpdateUploadBulkResponse,
   DeleteUploadResponse,
   DeleteUploadBulkResponse,
+  GetUploadBulkByProjectResponse,
 } from '@/schemas/services/uploads/upload-responses'
 import { withTransaction } from '@/utils/withTransaction'
 import {
@@ -41,23 +41,18 @@ export class UploadService {
    * Creates a new upload
    */
   static async createUpload({
-    data: { projectId, userId, ...upload },
+    data: { upload, userId },
     session,
   }: CreateUploadRequest): Promise<CreateUploadResponse> {
     try {
-      const newUpload = await Upload.insertOne(
-        { ...upload, projectId, userId },
-        { session: session || null, validateBeforeSave: true }
+      const createResult = await Upload.insertOne(
+        { ...upload, userId },
+        { session: session || null }
       )
 
-      return {
-        success: true,
-        data: {
-          ...newUpload,
-          _id: newUpload._id.toString(),
-        },
-        message: 'Upload created successfully',
-      }
+      const newUpload = createResult.toObject()
+
+      return newUpload
     } catch (error: unknown) {
       logger.error('❌ [Upload Service] Error in createUpload:', error)
 
@@ -75,23 +70,22 @@ export class UploadService {
    * Creates multiple uploads
    */
   static async createUploadBulk({
-    data: { projectId, uploads },
+    data: { uploads, projectId, userId },
     session,
   }: CreateUploadBulkRequest): Promise<CreateUploadBulkResponse> {
     try {
-      const newUploads = await Upload.insertMany(
+      const newUploadsResult = await Upload.insertMany(
         uploads.map(upload => ({
           ...upload,
-          projectId: projectId || upload.projectId,
+          projectId,
+          userId,
         })),
         { session: session || null }
       )
 
-      return {
-        success: true,
-        data: newUploads,
-        message: 'Uploads created successfully',
-      }
+      const newUploads = newUploadsResult.map(result => result.toObject())
+
+      return newUploads
     } catch (error: unknown) {
       logger.error('❌ [Upload Service] Error in createUploadBulk:', error)
 
@@ -109,36 +103,19 @@ export class UploadService {
    * Get a upload by its ID
    */
   static async getUpload({
-    data: { uploadId, projectId },
+    data: { uploadId },
     session,
   }: GetUploadRequest): Promise<GetUploadResponse> {
     try {
-      // 1. Build query
-      const query: FilterQuery<IUploadDB> = {
-        _id: uploadId,
-      }
-      if (projectId) {
-        query.projectId = projectId
-      }
-
-      // 2. Fetch upload
-      const upload = await Upload.findOne(query)
+      const upload = await Upload.findOne({ _id: uploadId })
         .session(session || null)
         .lean()
 
-      // 3. Check if upload exists
       if (!upload) {
         throw new NotFoundError('Upload', uploadId.toString())
       }
 
-      return {
-        success: true,
-        data: {
-          ...upload,
-          _id: upload._id.toString(),
-        },
-        message: 'Upload fetched successfully',
-      }
+      return upload
     } catch (error: unknown) {
       logger.error('❌ [Upload Service] Error in getUpload:', error)
 
@@ -157,41 +134,59 @@ export class UploadService {
    * Get multiple uploads by their IDs
    */
   static async getUploadBulk({
-    data: { uploadIds, projectId, pagination },
+    data: { uploadIds, pagination },
     session,
   }: GetUploadBulkRequest): Promise<GetUploadBulkResponse> {
     return withTransaction(async useSession => {
-      try {
-        const { page, size } = pagination
-        const skip = (page - 1) * size
+      if (!pagination) {
+        try {
+          const uploads = await Upload.find({
+            _id: { $in: uploadIds },
+          })
+            .session(useSession)
+            .lean()
 
-        // 1. Build query
-        const query: FilterQuery<IUploadDB> = {
-          _id: { $in: uploadIds },
+          if (!uploads || uploads.length === 0) {
+            throw new NotFoundError('Upload', uploadIds.join(', '))
+          }
+
+          return { uploads }
+        } catch (error: unknown) {
+          logger.error('❌ [Upload Service] Error in getUploadBulk:', error)
+
+          if (isAppError(error)) {
+            throw error
+          }
+
+          throw new DatabaseError(
+            error instanceof Error ? error.message : 'Failed to fetch uploads',
+            'read'
+          )
         }
-        if (projectId) {
-          query.projectId = projectId
-        }
+      } else {
+        try {
+          const { page, size } = pagination
+          const skip = (page - 1) * size
 
-        // 2. Fetch uploads
-        const uploads = await Upload.find(query).session(useSession).skip(skip).limit(size).lean()
+          const uploads = await Upload.find({
+            _id: { $in: uploadIds },
+          })
+            .session(useSession)
+            .limit(size)
+            .skip(skip)
+            .lean()
 
-        // 3. Check if uploads exist
-        if (!uploads || uploads.length === 0) {
-          throw new NotFoundError('Upload', uploadIds.join(', '))
-        }
+          if (!uploads || uploads.length === 0) {
+            throw new NotFoundError('Upload', uploadIds.join(', '))
+          }
 
-        // 4. Get total count for pagination metadata
-        const totalCount = await Upload.countDocuments(query).session(useSession)
-        const hasMore = page * size < totalCount
+          const totalCount = await Upload.countDocuments({
+            _id: { $in: uploadIds },
+          }).session(useSession)
+          const hasMore = page * size < totalCount
 
-        return {
-          success: true,
-          data: {
-            uploads: uploads.map(upload => ({
-              ...upload,
-              _id: upload._id.toString(),
-            })),
+          return {
+            uploads,
             pagination: {
               page,
               size,
@@ -199,20 +194,87 @@ export class UploadService {
               hasMore,
               totalPages: Math.ceil(totalCount / size),
             },
-          },
-          message: 'Uploads fetched successfully',
-        }
-      } catch (error: unknown) {
-        logger.error('❌ [Upload Service] Error in getUploadBulk:', error)
+          }
+        } catch (error: unknown) {
+          logger.error('❌ [Upload Service] Error in getUploadBulk with pagination:', error)
 
-        if (isAppError(error)) {
-          throw error
-        }
+          if (isAppError(error)) {
+            throw error
+          }
 
-        throw new DatabaseError(
-          error instanceof Error ? error.message : 'Failed to fetch uploads',
-          'read'
-        )
+          throw new DatabaseError(
+            error instanceof Error ? error.message : 'Failed to fetch uploads',
+            'read'
+          )
+        }
+      }
+    }, session)
+  }
+
+  /**
+   * Get multiple materials by project ID
+   */
+  static async getUploadBulkByProject({
+    data: { projectId, pagination },
+    session,
+  }: GetUploadBulkByProjectRequest): Promise<GetUploadBulkByProjectResponse> {
+    return withTransaction(async useSession => {
+      if (!pagination) {
+        try {
+          const uploads = await Upload.find({ projectId }).session(useSession).lean()
+
+          if (!uploads || uploads.length === 0) {
+            throw new NotFoundError('Upload', projectId.toString())
+          }
+
+          return { uploads }
+        } catch (error: unknown) {
+          logger.error('❌ [Upload Service] Error in getUploadBulkByProject:', error)
+
+          if (isAppError(error)) {
+            throw error
+          }
+
+          throw new DatabaseError(
+            error instanceof Error ? error.message : 'Failed to fetch uploads',
+            'read'
+          )
+        }
+      } else {
+        try {
+          const { page, size } = pagination
+          const skip = (page - 1) * size
+
+          const uploads = await Upload.find({ projectId })
+            .session(useSession)
+            .limit(size)
+            .skip(skip)
+            .lean()
+
+          const totalCount = await Upload.countDocuments({ projectId }).session(useSession)
+
+          return {
+            uploads,
+            pagination: {
+              page,
+              size,
+              totalCount,
+              hasMore: page * size < totalCount,
+              totalPages: Math.ceil(totalCount / size),
+            },
+          }
+        } catch (error: unknown) {
+          logger.error('❌ [Upload Service] Error in getUploadBulkByProject:', error)
+
+          if (isAppError(error)) {
+            throw error
+          }
+
+          throw new DatabaseError(
+            error instanceof Error ? error.message : 'Failed to fetch uploads',
+            'read'
+          )
+        }
       }
     }, session)
   }
@@ -221,30 +283,18 @@ export class UploadService {
    * Updates a upload
    */
   static async updateUpload({
-    data: { uploadId, updates, projectId },
+    data: { uploadId, updates },
     session,
   }: UpdateUploadRequest): Promise<UpdateUploadResponse> {
     return withTransaction(async useSession => {
       try {
-        // 1. Build query
-        const query: FilterQuery<IUploadDB> = {
-          _id: uploadId,
-        }
-        if (projectId) {
-          query.projectId = projectId
-        }
+        await this.getUpload({
+          data: { uploadId },
+          session: useSession,
+        })
 
-        // 2. Fetch upload
-        const upload = await Upload.findOne(query).session(useSession).lean()
-
-        // 3. Check if upload exists
-        if (!upload) {
-          throw new NotFoundError('Upload', uploadId.toString())
-        }
-
-        // 4. Update upload
         const updatedResult = await Upload.findOneAndUpdate(
-          query,
+          { _id: uploadId },
           {
             $set: {
               ...updates,
@@ -252,25 +302,18 @@ export class UploadService {
             },
           },
           {
-            session: useSession,
             upsert: false,
             new: true,
-            runValidators: true,
           }
         )
+          .session(useSession)
+          .lean()
 
         if (!updatedResult) {
           throw new UploadUpdateError(`Failed to update upload: ${uploadId.toString()}`)
         }
 
-        return {
-          success: true,
-          data: {
-            ...updatedResult,
-            _id: updatedResult._id.toString(),
-          },
-          message: 'Upload updated successfully',
-        }
+        return updatedResult
       } catch (error: unknown) {
         logger.error('❌ [Upload Service] Error in updateUpload:', error)
 
@@ -289,49 +332,30 @@ export class UploadService {
    * Updates multiple uploads efficiently using bulk operations
    */
   static async updateUploadBulk({
-    data: { uploadIds, updates, projectId },
+    data: { uploadIds, updates },
     session,
   }: UpdateUploadBulkRequest): Promise<UpdateUploadBulkResponse> {
-    return withTransaction(async useSession => {
-      try {
-        // 1. Validate input arrays have matching lengths
-        if (uploadIds.length !== updates.length) {
-          throw new UploadUpdateError('Upload IDs and updates arrays must have the same length')
-        }
-
-        // 2. Build base query for all operations
-        const baseQuery: FilterQuery<IUploadDB> = {
-          _id: { $in: uploadIds },
-        }
-        if (projectId) {
-          baseQuery.projectId = projectId
-        }
-
-        // 3. First, verify all uploads exist and belong to the project
-        const existingUploads = await Upload.find(baseQuery)
-          .session(useSession)
-          .lean()
-          .select('_id')
-
-        const existingUploadIds = new Set(existingUploads.map(upload => upload._id.toString()))
-        const missingUploadIds = uploadIds.filter(id => !existingUploadIds.has(id.toString()))
-
-        if (missingUploadIds.length > 0) {
-          throw new NotFoundError(
-            `Uploads not found: ${missingUploadIds.map(id => id.toString()).join(', ')}`
-          )
-        }
-
-        // 4. Prepare bulk update operations
-        const bulkOps = uploadIds.map((uploadId, index) => {
-          const filter: FilterQuery<IUploadDB> = { _id: uploadId }
-          if (projectId) {
-            filter.projectId = projectId
+    return withTransaction(
+      async useSession => {
+        try {
+          if (uploadIds.length !== updates.length) {
+            throw new UploadUpdateError('Upload IDs and updates arrays must have the same length')
           }
 
-          return {
+          const { uploads: existingUploads } = await this.getUploadBulk({
+            data: { uploadIds },
+            session: useSession,
+          })
+
+          if (existingUploads.length !== uploadIds.length) {
+            const foundIds = existingUploads.map(upload => upload._id.toString())
+            const missingIds = uploadIds.filter(id => !foundIds.includes(id.toString()))
+            throw new NotFoundError(`Uploads not found: ${missingIds.join(', ')}`)
+          }
+
+          const bulkOps = uploadIds.map((uploadId, index) => ({
             updateOne: {
-              filter,
+              filter: { _id: uploadId },
               update: {
                 $set: {
                   ...updates[index],
@@ -339,115 +363,71 @@ export class UploadService {
                 },
               },
             },
+          }))
+
+          const bulkResult = await Upload.bulkWrite(bulkOps, { session: useSession })
+
+          if (bulkResult.modifiedCount !== uploadIds.length) {
+            throw new UploadUpdateError(
+              `Expected to update ${uploadIds.length} uploads, but only updated ${bulkResult.modifiedCount}`
+            )
           }
-        })
 
-        // 5. Execute bulk update
-        const bulkResult = await Upload.bulkWrite(bulkOps, {
-          session: useSession,
-          ordered: false, // Continue processing even if some operations fail
-        })
+          const { uploads: updatedUploads } = await this.getUploadBulk({
+            data: { uploadIds },
+            session: useSession,
+          })
 
-        // 6. Check for any failed operations
-        if (bulkResult.hasWriteErrors()) {
-          throw new UploadUpdateError(`Failed to update uploads`)
+          return updatedUploads
+        } catch (error: unknown) {
+          logger.error('❌ [Upload Service] Error in updateUploadBulk:', error)
+
+          if (isAppError(error)) {
+            throw error
+          }
+
+          throw new UploadUpdateError(
+            error instanceof Error ? error.message : 'Failed to update uploads'
+          )
         }
-
-        // 7. Fetch all updated uploads in a single query
-        const updatedUploads = await Upload.find(baseQuery)
-          .session(useSession)
-          .lean()
-          .sort({ _id: 1 })
-
-        return {
-          success: true,
-          data: updatedUploads.map(upload => ({
-            ...upload,
-            _id: upload._id.toString(),
-          })),
-          message: `Successfully updated ${bulkResult.modifiedCount} uploads`,
-        }
-      } catch (error: unknown) {
-        logger.error('❌ [Upload Service] Error in updateUploadBulk:', error)
-
-        if (isAppError(error)) {
-          throw error
-        }
-
-        throw new UploadUpdateError(
-          error instanceof Error ? error.message : 'Failed to update uploads'
-        )
-      }
-    }, session)
+      },
+      session,
+      'updateUploadBulk'
+    )
   }
 
   /**
    * Deletes a upload with all associated data atomically
    */
   static async deleteUpload({
-    data: { uploadId, projectId },
+    data: { uploadId },
     session,
   }: DeleteUploadRequest): Promise<DeleteUploadResponse> {
     return withTransaction(async useSession => {
       try {
-        // 1. Build query
-        const query: FilterQuery<IUploadDB> = {
-          _id: uploadId,
-        }
-        if (projectId) {
-          query.projectId = projectId
-        }
-
-        // 2. Fetch upload to get projectId
-        const upload = await Upload.findOne(query).session(useSession).lean()
-
-        if (!upload) {
-          throw new NotFoundError('Upload', uploadId.toString())
-        }
-
-        // 3. Perform all deletions atomically using bulkWrite
-        const bulkOperations = [
-          // Delete the upload
-          {
-            deleteOne: {
-              filter: { _id: uploadId },
-              collation: { locale: 'simple' },
-            },
-          },
-          // Delete all elements for this upload
-          {
-            deleteMany: {
-              filter: { uploadId },
-              collation: { locale: 'simple' },
-            },
-          },
-          // Delete all materials for this upload
-          {
-            deleteMany: {
-              filter: { uploadId },
-              collation: { locale: 'simple' },
-            },
-          },
-        ]
-
-        const bulkResult = await Upload.bulkWrite(bulkOperations, {
+        await this.getUpload({
+          data: { uploadId },
           session: useSession,
-          ordered: true, // Ensures operations happen in order
         })
 
-        // 4. Verify the upload was actually deleted
-        if (bulkResult.deletedCount === 0) {
+        const [elements, materials] = await Promise.all([
+          Element.deleteMany({ uploadId }).session(useSession),
+          Material.deleteMany({ uploadId }).session(useSession),
+        ])
+
+        if (elements.deletedCount !== 1 || materials.deletedCount !== 1) {
           throw new UploadDeleteError('Failed to delete upload')
         }
 
-        return {
-          success: true,
-          data: {
-            ...upload,
-            _id: upload._id.toString(),
-          },
-          message: `Upload and associated data deleted successfully. Deleted: ${bulkResult.deletedCount} documents`,
+        const deleteResult = await Upload.findOneAndDelete({ _id: uploadId })
+          .session(useSession)
+          .lean()
+
+        if (!deleteResult) {
+          throw new NotFoundError('Upload', uploadId.toString())
         }
+
+        return deleteResult
       } catch (error: unknown) {
         logger.error('❌ [Upload Service] Error in deleteUpload:', error)
 
@@ -467,77 +447,43 @@ export class UploadService {
    * Deletes multiple uploads with all associated data atomically
    */
   static async deleteUploadBulk({
-    data: { uploadIds, projectId },
+    data: { uploadIds },
     session,
   }: DeleteUploadBulkRequest): Promise<DeleteUploadBulkResponse> {
     return withTransaction(async useSession => {
       try {
-        // 1. Build query
-        const query: FilterQuery<IUploadDB> = {
-          _id: { $in: uploadIds },
-        }
-        if (projectId) {
-          query.projectId = projectId
-        }
-
-        // 2. Fetch uploads to verify they exist and get data for response
-        const uploads = await Upload.find(query).session(useSession).lean()
-
-        if (!uploads || uploads.length === 0) {
-          throw new NotFoundError('Upload', uploadIds.join(', '))
-        }
-
-        // 3. Verify all requested uploads were found
-        const foundUploadIds = uploads.map(upload => upload._id.toString())
-        const missingUploadIds = uploadIds.filter(id => !foundUploadIds.includes(id.toString()))
-
-        if (missingUploadIds.length > 0) {
-          throw new NotFoundError('Upload', missingUploadIds.join(', '))
-        }
-
-        // 4. Perform all deletions atomically using bulkWrite
-        const bulkOperations = [
-          // Delete all uploads
-          {
-            deleteMany: {
-              filter: query,
-              collation: { locale: 'simple' },
-            },
-          },
-          // Delete all elements for these uploads
-          {
-            deleteMany: {
-              filter: { uploadId: { $in: uploadIds } },
-              collation: { locale: 'simple' },
-            },
-          },
-          // Delete all materials for these uploads
-          {
-            deleteMany: {
-              filter: { uploadId: { $in: uploadIds } },
-              collation: { locale: 'simple' },
-            },
-          },
-        ]
-
-        const bulkResult = await Upload.bulkWrite(bulkOperations, {
+        const { uploads: existingUploads } = await this.getUploadBulk({
+          data: { uploadIds },
           session: useSession,
-          ordered: true, // Ensures operations happen in order
         })
 
-        // 5. Verify the uploads were actually deleted
-        if (bulkResult.deletedCount === 0) {
+        if (existingUploads.length !== uploadIds.length) {
+          const foundIds = existingUploads.map(upload => upload._id.toString())
+          const missingIds = uploadIds.filter(id => !foundIds.includes(id.toString()))
+          throw new NotFoundError(`Uploads not found: ${missingIds.join(', ')}`)
+        }
+
+        const [elements, materials] = await Promise.all([
+          Element.deleteMany({ uploadId: { $in: uploadIds } }).session(useSession),
+          Material.deleteMany({ uploadId: { $in: uploadIds } }).session(useSession),
+        ])
+
+        if (
+          elements.deletedCount !== uploadIds.length ||
+          materials.deletedCount !== uploadIds.length
+        ) {
           throw new UploadDeleteError('Failed to delete uploads')
         }
 
-        return {
-          success: true,
-          data: uploads.map(upload => ({
-            ...upload,
-            _id: upload._id.toString(),
-          })),
-          message: `Uploads and associated data deleted successfully. Deleted: ${bulkResult.deletedCount} documents`,
+        const deleteResult = await Upload.deleteMany({ _id: { $in: uploadIds } })
+          .session(useSession)
+          .lean()
+
+        if (deleteResult.deletedCount !== uploadIds.length) {
+          throw new UploadDeleteError('Failed to delete uploads')
         }
+
+        return existingUploads
       } catch (error: unknown) {
         logger.error('❌ [Upload Service] Error in deleteUploadBulk:', error)
 

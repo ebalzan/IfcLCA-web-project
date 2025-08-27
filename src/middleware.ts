@@ -31,6 +31,11 @@ export default clerkMiddleware(async (auth, req) => {
     return NextResponse.next()
   }
 
+  // Allow all API routes to pass through (they handle their own auth)
+  if (pathname.startsWith('/api/')) {
+    return NextResponse.next()
+  }
+
   // For protected routes, check terms acceptance
   if (userId && requiresTermsAcceptance(req)) {
     const hasAcceptedTerms = req.cookies.get('terms_accepted')

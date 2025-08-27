@@ -140,7 +140,7 @@ export const useTanStackInfiniteQuery = <TResponse, TTransformedData = TResponse
 }
 
 // TanStack Query mutation hook for POST/PUT/DELETE operations
-export const useTanStackMutation = <TResponse, TRequestData>(
+export const useTanStackMutation = <TRequestData, TResponse>(
   url: string,
   options?: TanStackOptions &
     UseMutationOptions<TResponse, Error, TRequestData, unknown> & {
@@ -272,7 +272,7 @@ export const useTanStackSubmit = <TResponse, TRequestData = unknown>(
 ) => {
   const queryClient = useQueryClient()
 
-  const mutation = useTanStackMutation<TResponse, TRequestData>(url, {
+  const mutation = useTanStackMutation<TRequestData, TResponse>(url, {
     ...options,
     method: 'POST',
     headers: {

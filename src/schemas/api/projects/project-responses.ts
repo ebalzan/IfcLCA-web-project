@@ -1,23 +1,25 @@
 import { z } from 'zod'
+import { IProjectClient } from '@/interfaces/client/projects/IProjectClient'
 import { IProjectWithNestedDataClient } from '@/interfaces/client/projects/IProjectWithNestedData'
-import IProjectDB from '@/interfaces/projects/IProjectDB'
 import { defaultResponseSchema, paginationResponseSchema } from '@/schemas/general'
 
 // Create project
-export const createProjectResponseApiSchema = defaultResponseSchema(
-  z.custom<Omit<IProjectDB, '_id'> & { _id: string }>()
-)
+export const createProjectResponseApiSchema = defaultResponseSchema(z.custom<IProjectClient>())
 export const createProjectBulkResponseApiSchema = defaultResponseSchema(
-  z.array(z.custom<Omit<IProjectDB, '_id'> & { _id: string }>())
+  z.array(z.custom<IProjectClient>())
 )
 
 // Get project
-export const getProjectResponseApiSchema = defaultResponseSchema(
-  z.custom<Omit<IProjectDB, '_id'> & { _id: string }>()
-)
+export const getProjectResponseApiSchema = defaultResponseSchema(z.custom<IProjectClient>())
 export const getProjectBulkResponseApiSchema = defaultResponseSchema(
   z.object({
-    projects: z.array(z.custom<Omit<IProjectDB, '_id'> & { _id: string }>()),
+    projects: z.array(z.custom<IProjectClient>()),
+    pagination: paginationResponseSchema,
+  })
+)
+export const getProjectBulkByUserResponseApiSchema = defaultResponseSchema(
+  z.object({
+    projects: z.array(z.custom<IProjectClient>()),
     pagination: paginationResponseSchema,
   })
 )
@@ -32,21 +34,23 @@ export const getProjectWithNestedDataBulkResponseApiSchema = defaultResponseSche
     pagination: paginationResponseSchema,
   })
 )
+export const getProjectWithNestedDataBulkByUserResponseApiSchema = defaultResponseSchema(
+  z.object({
+    projects: z.array(z.custom<IProjectWithNestedDataClient>()),
+    pagination: paginationResponseSchema,
+  })
+)
 
 // Update project
-export const updateProjectResponseApiSchema = defaultResponseSchema(
-  z.custom<Omit<IProjectDB, '_id'> & { _id: string }>()
-)
+export const updateProjectResponseApiSchema = defaultResponseSchema(z.custom<IProjectClient>())
 export const updateProjectBulkResponseApiSchema = defaultResponseSchema(
-  z.array(z.custom<Omit<IProjectDB, '_id'> & { _id: string }>())
+  z.array(z.custom<IProjectClient>())
 )
 
 // Delete project
-export const deleteProjectResponseApiSchema = defaultResponseSchema(
-  z.custom<Omit<IProjectDB, '_id'> & { _id: string }>()
-)
+export const deleteProjectResponseApiSchema = defaultResponseSchema(z.custom<IProjectClient>())
 export const deleteProjectBulkResponseApiSchema = defaultResponseSchema(
-  z.array(z.custom<Omit<IProjectDB, '_id'> & { _id: string }>())
+  z.array(z.custom<IProjectClient>())
 )
 
 // Create project types
@@ -56,6 +60,7 @@ export type CreateProjectBulkResponseApi = z.infer<typeof createProjectBulkRespo
 // Get project types
 export type GetProjectResponseApi = z.infer<typeof getProjectResponseApiSchema>
 export type GetProjectBulkResponseApi = z.infer<typeof getProjectBulkResponseApiSchema>
+export type GetProjectBulkByUserResponseApi = z.infer<typeof getProjectBulkByUserResponseApiSchema>
 
 // Get project with nested data types
 export type GetProjectWithNestedDataResponseApi = z.infer<
@@ -63,6 +68,9 @@ export type GetProjectWithNestedDataResponseApi = z.infer<
 >
 export type GetProjectWithNestedDataBulkResponseApi = z.infer<
   typeof getProjectWithNestedDataBulkResponseApiSchema
+>
+export type GetProjectWithNestedDataBulkByUserResponseApi = z.infer<
+  typeof getProjectWithNestedDataBulkByUserResponseApiSchema
 >
 
 // Update project types

@@ -6,6 +6,7 @@ import { ValidationContext } from '@/lib/validation-middleware/types'
 import {
   SearchProjectsRequestApi,
   searchProjectsRequestSchemaApi,
+  SearchProjectsResponseApi,
 } from '@/schemas/api/projects/search'
 
 async function searchProjects(
@@ -15,7 +16,7 @@ async function searchProjects(
   try {
     const userId = getUserId(request)
     const { name, sortBy, pagination } = context.query
-    const { page, size } = pagination
+    const { page, size } = pagination || { page: 1, size: 50 }
 
     const response = await ProjectService.searchProjects({
       data: {
@@ -29,7 +30,23 @@ async function searchProjects(
       },
     })
 
-    return sendApiSuccessResponse(response, 'Projects searched successfully', request)
+    return sendApiSuccessResponse<SearchProjectsResponseApi['data']>(
+      {
+        projects: response.projects.map(project => ({
+          ...project,
+          _id: project._id.toString(),
+        })),
+        pagination: {
+          page,
+          size,
+          hasMore: response.pagination?.hasMore || false,
+          totalCount: response.pagination?.totalCount || 0,
+          totalPages: response.pagination?.totalPages || 0,
+        },
+      },
+      'Projects searched successfully',
+      request
+    )
   } catch (error: unknown) {
     return sendApiErrorResponse(error, request, { operation: 'search', resource: 'project' })
   }

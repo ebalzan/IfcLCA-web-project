@@ -1,17 +1,29 @@
 import { useCallback, useMemo } from 'react'
 import { useDebounce } from '@/hooks/use-debounce'
 import { useTanStackInfiniteQuery } from '@/hooks/use-tanstack-fetch'
-import { IEC3Material } from '@/interfaces/materials/IEC3Material'
+import { IEC3MaterialClient } from '@/interfaces/client/materials/IEC3MaterialClient'
 import { Queries } from '@/queries'
-import { SearchMaterialsResponse } from '@/schemas/api/ec3/search'
+import { SearchEC3MaterialsResponseApi } from '@/schemas/api/ec3/search'
 import { useMaterialsLibraryStore } from './materials-library-store'
 
 export function useEC3Search() {
-  const { ec3SearchValue, setEc3SearchValue } = useMaterialsLibraryStore()
+  const { ec3SearchValue, setEc3SearchValue, ec3SearchFields, ec3SearchSortBy } =
+    useMaterialsLibraryStore()
   const debouncedSearchValue = useDebounce(ec3SearchValue, 1000)
 
   // Always enable the query to fetch initial materials
   const shouldSearch = true
+
+  const ec3SearchParams = new URLSearchParams()
+  if (debouncedSearchValue) {
+    ec3SearchParams.set('name', debouncedSearchValue.trim())
+  }
+  if (ec3SearchFields.length > 0) {
+    ec3SearchParams.set('fields', ec3SearchFields.join(','))
+  }
+  if (ec3SearchSortBy) {
+    ec3SearchParams.set('sort_by', ec3SearchSortBy)
+  }
 
   const {
     data: searchResults,
@@ -22,8 +34,8 @@ export function useEC3Search() {
     hasNextPage,
     fetchNextPage,
     isFetchingNextPage,
-  } = useTanStackInfiniteQuery<SearchMaterialsResponse, IEC3Material[]>(
-    `/api/materials/search${debouncedSearchValue ? `?name=${encodeURIComponent(debouncedSearchValue.trim())}` : ''}`,
+  } = useTanStackInfiniteQuery<SearchEC3MaterialsResponseApi, IEC3MaterialClient[]>(
+    `/api/ec3/search?${ec3SearchParams.toString()}`,
     {
       queryKey: [Queries.SEARCH_EC3, debouncedSearchValue],
       enabled: shouldSearch,
@@ -74,6 +86,8 @@ export function useEC3Search() {
 
   return {
     ec3SearchValue,
+    ec3SearchFields,
+    ec3SearchSortBy,
     EC3Materials,
     isSearching,
     searchError,

@@ -2,51 +2,38 @@ import { IEC3Material } from '@/interfaces/materials/IEC3Material'
 import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
 import { AuthenticatedRequest, withAuthAndDB } from '@/lib/api-middleware'
 import { api } from '@/lib/fetch'
-import { validateQueryParams } from '@/lib/validation-middleware'
+import { withAuthAndDBQueryParams } from '@/lib/validation-middleware'
+import { ValidationContext } from '@/lib/validation-middleware/types'
 import {
+  SearchEC3MaterialsRequestApi,
   searchEC3MaterialsRequestSchemaApi,
   SearchEC3MaterialsResponseApi,
 } from '@/schemas/api/ec3/search'
 
-async function searchEC3Materials(request: AuthenticatedRequest) {
+async function searchEC3Materials(
+  request: AuthenticatedRequest,
+  context: ValidationContext<never, SearchEC3MaterialsRequestApi['query']>
+) {
   try {
-    const queryParams = validateQueryParams(
-      searchEC3MaterialsRequestSchemaApi.shape.query,
-      request,
-      {
-        sortBy: '+name',
-        pagination: {
-          page: 1,
-          size: 50,
-        },
-      }
-    )
-
-    if (!queryParams) {
-      return sendApiErrorResponse(new Error('Invalid query parameters'), request)
-    }
-
-    const { pagination, sortBy, name } = queryParams
-    const { page, size } = pagination
+    const { pagination, sortBy, name, fields } = context.query
+    const { page, size } = pagination || { page: 1, size: 50 }
 
     const params = new URLSearchParams()
 
-    if (sortBy?.trim()) {
-      params.set('sort_by', sortBy.trim())
+    if (fields) {
+      params.set('fields', fields.join(','))
     }
-
-    if (name?.trim()) {
-      params.set('name__like', name.trim())
-    }
-
     params.set('page_number', page.toString())
     params.set('page_size', size.toString())
-
-    const fields =
-      'id,name,manufacturer,category,description,gwp,ubp,penre,unit,density,declared_unit,valid_from,valid_to'
+    if (sortBy) {
+      params.set('sort_by', sortBy)
+    }
+    if (name) {
+      params.set('name__like', name)
+    }
 
     const ec3Materials = await api.get<IEC3Material[]>(
-      `${process.env.EC3_API_URL}/industry_epds?fields=${fields}&${params.toString()}`,
+      `${process.env.EC3_API_URL}/industry_epds?${params.toString()}`,
       {
         headers: {
           Authorization: `Bearer ${process.env.EC3_API_KEY}`,
@@ -73,4 +60,7 @@ async function searchEC3Materials(request: AuthenticatedRequest) {
   }
 }
 
-export const GET = withAuthAndDB(searchEC3Materials)
+export const GET = withAuthAndDBQueryParams({
+  queryParamsSchema: searchEC3MaterialsRequestSchemaApi.shape.query,
+  handler: searchEC3Materials,
+})

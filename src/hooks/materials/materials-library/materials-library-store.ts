@@ -1,7 +1,6 @@
-import { Types } from 'mongoose'
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
-import { IEC3Match } from '@/interfaces/materials/IEC3Match'
+import { IEC3MatchClient } from '@/interfaces/client/materials/IEC3MatchClient'
 import { MaterialsLibraryStoreActions } from './interfaces/MaterialsLibraryStoreActions'
 import { MaterialsLibraryStoreState } from './interfaces/MaterialsLibraryStoreState'
 
@@ -13,8 +12,24 @@ const initialState: MaterialsLibraryStoreState = {
   isOpenConfirmMatchesModal: false,
   autoSuggestedMatches: [],
   ifcSearchValue: '',
-  ec3SearchValue: '',
   isAutoScrollEnabled: false,
+  ec3SearchValue: '',
+  ec3SearchFields: [
+    'id',
+    'name',
+    'manufacturer',
+    'category',
+    'description',
+    'gwp',
+    'ubp',
+    'penre',
+    'unit',
+    'density',
+    'declared_unit',
+    'valid_from',
+    'valid_to',
+  ],
+  ec3SearchSortBy: '+name',
 }
 
 export const useMaterialsLibraryStore = create<
@@ -38,6 +53,14 @@ export const useMaterialsLibraryStore = create<
         set({ ec3SearchValue: value })
       },
 
+      setEc3SearchFields: (fields: string[]) => {
+        set({ ec3SearchFields: fields })
+      },
+
+      setEc3SearchSortBy: (sortBy: string) => {
+        set({ ec3SearchSortBy: sortBy })
+      },
+
       setIsAutoScrollEnabled: (isAutoScrollEnabled: boolean) => {
         set({ isAutoScrollEnabled })
       },
@@ -54,14 +77,10 @@ export const useMaterialsLibraryStore = create<
         set({ isOpenConfirmMatchesModal: false, temporaryMatches: [] })
       },
 
-      acceptMatch: (match: Omit<IEC3Match, '_id'>) => {
+      acceptMatch: (match: Omit<IEC3MatchClient, '_id'>) => {
         const { temporaryMatches } = get()
         const newMatches = [...temporaryMatches]
-        const { materialId, ec3MatchId } = match
-        newMatches.push({
-          materialId,
-          ec3MatchId,
-        })
+        newMatches.push(match)
         set({ temporaryMatches: newMatches })
       },
 
@@ -70,8 +89,8 @@ export const useMaterialsLibraryStore = create<
         const newMatches = [...temporaryMatches]
         autoSuggestedMatches.forEach(match => {
           newMatches.push({
-            materialId: new Types.ObjectId(match.materialId),
-            ec3MatchId: match.ec3MatchId,
+            ...match,
+            autoMatched: false,
           })
         })
         set({ temporaryMatches: newMatches })

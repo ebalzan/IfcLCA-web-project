@@ -12,6 +12,7 @@ import {
   WithAuthAndValidationWithPathAndQueryParams,
   WithAuthAndPathParams,
   WithAuthAndQueryParams,
+  WithAuthAndPathAndQueryParams,
 } from './types'
 import { formatValidationError, sendApiErrorResponse } from '../api-error-response'
 import { withAuthAndDB, withAuthAndDBWithPathParams } from '../api-middleware'
@@ -208,6 +209,22 @@ export const withAuthAndDBQueryParams = <QUERY_PARAMS>({
 
     return handler(authRequest, {
       params: Promise.resolve({} as never),
+      query: validatedQueryParams,
+    })
+  })
+}
+
+export const withAuthAndDBPathAndQueryParams = <PATH_PARAMS, QUERY_PARAMS>({
+  pathParamsSchema,
+  queryParamsSchema,
+  handler,
+}: WithAuthAndPathAndQueryParams<PATH_PARAMS, QUERY_PARAMS>) => {
+  return withAuthAndDBWithPathParams<PATH_PARAMS>(async (authRequest, context) => {
+    const validatedPathParams = await validatePathParams(pathParamsSchema, context.params)
+    const validatedQueryParams = validateQueryParams(queryParamsSchema, authRequest)
+
+    return handler(authRequest, {
+      params: Promise.resolve(validatedPathParams),
       query: validatedQueryParams,
     })
   })

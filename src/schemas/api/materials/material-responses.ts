@@ -1,12 +1,7 @@
 import { z } from 'zod'
-import { IEC3Match } from '@/interfaces/materials/IEC3Match'
+import { IEC3MatchClient } from '@/interfaces/client/materials/IEC3MatchClient'
 import IMaterialDB from '@/interfaces/materials/IMaterialDB'
-import { defaultResponseSchema, paginationResponseSchema } from '../../general'
-
-export type EC3MatchData = Omit<IEC3Match, '_id' | 'materialId'> & {
-  materialId: string
-  _id: string
-}
+import { defaultResponseSchema, paginationResponseSchema } from '@/schemas/general'
 
 // Create material types
 export const createMaterialResponseApiSchema = defaultResponseSchema(
@@ -32,10 +27,10 @@ export const createMaterialBulkResponseApiSchema = defaultResponseSchema(
 
 // Create EC3 match types
 export const createEC3MatchResponseApiSchema = defaultResponseSchema(
-  z.custom<EC3MatchData | null>()
+  z.custom<IEC3MatchClient | null>()
 )
 export const createEC3BulkMatchResponseApiSchema = defaultResponseSchema(
-  z.array(z.custom<EC3MatchData>())
+  z.array(z.custom<IEC3MatchClient>())
 )
 
 // Get material types
@@ -49,6 +44,20 @@ export const getMaterialResponseApiSchema = defaultResponseSchema(
   >()
 )
 export const getMaterialBulkResponseApiSchema = defaultResponseSchema(
+  z.object({
+    materials: z.array(
+      z.custom<
+        Omit<IMaterialDB, '_id' | 'projectId' | 'uploadId'> & {
+          _id: string
+          projectId: string
+          uploadId: string
+        }
+      >()
+    ),
+    pagination: paginationResponseSchema,
+  })
+)
+export const getMaterialBulkByProjectResponseApiSchema = defaultResponseSchema(
   z.object({
     materials: z.array(
       z.custom<
@@ -118,6 +127,9 @@ export type CreateEC3BulkMatchResponseApi = z.infer<typeof createEC3BulkMatchRes
 // Get material types
 export type GetMaterialResponseApi = z.infer<typeof getMaterialResponseApiSchema>
 export type GetMaterialBulkResponseApi = z.infer<typeof getMaterialBulkResponseApiSchema>
+export type GetMaterialBulkByProjectResponseApi = z.infer<
+  typeof getMaterialBulkByProjectResponseApiSchema
+>
 
 // Update material types
 export type UpdateMaterialResponseApi = z.infer<typeof updateMaterialResponseApiSchema>

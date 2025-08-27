@@ -1,21 +1,40 @@
+import { Types } from 'mongoose'
 import { sendApiErrorResponse } from '@/lib/api-error-response'
 import { sendApiSuccessResponse } from '@/lib/api-error-response'
-import { AuthenticatedRequest, getUserId, withAuthAndDB } from '@/lib/api-middleware'
+import { AuthenticatedRequest } from '@/lib/api-middleware'
 import { ProjectService } from '@/lib/services/project-service'
+import { withAuthAndDBQueryParams } from '@/lib/validation-middleware'
+import { ValidationContext } from '@/lib/validation-middleware/types'
+import {
+  GetProjectWithNestedDataBulkRequestApi,
+  getProjectWithNestedDataBulkRequestApiSchema,
+} from '@/schemas/api/projects/project-requests'
 import { GetProjectWithNestedDataBulkResponseApi } from '@/schemas/api/projects/project-responses'
 
-async function getProjectWithNestedDataBulk(request: AuthenticatedRequest) {
+async function getProjectWithNestedDataBulk(
+  request: AuthenticatedRequest,
+  context: ValidationContext<never, GetProjectWithNestedDataBulkRequestApi['query']>
+) {
   try {
-    const userId = getUserId(request)
+    const { projectIds, pagination } = context.query
+    const { page, size } = pagination || { page: 1, size: 10 }
+
+    if (!projectIds.every(id => Types.ObjectId.isValid(id))) {
+      return sendApiErrorResponse(new Error('Invalid project ID'), request, {
+        resource: 'project',
+      })
+    }
 
     const projectBulk = await ProjectService.getProjectWithNestedDataBulk({
-      data: { userId, pagination: { page: 1, size: 10 } },
+      data: {
+        projectIds: projectIds.map(id => new Types.ObjectId(id)),
+        pagination: { page, size },
+      },
     })
-    const { projects, pagination } = projectBulk.data
 
     return sendApiSuccessResponse<GetProjectWithNestedDataBulkResponseApi['data']>(
       {
-        projects: projects.map(project => ({
+        projects: projectBulk.projects.map(project => ({
           ...project,
           _id: project._id.toString(),
           elements: project.elements.map(element => ({
@@ -48,7 +67,13 @@ async function getProjectWithNestedDataBulk(request: AuthenticatedRequest) {
           totalIndicators: project.totalIndicators,
           _count: project._count,
         })) as GetProjectWithNestedDataBulkResponseApi['data']['projects'],
-        pagination,
+        pagination: {
+          size,
+          page,
+          hasMore: projectBulk.pagination?.hasMore || false,
+          totalCount: projectBulk.pagination?.totalCount || 0,
+          totalPages: projectBulk.pagination?.totalPages || 0,
+        },
       },
       'Projects fetched successfully',
       request
@@ -58,4 +83,7 @@ async function getProjectWithNestedDataBulk(request: AuthenticatedRequest) {
   }
 }
 
-export const GET = withAuthAndDB(getProjectWithNestedDataBulk)
+export const GET = withAuthAndDBQueryParams({
+  queryParamsSchema: getProjectWithNestedDataBulkRequestApiSchema.shape.query,
+  handler: getProjectWithNestedDataBulk,
+})

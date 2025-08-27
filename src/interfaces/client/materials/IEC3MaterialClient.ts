@@ -1,6 +1,3 @@
-import { IEC3Match } from '@/interfaces/materials/IEC3Match'
+import { IEC3Material } from '@/interfaces/materials/IEC3Material'
 
-export interface IEC3MatchClient extends Omit<IEC3Match, '_id' | 'materialId'> {
-  _id: string
-  materialId: string
-}
+export type IEC3MaterialClient = IEC3Material

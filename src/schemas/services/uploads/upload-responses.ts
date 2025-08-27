@@ -1,44 +1,32 @@
 import { z } from 'zod'
 import IUploadDB from '@/interfaces/uploads/IUploadDB'
-import { defaultResponseSchema, paginationResponseSchema } from '../../general'
+import { paginationResponseSchema } from '@/schemas/general'
 
 // Create upload types
-export const createUploadResponseSchema = defaultResponseSchema(
-  z.custom<Omit<IUploadDB, '_id'> & { _id: string }>()
-)
-export const createUploadBulkResponseSchema = defaultResponseSchema(z.array(z.custom<IUploadDB>()))
+export const createUploadResponseSchema = z.custom<IUploadDB>()
+export const createUploadBulkResponseSchema = z.array(z.custom<IUploadDB>())
 
 // Get upload types
-export const getUploadResponseSchema = defaultResponseSchema(
-  z.custom<Omit<IUploadDB, '_id'> & { _id: string }>()
-)
-export const getUploadBulkResponseSchema = defaultResponseSchema(
-  z.object({
-    uploads: z.array(z.custom<Omit<IUploadDB, '_id'> & { _id: string }>()),
-    pagination: paginationResponseSchema,
-  })
-)
-
-// Create upload with IFC processing
-export const createUploadWithIFCProcessingResponseSchema = defaultResponseSchema(
-  z.custom<Omit<IUploadDB, '_id'> & { _id: string }>()
-)
+export const getUploadResponseSchema = z.custom<IUploadDB>()
+export const getUploadBulkResponseSchema = z.object({
+  uploads: z.array(z.custom<IUploadDB>()),
+  pagination: paginationResponseSchema.optional(),
+})
+export const getUploadBulkByProjectResponseSchema = z.object({
+  uploads: z.array(z.custom<IUploadDB>()),
+  pagination: paginationResponseSchema.optional(),
+})
 
 // Update upload types
-export const updateUploadResponseSchema = defaultResponseSchema(
-  z.custom<Omit<IUploadDB, '_id'> & { _id: string }>()
-)
-export const updateUploadBulkResponseSchema = defaultResponseSchema(
-  z.array(z.custom<Omit<IUploadDB, '_id'> & { _id: string }>())
-)
+export const updateUploadResponseSchema = z.custom<IUploadDB>()
+export const updateUploadBulkResponseSchema = z.array(z.custom<IUploadDB>())
 
 // Delete upload types
-export const deleteUploadResponseSchema = defaultResponseSchema(
-  z.custom<Omit<IUploadDB, '_id'> & { _id: string }>()
-)
-export const deleteUploadBulkResponseSchema = defaultResponseSchema(
-  z.array(z.custom<Omit<IUploadDB, '_id'> & { _id: string }>())
-)
+export const deleteUploadResponseSchema = z.custom<IUploadDB>()
+export const deleteUploadBulkResponseSchema = z.array(z.custom<IUploadDB>())
+
+// Create upload with IFC processing
+export const createUploadWithIFCProcessingResponseSchema = z.custom<IUploadDB>()
 
 // Create upload types
 export type CreateUploadResponse = z.infer<typeof createUploadResponseSchema>
@@ -47,6 +35,7 @@ export type CreateUploadBulkResponse = z.infer<typeof createUploadBulkResponseSc
 // Get upload types
 export type GetUploadResponse = z.infer<typeof getUploadResponseSchema>
 export type GetUploadBulkResponse = z.infer<typeof getUploadBulkResponseSchema>
+export type GetUploadBulkByProjectResponse = z.infer<typeof getUploadBulkByProjectResponseSchema>
 
 // Update upload types
 export type UpdateUploadResponse = z.infer<typeof updateUploadResponseSchema>

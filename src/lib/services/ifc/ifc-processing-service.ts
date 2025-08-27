@@ -29,7 +29,6 @@ export class IFCProcessingService {
         uploadId,
       })
 
-      // 1. Get all material names
       const materialNames = new Set<string>(
         elements.flatMap(element => {
           const directMaterials = element.materials || []
@@ -43,7 +42,6 @@ export class IFCProcessingService {
         materials: Array.from(materialNames),
       })
 
-      // 2. Create or update materials
       const materialOps = Array.from(materialNames).map(name => ({
         updateOne: {
           filter: {
@@ -71,20 +69,17 @@ export class IFCProcessingService {
         matchedCount: materialResult.matchedCount,
       })
 
-      // 3. Get all materials
-      const materialBulkResult = await MaterialService.getMaterialBulk({
+      const materialBulkResult = await MaterialService.getMaterialBulkByProject({
         data: {
           projectId,
           pagination: { page: 1, size: materialNames.size },
         },
         session,
       })
-      const materials = materialBulkResult.data.materials
+      const materials = materialBulkResult.materials
 
-      // 4. Create map for quick lookups
       const materialMap = new Map(materials.map(mat => [mat.name, mat]))
 
-      // 5. Process elements in batches
       const BATCH_SIZE = 50
       let processedCount = 0
 
@@ -94,7 +89,6 @@ export class IFCProcessingService {
         const bulkOps = batch.map(element => {
           const processedMaterials: IMaterialLayer[] = []
 
-          // Process direct materials
           if (element.materials?.length) {
             processedMaterials.push(
               ...element.materials
@@ -119,7 +113,6 @@ export class IFCProcessingService {
             )
           }
 
-          // Process material layers
           if (Object.keys(element.material_volumes).length) {
             const totalVolume = element.volume
             const layers = Object.entries(element.material_volumes)
@@ -213,8 +206,7 @@ export class IFCProcessingService {
         materials: materialIds,
       })
 
-      // 1. Get materials
-      const materials = await MaterialService.getMaterialBulk({
+      const materials = await MaterialService.getMaterialBulkByProject({
         data: {
           projectId,
           pagination: { page: 1, size: materialIds.length },
@@ -222,9 +214,8 @@ export class IFCProcessingService {
         session,
       })
 
-      // 2. Get best matches for each material
       const bestMatches = await Promise.all(
-        materials.data.materials.map(async material => {
+        materials.materials.map(async material => {
           const bestMatch = await MaterialService.getBestEC3Match(material.name)
 
           if (!bestMatch || bestMatch.score < 0.9) {
@@ -247,7 +238,6 @@ export class IFCProcessingService {
         })
       )
 
-      // 2. Filter out failed matches and update materials with matches
       const validMatches = bestMatches.filter(bestMatch => bestMatch !== null)
       const hasValidMatches = validMatches.length > 0
 
@@ -265,8 +255,8 @@ export class IFCProcessingService {
               ...match.ec3Match,
               ec3MatchId: match.ec3Match.id,
               score: match.score,
+              autoMatched: true,
             })),
-            projectId,
           },
           session,
         })

@@ -4,7 +4,6 @@ import { AuthenticatedRequest } from '@/lib/api-middleware'
 import { MaterialService } from '@/lib/services/material-service'
 import {
   withAuthAndDBPathParams,
-  withAuthAndDBValidation,
   withAuthAndDBValidationWithPathParams,
 } from '@/lib/validation-middleware'
 import {
@@ -12,8 +11,6 @@ import {
   ValidationContext,
 } from '@/lib/validation-middleware/types'
 import {
-  CreateMaterialRequestApi,
-  createMaterialRequestApiSchema,
   DeleteMaterialRequestApi,
   deleteMaterialRequestApiSchema,
   getMaterialRequestApiSchema,
@@ -22,40 +19,10 @@ import {
   GetMaterialRequestApi,
 } from '@/schemas/api/materials/material-requests'
 import {
-  CreateMaterialResponseApi,
   DeleteMaterialResponseApi,
   GetMaterialResponseApi,
   UpdateMaterialResponseApi,
 } from '@/schemas/api/materials/material-responses'
-
-async function createMaterial(
-  request: AuthenticatedValidationRequest<CreateMaterialRequestApi['data']>
-) {
-  const { projectId, uploadId, ...rest } = request.validatedData
-
-  try {
-    const result = await MaterialService.createMaterial({
-      data: {
-        ...rest,
-        projectId: new Types.ObjectId(projectId),
-        uploadId: new Types.ObjectId(uploadId),
-      },
-    })
-
-    return sendApiSuccessResponse<CreateMaterialResponseApi['data']>(
-      {
-        ...result.data,
-        _id: result.data._id.toString(),
-        projectId: result.data.projectId.toString(),
-        uploadId: result.data.uploadId.toString(),
-      },
-      'Material created successfully',
-      request
-    )
-  } catch (error: unknown) {
-    return sendApiErrorResponse(error, request, { operation: 'create', resource: 'material' })
-  }
-}
 
 async function getMaterial(
   request: AuthenticatedRequest,
@@ -78,10 +45,10 @@ async function getMaterial(
 
     return sendApiSuccessResponse<GetMaterialResponseApi['data']>(
       {
-        ...material.data,
-        _id: material.data._id.toString(),
-        projectId: material.data.projectId.toString(),
-        uploadId: material.data.uploadId.toString(),
+        ...material,
+        _id: material._id.toString(),
+        projectId: material.projectId.toString(),
+        uploadId: material.uploadId.toString(),
       },
       'Material fetched successfully',
       request
@@ -118,10 +85,10 @@ async function updateMaterial(
 
     return sendApiSuccessResponse<UpdateMaterialResponseApi['data']>(
       {
-        ...result.data,
-        _id: result.data._id.toString(),
-        projectId: result.data.projectId.toString(),
-        uploadId: result.data.uploadId.toString(),
+        ...result,
+        _id: result._id.toString(),
+        projectId: result.projectId.toString(),
+        uploadId: result.uploadId.toString(),
       },
       'Material updated successfully',
       request
@@ -152,10 +119,10 @@ async function deleteMaterial(
 
     return sendApiSuccessResponse<DeleteMaterialResponseApi['data']>(
       {
-        ...result.data,
-        _id: result.data._id.toString(),
-        projectId: result.data.projectId.toString(),
-        uploadId: result.data.uploadId.toString(),
+        ...result,
+        _id: result._id.toString(),
+        projectId: result.projectId.toString(),
+        uploadId: result.uploadId.toString(),
       },
       'Material deleted successfully',
       request
@@ -165,13 +132,6 @@ async function deleteMaterial(
   }
 }
 
-export const POST = withAuthAndDBValidation({
-  dataSchema: createMaterialRequestApiSchema.shape.data,
-  handler: createMaterial,
-  options: {
-    method: 'json',
-  },
-})
 export const GET = withAuthAndDBPathParams({
   pathParamsSchema: getMaterialRequestApiSchema.shape.pathParams,
   handler: getMaterial,

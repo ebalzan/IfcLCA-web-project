@@ -1,30 +1,34 @@
 import { Types } from 'mongoose'
 import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
+import { AuthenticatedRequest } from '@/lib/api-middleware'
 import { UploadService } from '@/lib/services/upload-service'
-import { IdParamSchema, idParamSchema } from '@/schemas/general'
 import {
-  DeleteUploadRequest,
-  deleteUploadRequestSchema,
-  GetUploadRequest,
-  getUploadRequestSchema,
-  UpdateUploadRequest,
-  updateUploadRequestSchema,
-} from '@/schemas/services/uploads/upload-requests'
+  withAuthAndDBPathParams,
+  withAuthAndDBValidationWithPathParams,
+} from '@/lib/validation-middleware'
 import {
   AuthenticatedValidationRequest,
   ValidationContext,
 } from '@/lib/validation-middleware/types'
 import {
-  withAuthAndDBPathParams,
-  withAuthAndDBValidationWithPathParams,
-} from '@/lib/validation-middleware'
+  DeleteUploadRequestApi,
+  deleteUploadRequestSchemaApi,
+  GetUploadRequestApi,
+  getUploadRequestSchemaApi,
+  UpdateUploadRequestApi,
+  updateUploadRequestSchemaApi,
+} from '@/schemas/api/uploads/upload-requests'
+import {
+  DeleteUploadResponseApi,
+  GetUploadResponseApi,
+  UpdateUploadResponseApi,
+} from '@/schemas/api/uploads/upload-responses'
 
 async function getUpload(
-  request: AuthenticatedValidationRequest<GetUploadRequest>,
-  context: ValidationContext<{ id: string }, never>
+  request: AuthenticatedRequest,
+  context: ValidationContext<GetUploadRequestApi['pathParams'], never>
 ) {
   try {
-    const { projectId } = request.validatedData.data
     const { id: uploadId } = await context.params
 
     if (!Types.ObjectId.isValid(uploadId)) {
@@ -34,21 +38,29 @@ async function getUpload(
     }
 
     const upload = await UploadService.getUpload({
-      data: { uploadId: new Types.ObjectId(uploadId), projectId },
+      data: { uploadId: new Types.ObjectId(uploadId) },
     })
 
-    return sendApiSuccessResponse(upload.data, 'Upload fetched successfully', request)
+    return sendApiSuccessResponse<GetUploadResponseApi['data']>(
+      {
+        ...upload,
+        _id: upload._id.toString(),
+        projectId: upload.projectId.toString(),
+      },
+      'Upload fetched successfully',
+      request
+    )
   } catch (error: unknown) {
     return sendApiErrorResponse(error, request, { operation: 'get', resource: 'upload' })
   }
 }
 
 async function updateUpload(
-  request: AuthenticatedValidationRequest<UpdateUploadRequest>,
-  context: ValidationContext<{ id: string }, never>
+  request: AuthenticatedValidationRequest<UpdateUploadRequestApi['data']>,
+  context: ValidationContext<UpdateUploadRequestApi['pathParams'], never>
 ) {
   try {
-    const { updates, projectId } = request.validatedData.data
+    const { updates } = request.validatedData
     const { id: uploadId } = await context.params
 
     if (!Types.ObjectId.isValid(uploadId)) {
@@ -58,21 +70,28 @@ async function updateUpload(
     }
 
     const result = await UploadService.updateUpload({
-      data: { uploadId: new Types.ObjectId(uploadId), updates, projectId },
+      data: { uploadId: new Types.ObjectId(uploadId), updates },
     })
 
-    return sendApiSuccessResponse(result.data, 'Upload updated successfully', request)
+    return sendApiSuccessResponse<UpdateUploadResponseApi['data']>(
+      {
+        ...result,
+        _id: result._id.toString(),
+        projectId: result.projectId.toString(),
+      },
+      'Upload updated successfully',
+      request
+    )
   } catch (error: unknown) {
     return sendApiErrorResponse(error, request, { operation: 'update', resource: 'Upload' })
   }
 }
 
 async function deleteUpload(
-  request: AuthenticatedValidationRequest<DeleteUploadRequest>,
-  context: ValidationContext<{ id: string }, never>
+  request: AuthenticatedRequest,
+  context: ValidationContext<DeleteUploadRequestApi['pathParams'], never>
 ) {
   try {
-    const { projectId } = request.validatedData.data
     const { id: uploadId } = await context.params
 
     if (!Types.ObjectId.isValid(uploadId)) {
@@ -82,33 +101,36 @@ async function deleteUpload(
     }
 
     const result = await UploadService.deleteUpload({
-      data: { uploadId: new Types.ObjectId(uploadId), projectId },
+      data: { uploadId: new Types.ObjectId(uploadId) },
     })
 
-    return sendApiSuccessResponse(result.data, 'Upload deleted successfully', request)
+    return sendApiSuccessResponse<DeleteUploadResponseApi['data']>(
+      {
+        ...result,
+        _id: result._id.toString(),
+        projectId: result.projectId.toString(),
+      },
+      'Upload deleted successfully',
+      request
+    )
   } catch (error: unknown) {
     return sendApiErrorResponse(error, request, { operation: 'delete', resource: 'Upload' })
   }
 }
 
-export const GET = withAuthAndDBValidationWithPathParams({
-  dataSchema: getUploadRequestSchema.shape.data,
-  pathParamsSchema: idParamSchema,
+export const GET = withAuthAndDBPathParams({
+  pathParamsSchema: getUploadRequestSchemaApi.shape.pathParams,
   handler: getUpload,
 })
-export const PUT = withAuthAndDBPathParams({
-  dataSchema: updateUploadRequestSchema.shape.data,
-  pathParamsSchema: idParamSchema,
+export const PUT = withAuthAndDBValidationWithPathParams({
+  dataSchema: updateUploadRequestSchemaApi.shape.data,
+  pathParamsSchema: updateUploadRequestSchemaApi.shape.pathParams,
   handler: updateUpload,
   options: {
     method: 'json',
   },
 })
 export const DELETE = withAuthAndDBPathParams({
-  dataSchema: deleteUploadRequestSchema.shape.data,
-  pathParamsSchema: idParamSchema,
+  pathParamsSchema: deleteUploadRequestSchemaApi.shape.pathParams,
   handler: deleteUpload,
-  options: {
-    method: 'json',
-  },
 })

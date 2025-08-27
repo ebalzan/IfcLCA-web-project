@@ -22,8 +22,8 @@ async function createProject(
 
     return sendApiSuccessResponse<CreateProjectResponseApi['data']>(
       {
-        ...result.data,
-        _id: result.data._id.toString(),
+        ...result,
+        _id: result._id.toString(),
       },
       'Project created successfully',
       request

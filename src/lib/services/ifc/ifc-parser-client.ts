@@ -17,21 +17,23 @@ export async function parseIFCFile({
 
       const uploadResult = await UploadService.createUpload({
         data: {
-          projectId,
-          userId,
-          filename,
-          status: 'Processing',
-          _count: {
-            elements: 0,
-            materials: 0,
+          upload: {
+            projectId,
+            filename,
+            status: 'Processing',
+            _count: {
+              elements: 0,
+              materials: 0,
+            },
+            createdAt: new Date(),
+            updatedAt: new Date(),
           },
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          userId,
         },
         session: useSession,
       })
 
-      if (!uploadResult.success) {
+      if (!uploadResult) {
         throw new Error('Failed to create upload record')
       }
 
@@ -47,7 +49,7 @@ export async function parseIFCFile({
           data: {
             projectId,
             elements,
-            uploadId: new Types.ObjectId(uploadResult.data._id),
+            uploadId: new Types.ObjectId(uploadResult._id),
           },
           session: useSession,
         })
@@ -59,7 +61,7 @@ export async function parseIFCFile({
       const { elementCount, materialCount } = processElementsAndMaterialsFromIFCResponse.data
 
       // Get all materials
-      const materials = await MaterialService.getMaterialBulk({
+      const materials = await MaterialService.getMaterialBulkByProject({
         data: {
           projectId,
           pagination: { page: 1, size: materialCount },
@@ -67,7 +69,7 @@ export async function parseIFCFile({
         session: useSession,
       })
 
-      if (!materials.success) {
+      if (!materials) {
         throw new Error('Failed to get materials')
       }
 
@@ -75,7 +77,7 @@ export async function parseIFCFile({
       const applyAutomaticMaterialMatchesResponse =
         await IFCProcessingService.applyAutomaticMaterialMatches({
           data: {
-            materialIds: materials.data.materials.map(material => new Types.ObjectId(material._id)),
+            materialIds: materials.materials.map(material => new Types.ObjectId(material._id)),
             projectId,
           },
           session: useSession,
@@ -90,8 +92,7 @@ export async function parseIFCFile({
       // Update upload record
       const updatedUpload = await UploadService.updateUpload({
         data: {
-          uploadId: new Types.ObjectId(uploadResult.data._id),
-          projectId,
+          uploadId: new Types.ObjectId(uploadResult._id),
           updates: {
             status: 'Completed',
             _count: {
@@ -104,14 +105,14 @@ export async function parseIFCFile({
         session: useSession,
       })
 
-      if (!updatedUpload.success) {
+      if (!updatedUpload) {
         throw new Error('Failed to update upload record')
       }
 
       return {
         success: true,
         data: {
-          uploadId: new Types.ObjectId(uploadResult.data._id),
+          uploadId: uploadResult._id,
           projectId,
           _count: {
             elements: elementCount,

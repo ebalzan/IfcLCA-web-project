@@ -10,6 +10,7 @@ import {
 export const searchEC3MaterialsQuerySchemaApi = z.object({
   name: z.string().optional(),
   sortBy: z.string().optional(),
+  fields: z.array(z.string()).optional(),
 })
 
 export const searchEC3MaterialsRequestSchemaApi = defaultRequestSchemaApi({

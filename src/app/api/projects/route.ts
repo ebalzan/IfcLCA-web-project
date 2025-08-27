@@ -36,7 +36,7 @@ async function createProjectBulk(
     })
 
     return sendApiSuccessResponse<CreateProjectBulkResponseApi['data']>(
-      result.data.map(project => ({
+      result.map(project => ({
         ...project,
         _id: project._id.toString(),
       })),
@@ -53,21 +53,35 @@ async function getProjectBulk(
   context: ValidationContext<never, GetProjectBulkRequestApi['query']>
 ) {
   try {
-    const userId = getUserId(request)
-    const { pagination } = context.query
-    const { page, size } = pagination
+    const { projectIds, pagination } = context.query
+    const { page, size } = pagination || { page: 1, size: 50 }
+
+    if (!projectIds.every(id => Types.ObjectId.isValid(id))) {
+      return sendApiErrorResponse(new Error('Invalid project ID'), request, {
+        resource: 'project',
+      })
+    }
 
     const projects = await ProjectService.getProjectBulk({
-      data: { userId, pagination: { page, size } },
+      data: {
+        projectIds: projectIds.map(id => new Types.ObjectId(id)),
+        pagination: { page, size },
+      },
     })
 
     return sendApiSuccessResponse<GetProjectBulkResponseApi['data']>(
       {
-        projects: projects.data.projects.map(project => ({
+        projects: projects.projects.map(project => ({
           ...project,
           _id: project._id.toString(),
         })),
-        pagination: projects.data.pagination,
+        pagination: {
+          size,
+          page,
+          hasMore: projects.pagination?.hasMore || false,
+          totalCount: projects.pagination?.totalCount || 0,
+          totalPages: projects.pagination?.totalPages || 0,
+        },
       },
       'Projects fetched successfully',
       request
@@ -84,12 +98,18 @@ async function updateProjectBulk(
     const userId = getUserId(request)
     const { projectIds, updates } = request.validatedData
 
+    if (!projectIds.every(id => Types.ObjectId.isValid(id))) {
+      return sendApiErrorResponse(new Error('Invalid project ID'), request, {
+        resource: 'project',
+      })
+    }
+
     const result = await ProjectService.updateProjectBulk({
       data: { projectIds: projectIds.map(id => new Types.ObjectId(id)), updates, userId },
     })
 
     return sendApiSuccessResponse<UpdateProjectBulkResponseApi['data']>(
-      result.data.map(project => ({
+      result.map(project => ({
         ...project,
         _id: project._id.toString(),
       })),
@@ -108,12 +128,18 @@ async function deleteProjectBulk(
     const userId = getUserId(request)
     const { projectIds } = request.validatedData
 
+    if (!projectIds.every(id => Types.ObjectId.isValid(id))) {
+      return sendApiErrorResponse(new Error('Invalid project ID'), request, {
+        resource: 'project',
+      })
+    }
+
     const result = await ProjectService.deleteProjectBulk({
       data: { projectIds: projectIds.map(id => new Types.ObjectId(id)), userId },
     })
 
     return sendApiSuccessResponse<DeleteProjectBulkResponseApi['data']>(
-      result.data.map(project => ({
+      result.map(project => ({
         ...project,
         _id: project._id.toString(),
       })),

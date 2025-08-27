@@ -27,13 +27,13 @@ import { useGetProjectWithNestedData } from '@/hooks/projects/use-project-operat
 import { IMaterialClient } from '@/interfaces/client/materials/IMaterialClient'
 import { IProjectWithNestedDataClient } from '@/interfaces/client/projects/IProjectWithNestedData'
 import { IUploadClient } from '@/interfaces/client/uploads/IUploadClient'
+import { GetProjectWithNestedDataSchema } from '@/schemas/client/project-schemas'
 
 export default function ProjectPage() {
   const router = useRouter()
-  const params = useParams<{ id: string }>()
-  const projectId = params.id
+  const { id: projectId } = useParams<GetProjectWithNestedDataSchema>()
   const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false)
-  const { data: project, isLoading } = useGetProjectWithNestedData(projectId)
+  const { data: project, isLoading } = useGetProjectWithNestedData({ id: projectId })
 
   function handleNavigateToEditProject() {
     router.push(`/projects/${projectId}/edit`)
