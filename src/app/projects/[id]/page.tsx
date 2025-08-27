@@ -387,9 +387,9 @@ const EmptyState = ({
   description: string
   action: React.ReactNode
 }) => (
-  <Card>
-    <CardContent className="flex flex-col items-center justify-center h-32">
-      <Icon className="h-12 w-12 text-muted-foreground mb-2" />
+  <Card className="bg-muted/50">
+    <CardContent className="flex flex-col items-center justify-center">
+      <Icon className="h-10 w-10 text-muted-foreground mb-1" />
       <p className="text-muted-foreground text-center">{title}</p>
       <p className="text-sm text-muted-foreground text-center mt-1">{description}</p>
       <div className="mt-2">{action}</div>
