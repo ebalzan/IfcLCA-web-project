@@ -11,7 +11,6 @@ import {
   CreateProjectBulkRequestApi,
   CreateProjectRequestApi,
   DeleteProjectBulkRequestApi,
-  DeleteProjectRequestApi,
   UpdateProjectBulkRequestApi,
   UpdateProjectRequestApi,
 } from '@/schemas/api/projects/project-requests'
@@ -168,10 +167,10 @@ export const useGetProjectWithNestedDataBulkByUser = ({
 export const useUpdateProject = ({ id: projectId }: UpdateProjectSchema) => {
   const router = useRouter()
 
-  return useTanStackMutation<UpdateProjectRequestApi['data']['updates'], UpdateProjectResponseApi>(
+  return useTanStackMutation<UpdateProjectRequestApi['data'], UpdateProjectResponseApi>(
     `/api/projects/${projectId}`,
     {
-      method: 'PUT',
+      method: 'PATCH',
       mutationKey: [Queries.GET_PROJECT, projectId],
       showSuccessToast: true,
       successMessage: 'Project has been updated successfully',
@@ -201,20 +200,17 @@ export const useUpdateProjectBulk = ({ projectIds }: UpdateProjectBulkSchema) =>
 export const useDeleteProject = ({ id: projectId }: DeleteProjectSchema) => {
   const router = useRouter()
 
-  return useTanStackMutation<DeleteProjectRequestApi['data'], DeleteProjectResponseApi>(
-    `/api/projects/${projectId}`,
-    {
-      method: 'DELETE',
-      mutationKey: [Queries.DELETE_PROJECT, projectId],
-      showSuccessToast: true,
-      successMessage: 'The project has been successfully deleted.',
-      showErrorToast: true,
-      invalidateQueries: [[Queries.GET_PROJECTS], [Queries.GET_PROJECT, projectId]],
-      onSuccess: () => {
-        router.replace('/projects')
-      },
-    }
-  )
+  return useTanStackMutation<void, DeleteProjectResponseApi>(`/api/projects/${projectId}`, {
+    method: 'DELETE',
+    mutationKey: [Queries.DELETE_PROJECT, projectId],
+    showSuccessToast: true,
+    successMessage: 'The project has been successfully deleted.',
+    showErrorToast: true,
+    invalidateQueries: [[Queries.GET_PROJECTS], [Queries.GET_PROJECT, projectId]],
+    onSuccess: () => {
+      router.replace('/projects')
+    },
+  })
 }
 export const useDeleteProjectBulk = ({ projectIds }: DeleteProjectBulkSchema) => {
   return useTanStackMutation<DeleteProjectBulkRequestApi['data'], DeleteProjectBulkResponseApi>(

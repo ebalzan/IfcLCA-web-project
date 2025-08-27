@@ -162,7 +162,7 @@ export const GET = withAuthAndDBQueryParams({
   queryParamsSchema: getProjectBulkRequestApiSchema.shape.query,
   handler: getProjectBulk,
 })
-export const PUT = withAuthAndDBValidation({
+export const PATCH = withAuthAndDBValidation({
   dataSchema: updateProjectBulkRequestApiSchema.shape.data,
   handler: updateProjectBulk,
   options: {

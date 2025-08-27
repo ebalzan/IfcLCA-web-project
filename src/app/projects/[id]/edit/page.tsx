@@ -122,8 +122,10 @@ export default function EditProjectPage() {
           <form
             onSubmit={handleSubmit(data =>
               updateProject({
-                ...data,
-                updatedAt: new Date(),
+                updates: {
+                  ...data,
+                  updatedAt: new Date(),
+                },
               })
             )}
             className="space-y-6">
@@ -178,7 +180,7 @@ export default function EditProjectPage() {
       <DeleteProjectDialog
         isOpen={isDeleteDialogOpen}
         onClose={() => setIsDeleteDialogOpen(false)}
-        onDelete={() => deleteProject(projectId)}
+        onDelete={() => deleteProject()}
       />
     </div>
   )
