@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import {
   Select,
   SelectContent,
@@ -10,13 +11,21 @@ import {
 } from '@/components/ui/select'
 import { useMaterialsLibraryStore } from '@/hooks/materials/materials-library/materials-library-store'
 import { useEC3Search } from '@/hooks/materials/materials-library/use-ec3-search'
-import { useGetMaterialBulk } from '@/hooks/materials/use-material-operations'
-import { useGetProjectWithNestedDataBulk } from '@/hooks/projects/use-project-operations'
+import {
+  useGetMaterialBulk,
+  useGetMaterialBulkByProject,
+} from '@/hooks/materials/use-material-operations'
+import {
+  useGetProjectWithNestedDataBulk,
+  useGetProjectWithNestedDataBulkByUser,
+} from '@/hooks/projects/use-project-operations'
 import { EC3Card } from './materials-library/ec3-card'
 import { IFCCard } from './materials-library/ifc-card'
 import { LoadingSpinner } from './ui/loading-spinner'
 
 export function MaterialLibraryComponent() {
+  const { userId } = useAuth()
+
   const {
     selectedProject,
     setSelectedProject,
@@ -27,10 +36,12 @@ export function MaterialLibraryComponent() {
     isSelectAllChecked,
     setIsSelectAllChecked,
   } = useMaterialsLibraryStore()
-  const { data: projectsWithNestedData } = useGetProjectWithNestedDataBulk()
-  const { data: materialsData, isLoading: isMaterialsLoading } = useGetMaterialBulk(
-    selectedProject === 'all' ? undefined : selectedProject
-  )
+  const { data: projectsWithNestedData } = useGetProjectWithNestedDataBulkByUser({
+    userId: userId || '',
+  })
+  const { data: materialsData, isLoading: isMaterialsLoading } = useGetMaterialBulkByProject({
+    projectId: selectedProject,
+  })
   const { ec3SearchValue, EC3Materials, isSearching, handleEC3Search, handleEC3SearchTermChange } =
     useEC3Search()
 
