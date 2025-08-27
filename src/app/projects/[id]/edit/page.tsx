@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { LoaderIcon, Pencil, ArrowLeft, Trash2 } from 'lucide-react'
@@ -25,6 +25,7 @@ import {
 
 export default function EditProjectPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [hasInitialized, setHasInitialized] = useState(false)
   const router = useRouter()
   const params = useParams<{ id: string }>()
   const projectId = params.id
@@ -39,8 +40,8 @@ export default function EditProjectPage() {
   const form = useForm<UpdateProjectFormSchema>({
     resolver: zodResolver(updateProjectFormSchema),
     defaultValues: {
-      name: project?.name || '',
-      description: project?.description || '',
+      name: '',
+      description: '',
     },
   })
   const {
@@ -50,14 +51,16 @@ export default function EditProjectPage() {
     formState: { isDirty },
   } = form
 
+  // Use useEffect instead of useMemo for form initialization
   useEffect(() => {
-    if (project) {
+    if (project && !hasInitialized) {
       reset({
         name: project.name || '',
         description: project.description || '',
       })
+      setHasInitialized(true)
     }
-  }, [project, reset])
+  }, [project, reset, hasInitialized])
 
   const breadcrumbItems = [
     { label: 'Projects', href: '/projects' },
