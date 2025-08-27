@@ -1,4 +1,5 @@
 import { useRouter } from 'next/navigation'
+import { z } from 'zod'
 import {
   useTanStackQuery,
   useTanStackMutation,
@@ -27,6 +28,7 @@ import {
   CreateProjectBulkResponseApi,
   UpdateProjectBulkResponseApi,
   DeleteProjectBulkResponseApi,
+  getProjectResponseApiSchema,
 } from '@/schemas/api/projects/project-responses'
 import { SearchProjectsResponseApi } from '@/schemas/api/projects/search'
 import {
@@ -80,8 +82,10 @@ export const useCreateProjectBulk = () => {
 export const useGetProject = ({ id: projectId }: GetProjectSchema) => {
   return useTanStackQuery<GetProjectResponseApi, IProjectClient>(`/api/projects/${projectId}`, {
     queryKey: [Queries.GET_PROJECT, projectId],
-    staleTime: 1000 * 60 * 2, // 2 minutes
-    select: ({ data }) => data,
+    select: ({ data }) => {
+      const validatedData = getProjectResponseApiSchema.shape.data.parse(data)
+      return validatedData
+    },
   })
 }
 export const useGetProjectBulk = ({ projectIds }: GetProjectBulkSchema) => {
@@ -122,7 +126,6 @@ export const useGetProjectWithNestedData = ({ id: projectId }: GetProjectWithNes
     `/api/projects/${projectId}/nested`,
     {
       queryKey: [Queries.GET_PROJECTS_NESTED, projectId],
-      staleTime: 1000 * 60 * 2, // 2 minutes
       select: ({ data }) => data,
     }
   )
