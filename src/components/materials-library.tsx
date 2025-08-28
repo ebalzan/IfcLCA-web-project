@@ -11,21 +11,15 @@ import {
 } from '@/components/ui/select'
 import { useMaterialsLibraryStore } from '@/hooks/materials/materials-library/materials-library-store'
 import { useEC3Search } from '@/hooks/materials/materials-library/use-ec3-search'
-import {
-  useGetMaterialBulk,
-  useGetMaterialBulkByProject,
-} from '@/hooks/materials/use-material-operations'
-import {
-  useGetProjectWithNestedDataBulk,
-  useGetProjectWithNestedDataBulkByUser,
-} from '@/hooks/projects/use-project-operations'
+import { useMaterialMatching } from '@/hooks/materials/materials-library/use-material-matching'
+import { useGetMaterialBulkByProject } from '@/hooks/materials/use-material-operations'
+import { useGetProjectWithNestedDataBulkByUser } from '@/hooks/projects/use-project-operations'
 import { EC3Card } from './materials-library/ec3-card'
 import { IFCCard } from './materials-library/ifc-card'
 import { LoadingSpinner } from './ui/loading-spinner'
 
 export function MaterialLibraryComponent() {
   const { userId } = useAuth()
-
   const {
     selectedProject,
     setSelectedProject,
@@ -35,6 +29,9 @@ export function MaterialLibraryComponent() {
     selectedMaterials,
     isSelectAllChecked,
     setIsSelectAllChecked,
+    temporaryMatches,
+    matchingProgress,
+    setMatchingProgress,
   } = useMaterialsLibraryStore()
   const { data: projectsWithNestedData } = useGetProjectWithNestedDataBulkByUser({
     userId: userId || '',
@@ -44,13 +41,14 @@ export function MaterialLibraryComponent() {
   })
   const { ec3SearchValue, EC3Materials, isSearching, handleEC3Search, handleEC3SearchTermChange } =
     useEC3Search()
-
-  // const {
-  //   acceptMatchWithConfetti,
-  //   acceptAllMatchesWithConfetti,
-  //   showPreviewChanges,
-  //   confirmMatch,
-  // } = useMaterialMatching()
+  const {
+    confirmMatches,
+    acceptSuggestedMatch,
+    acceptAllSuggestedMatches,
+    matchMaterial,
+    unMatchMaterial,
+    clearMatches,
+  } = useMaterialMatching()
 
   const handleIFCMaterialSelect = useCallback(
     (materialId: string) => {
@@ -68,38 +66,29 @@ export function MaterialLibraryComponent() {
     if (isSelectAllChecked) {
       setSelectedMaterials([])
     } else {
-      setSelectedMaterials(materialsData?.map(material => material._id) || [])
+      const selectableMaterials = materialsData?.filter(
+        material => !temporaryMatches.some(match => match.materialId === material._id)
+      )
+      setSelectedMaterials(selectableMaterials?.map(material => material._id) || [])
     }
-  }, [setSelectedMaterials, isSelectAllChecked, materialsData])
+  }, [materialsData, setSelectedMaterials, isSelectAllChecked, temporaryMatches])
 
   useEffect(() => {
+    const selectableMaterials = materialsData?.filter(
+      material => !temporaryMatches.some(match => match.materialId === material._id)
+    )
     const allSelected =
-      selectedMaterials.length === (materialsData?.length || 0) && (materialsData?.length || 0) > 0
+      selectedMaterials.length === (selectableMaterials?.length || 0) &&
+      (selectableMaterials?.length || 0) > 0
     setIsSelectAllChecked(allSelected)
-  }, [selectedMaterials, materialsData, setIsSelectAllChecked])
+  }, [selectedMaterials, materialsData, setIsSelectAllChecked, temporaryMatches])
 
-  // useEffect(() => {
-  //   console.log('isSelectAllChecked', isSelectAllChecked)
-  // }, [isSelectAllChecked])
-
-  // Local state
-  // const ec3ListRef = useRef<HTMLDivElement>(null)
-
-  // Update materials when projects data changes
-  // useEffect(() => {
-  //   updateMaterials(projectsWithStats)
-  // }, [projectsWithStats, updateMaterials])
-
-  // Computed values
-  // const matchingProgress = useMemo(
-  //   () => getMatchingProgress(filteredMaterials),
-  //   [getMatchingProgress, filteredMaterials]
-  // )
-
-  // const unappliedMatchesCount = useMemo(
-  //   () => Object.keys(temporaryMatches).length,
-  //   [temporaryMatches]
-  // )
+  useEffect(() => {
+    setMatchingProgress({
+      matchedCount: temporaryMatches.length,
+      percentage: (temporaryMatches.length / (materialsData?.length || 0)) * 100,
+    })
+  }, [materialsData?.length, setMatchingProgress, temporaryMatches.length])
 
   // // Handlers
   // const handleMaterialSelect = useCallback(
@@ -122,16 +111,6 @@ export function MaterialLibraryComponent() {
   //   [selectedMaterialIds, acceptAllMatchesWithConfetti, clearSelection]
   // )
 
-  // const handleToggleFavorite = useCallback((productId: string) => {
-  //   setFavoriteProducts(prev => {
-  //     if (prev.includes(productId)) {
-  //       return prev.filter(id => id !== productId)
-  //     } else {
-  //       return [...prev, productId]
-  //     }
-  //   })
-  // }, [])
-
   // const handleAcceptSuggestion = useCallback(
   //   (materialId: string, openEPDId: string) => {
   //     acceptMatchWithConfetti(openEPDId, materialId)
@@ -143,8 +122,6 @@ export function MaterialLibraryComponent() {
   //   // Implementation for deleting material
   //   console.log('Delete material:', material._id)
   // }, [])
-
-  // Auto-scroll functionality
 
   // const scrollToMatchingEC3 = useCallback(
   //   (materialName: string) => {
@@ -191,11 +168,12 @@ export function MaterialLibraryComponent() {
             materialsCount={materialsData?.length || 0}
             materialsSelectedCount={selectedMaterials.length}
             matchingProgress={{
-              matchedCount: 0,
-              percentage: 0,
+              matchedCount: matchingProgress.matchedCount,
+              percentage: matchingProgress.percentage,
             }}
             searchValue={ifcSearchValue}
             onSearchChange={setIfcSearchValue}
+            clearMatches={clearMatches}
           />
 
           <IFCCard.Content>
