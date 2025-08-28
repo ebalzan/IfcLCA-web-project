@@ -1,34 +1,86 @@
+import { useCallback } from 'react'
+import { AutoSuggestedMatch } from '@/components/materials-library/ifc-card/ifc-card-item/AutoSuggestedMatch'
+import { TemporaryMatch } from './interfaces/TemporaryMatch'
 import { useMaterialsLibraryStore } from './materials-library-store'
 
 export function useMaterialMatching() {
-  const { acceptMatch, acceptAllMatches } = useMaterialsLibraryStore()
+  const {
+    temporaryMatches,
+    autoSuggestedMatches,
+    setTemporaryMatches,
+    closeConfirmMatchesModal,
+    setSelectedMaterials,
+  } = useMaterialsLibraryStore()
 
-  // const { mutateAsync: matchMutateAsync } = useTanStackMutation<MatchEC3Response, MatchEC3Request>(
-  //   '/api/materials/ec3/match',
-  //   {
-  //     method: 'PUT',
-  //     showSuccessToast: true,
-  //     showErrorToast: true,
-  //   }
-  // )
+  const confirmMatches = useCallback(() => {
+    closeConfirmMatchesModal()
+    setTemporaryMatches([])
+    setSelectedMaterials([])
+  }, [closeConfirmMatchesModal, setSelectedMaterials, setTemporaryMatches])
 
-  // Enhanced confirm match with mutation
-  // const confirmMatchWithMutation = useCallback(
-  //   async (changesWithDensity: IMaterialClient[]) => {
-  //     setIsMatchingInProgress(true)
-  //     await matchMutateAsync({
-  //       materialIds: changesWithDensity.map(change => change._id),
-  //       ec3MatchId: changesWithDensity[0]._id,
-  //       density: changesWithDensity[0].density,
-  //     })
-  //     confirmMatches()
-  //   },
-  //   [matchMutateAsync, confirmMatches, setIsMatchingInProgress]
-  // )
+  const acceptSuggestedMatch = useCallback(
+    (match: TemporaryMatch) => {
+      const newMatches = [...temporaryMatches]
+      newMatches.push(match)
+      setTemporaryMatches(newMatches)
+    },
+    [setTemporaryMatches, temporaryMatches]
+  )
+
+  const acceptAllSuggestedMatches = useCallback(() => {
+    const newMatches = [...temporaryMatches]
+    autoSuggestedMatches.forEach((match: AutoSuggestedMatch) => {
+      newMatches.push({
+        ...match,
+        autoMatched: false,
+      })
+    })
+    setTemporaryMatches(newMatches)
+  }, [autoSuggestedMatches, setTemporaryMatches, temporaryMatches])
+
+  const matchMaterial = useCallback(
+    (materialIds: string[], { ec3MaterialData }: Pick<TemporaryMatch, 'ec3MaterialData'>) => {
+      const newMatches = [...temporaryMatches]
+      materialIds.forEach(materialId => {
+        newMatches.push({
+          materialId,
+          ec3MatchId: ec3MaterialData.id,
+          autoMatched: false,
+          ec3MaterialData,
+        })
+      })
+      setTemporaryMatches(newMatches)
+      setSelectedMaterials([])
+    },
+    [setSelectedMaterials, setTemporaryMatches, temporaryMatches]
+  )
+
+  const unMatchMaterial = useCallback(
+    (materialId: string) => {
+      setTemporaryMatches(temporaryMatches.filter(match => match.materialId !== materialId))
+    },
+    [setTemporaryMatches, temporaryMatches]
+  )
+
+  const clearMatches = useCallback(() => {
+    setTemporaryMatches([])
+    setSelectedMaterials([])
+  }, [setSelectedMaterials, setTemporaryMatches])
+
+  const matchProgress = useCallback(() => {
+    return {
+      matchedCount: temporaryMatches.length,
+      percentage: (temporaryMatches.length / (temporaryMatches.length + 1)) * 100,
+    }
+  }, [temporaryMatches.length])
 
   return {
-    acceptAllMatches,
-    acceptMatch,
-    // confirmMatch: confirmMatchWithMutation,
+    confirmMatches,
+    acceptSuggestedMatch,
+    acceptAllSuggestedMatches,
+    matchMaterial,
+    unMatchMaterial,
+    clearMatches,
+    matchProgress,
   }
 }
