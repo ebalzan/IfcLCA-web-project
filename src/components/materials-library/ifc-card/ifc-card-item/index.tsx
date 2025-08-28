@@ -22,10 +22,12 @@ export function IFCCardItem({
   isSelected,
   isTemporaryMatch,
   autoSuggestedMatch,
+  isSelectable,
   onSelect,
   onUnmatch,
   onDelete,
   onAcceptSuggestion,
+  ec3MaterialData,
 }: IFCCardItemProps) {
   return (
     <div
@@ -42,7 +44,7 @@ export function IFCCardItem({
         }
         rounded-md
       `}
-      onClick={() => onSelect(material._id)}>
+      onClick={isSelectable ? () => onSelect(material._id) : undefined}>
       {/* Match overlay */}
       {isTemporaryMatch && (
         <div className="absolute inset-0 bg-primary/5 animate-in fade-in duration-500 ease-spring">
@@ -108,20 +110,14 @@ export function IFCCardItem({
           )}
 
           {/* Match status */}
-          {isTemporaryMatch || material.ec3MatchId ? (
+          {isTemporaryMatch && ec3MaterialData ? (
             <div className="mt-2 flex items-center justify-between gap-2 p-2 bg-secondary/20 rounded-md">
               <div className="flex-1 min-w-0">
-                {isTemporaryMatch ? (
-                  <>
-                    <p className="font-medium text-sm truncate">{material.name}</p>
-                    <p className="text-sm text-muted-foreground">GWP: {material.gwp} kg CO₂-eq</p>
-                  </>
-                ) : material.ec3MatchId ? (
-                  <>
-                    <p className="font-medium text-sm truncate">{material.name}</p>
-                    <p className="text-sm text-muted-foreground">GWP: {material.gwp} kg CO₂-eq</p>
-                  </>
-                ) : null}
+                <p className="font-medium text-sm truncate">{ec3MaterialData.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  Category: {ec3MaterialData.category.name}
+                </p>
+                <p className="text-sm text-muted-foreground">GWP: {ec3MaterialData.gwp}</p>
               </div>
               {isTemporaryMatch && (
                 <Button
@@ -132,7 +128,7 @@ export function IFCCardItem({
                     e.stopPropagation()
                     onUnmatch(material._id, null)
                   }}>
-                  Clear
+                  Unmatch
                 </Button>
               )}
             </div>
@@ -141,14 +137,14 @@ export function IFCCardItem({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="font-medium text-sm truncate text-yellow-700">
-                    Suggested: {autoSuggestedMatch.name}
+                    Suggested: {autoSuggestedMatch.ec3MaterialData.name}
                   </p>
                   <Badge variant="outline" className="text-yellow-600 border-yellow-400">
                     Auto
                   </Badge>
                 </div>
                 <p className="text-sm text-yellow-600">
-                  Click to review and confirm this suggestion
+                  Click to review and confirm this suggestion to match with EC3 materials
                 </p>
               </div>
               <Button
@@ -164,7 +160,7 @@ export function IFCCardItem({
             </div>
           ) : (
             <div className="mt-2 p-2 bg-yellow-500/10 text-yellow-600 rounded-md text-sm">
-              Click to match with EC3 material
+              Click to match with EC3 materials
             </div>
           )}
         </div>
