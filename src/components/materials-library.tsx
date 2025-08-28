@@ -190,11 +190,18 @@ export function MaterialLibraryComponent() {
                 <IFCCard.Item
                   key={material._id}
                   material={material}
+                  ec3MaterialData={
+                    temporaryMatches.find(match => match.materialId === material._id)
+                      ?.ec3MaterialData || null
+                  }
                   isSelected={selectedMaterials.includes(material._id)}
+                  isSelectable={!temporaryMatches.some(match => match.materialId === material._id)}
                   onSelect={handleIFCMaterialSelect}
-                  isTemporaryMatch={false}
+                  isTemporaryMatch={temporaryMatches.some(
+                    match => match.materialId === material._id
+                  )}
                   autoSuggestedMatch={null}
-                  onUnmatch={() => {}}
+                  onUnmatch={() => unMatchMaterial(material._id)}
                   onDelete={() => {}}
                   onAcceptSuggestion={() => {}}
                 />
@@ -227,8 +234,10 @@ export function MaterialLibraryComponent() {
                 <EC3Card.Item
                   key={ec3Material.id}
                   material={ec3Material}
-                  isSelectable={false}
-                  onSelect={() => {}}
+                  isSelectable={selectedMaterials.length > 0}
+                  onSelect={() => {
+                    matchMaterial(selectedMaterials, { ec3MaterialData: ec3Material })
+                  }}
                 />
               ))
             )}
