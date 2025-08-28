@@ -32,10 +32,9 @@ export const createMaterialBulkRequestApiSchema = defaultRequestSchemaApi({
 
 // Create EC3 match
 export const createEC3MatchRequestApiSchema = defaultRequestSchemaApi({
-  pathParams: z.object({}),
+  pathParams: z.object({ id: z.string() }),
   query: z.object({}),
   data: z.object({
-    materialId: z.string(),
     updates: z.custom<
       Partial<Omit<IMaterialDB, 'id' | 'ec3MatchId' | 'projectId' | 'uploadId'>> & {
         projectId: string
@@ -52,10 +51,10 @@ export const createEC3BulkMatchRequestApiSchema = defaultRequestSchemaApi({
     updates: z
       .array(
         z.custom<
-          Partial<Omit<IMaterialDB, 'id' | 'ec3MatchId' | 'projectId' | 'uploadId'>> & {
-            projectId: string
-            uploadId: string
-          } & Pick<IEC3Match, 'score' | 'ec3MatchId' | 'autoMatched'>
+          Partial<Omit<IMaterialDB, 'id' | 'ec3MatchId' | 'projectId' | 'uploadId'>> & {} & Pick<
+              IEC3Match,
+              'score' | 'ec3MatchId' | 'autoMatched'
+            >
         >()
       )
       .min(1, 'At least one update is required'),

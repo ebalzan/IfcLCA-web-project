@@ -10,7 +10,7 @@ export interface MaterialsLibraryStoreState {
     percentage: number
   }
   isSelectAllChecked: boolean
-  isOpenConfirmMatchesModal: boolean
+  isPreviewModalOpen: boolean
   autoSuggestedMatches: AutoSuggestedMatch[]
   ifcSearchValue: string
   ec3SearchValue: string

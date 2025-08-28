@@ -1,8 +1,11 @@
 import { Types } from 'mongoose'
 import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
 import { MaterialService } from '@/lib/services/material-service'
-import { withAuthAndDBValidation } from '@/lib/validation-middleware'
-import { AuthenticatedValidationRequest } from '@/lib/validation-middleware/types'
+import { withAuthAndDBValidationWithPathParams } from '@/lib/validation-middleware'
+import {
+  AuthenticatedValidationRequest,
+  ValidationContext,
+} from '@/lib/validation-middleware/types'
 import {
   CreateEC3MatchRequestApi,
   createEC3MatchRequestApiSchema,
@@ -10,10 +13,12 @@ import {
 import { CreateEC3MatchResponseApi } from '@/schemas/api/materials/material-responses'
 
 async function createEC3Match(
-  request: AuthenticatedValidationRequest<CreateEC3MatchRequestApi['data']>
+  request: AuthenticatedValidationRequest<CreateEC3MatchRequestApi['data']>,
+  context: ValidationContext<CreateEC3MatchRequestApi['pathParams'], never>
 ) {
   try {
-    const { materialId, updates } = request.validatedData
+    const { updates } = request.validatedData
+    const { id: materialId } = await context.params
 
     if (!Types.ObjectId.isValid(materialId)) {
       return sendApiErrorResponse(new Error('Invalid material ID'), request, {
@@ -65,8 +70,9 @@ async function createEC3Match(
   }
 }
 
-export const POST = withAuthAndDBValidation({
+export const POST = withAuthAndDBValidationWithPathParams({
   dataSchema: createEC3MatchRequestApiSchema.shape.data,
+  pathParamsSchema: createEC3MatchRequestApiSchema.shape.pathParams,
   handler: createEC3Match,
   options: {
     method: 'json',

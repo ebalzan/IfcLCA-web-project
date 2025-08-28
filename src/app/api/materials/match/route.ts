@@ -22,26 +22,10 @@ async function createEC3BulkMatch(
       })
     }
 
-    if (
-      !updates.every(
-        update =>
-          Types.ObjectId.isValid(update.projectId) || Types.ObjectId.isValid(update.uploadId)
-      )
-    ) {
-      return sendApiErrorResponse(new Error('Invalid project or upload ID'), request, {
-        operation: 'bulk match',
-        resource: 'materials',
-      })
-    }
-
     const results = await MaterialService.createEC3BulkMatch({
       data: {
         materialIds: materialIds.map(id => new Types.ObjectId(id)),
-        updates: updates.map(update => ({
-          ...update,
-          projectId: new Types.ObjectId(update.projectId),
-          uploadId: new Types.ObjectId(update.uploadId),
-        })),
+        updates,
       },
     })
 

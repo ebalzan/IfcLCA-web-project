@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/pagination'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { UploadModal } from '@/components/upload-modal'
+import { useGetMaterialBulkByProject } from '@/hooks/materials/use-material-operations'
 import { useGetProjectWithNestedData } from '@/hooks/projects/use-project-operations'
 import { IMaterialClient } from '@/interfaces/client/materials/IMaterialClient'
 import { IProjectWithNestedDataClient } from '@/interfaces/client/projects/IProjectWithNestedData'
@@ -269,17 +270,24 @@ const ElementsTab = ({ project }: { project: IProjectWithNestedDataClient }) => 
 }
 
 const MaterialsTab = ({ project }: { project: IProjectWithNestedDataClient }) => {
+  const { data: materials } = useGetMaterialBulkByProject({
+    projectId: project._id,
+  })
+
   const data = useMemo(() => {
     // Group materials by name and sum volumes
-    const materialGroups = project.materials.map(material => ({
-      ...material,
-      ec3MatchId: material.ec3MatchId !== null ? material.ec3MatchId : null,
-      density: material.density || 0,
-      gwp: material.gwp || 0,
-      ubp: material.ubp || 0,
-      penre: material.penre || 0,
-      totalVolume: material.totalVolume || 0,
-    }))
+    console.log('MATERIALS#########', materials)
+    const materialGroups =
+      materials &&
+      materials.map(material => ({
+        ...material,
+        ec3MatchId: material.ec3MatchId !== null ? material.ec3MatchId : null,
+        density: material.density || 0,
+        gwp: material.gwp || 0,
+        ubp: material.ubp || 0,
+        penre: material.penre || 0,
+        totalVolume: material.totalVolume || 0,
+      }))
     // const materialGroups = project.elements.reduce(
     //   (acc, element) => {
     //     element.materialRefs.forEach((materialLayer: IMaterialClient) => {
@@ -312,10 +320,8 @@ const MaterialsTab = ({ project }: { project: IProjectWithNestedDataClient }) =>
     //   {} as Record<string, IMaterialClient>
     // )
 
-    console.log('🔄 Material groups:', { materialGroups })
-
     return materialGroups
-  }, [project])
+  }, [materials])
 
   return (
     <>
@@ -323,13 +329,13 @@ const MaterialsTab = ({ project }: { project: IProjectWithNestedDataClient }) =>
         <h2 className="text-2xl font-semibold">
           Materials{' '}
           <Badge variant="secondary" className="ml-2">
-            {data.length}
+            {data?.length || 0}
           </Badge>
         </h2>
       </div>
       <Card>
         <CardContent className="p-0">
-          <DataTable columns={materialsColumns} data={data} />
+          <DataTable columns={materialsColumns} data={data || []} />
         </CardContent>
       </Card>
     </>

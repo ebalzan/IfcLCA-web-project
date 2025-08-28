@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import { AutoSuggestedMatch } from '@/components/materials-library/ifc-card/ifc-card-item/AutoSuggestedMatch'
+import { useGetProjectWithNestedData } from '@/hooks/projects/use-project-operations'
 import { TemporaryMatch } from './interfaces/TemporaryMatch'
 import { useMaterialsLibraryStore } from './materials-library-store'
 
@@ -8,15 +9,17 @@ export function useMaterialMatching() {
     temporaryMatches,
     autoSuggestedMatches,
     setTemporaryMatches,
-    closeConfirmMatchesModal,
+    closePreviewModal,
     setSelectedMaterials,
+    selectedProject,
   } = useMaterialsLibraryStore()
+  const { data: projectWithNestedData } = useGetProjectWithNestedData({ id: selectedProject })
 
   const confirmMatches = useCallback(() => {
-    closeConfirmMatchesModal()
+    closePreviewModal()
     setTemporaryMatches([])
     setSelectedMaterials([])
-  }, [closeConfirmMatchesModal, setSelectedMaterials, setTemporaryMatches])
+  }, [closePreviewModal, setSelectedMaterials, setTemporaryMatches])
 
   const acceptSuggestedMatch = useCallback(
     (match: TemporaryMatch) => {
@@ -42,17 +45,40 @@ export function useMaterialMatching() {
     (materialIds: string[], { ec3MaterialData }: Pick<TemporaryMatch, 'ec3MaterialData'>) => {
       const newMatches = [...temporaryMatches]
       materialIds.forEach(materialId => {
+        const elementsAffectedCount =
+          projectWithNestedData?.elements.reduce(
+            (acc, element) =>
+              acc +
+              element.materialRefs.reduce(
+                (acc, materialRef) => acc + (materialRef._id === materialId ? 1 : 0),
+                0
+              ),
+            0
+          ) || 0
+
         newMatches.push({
           materialId,
           ec3MatchId: ec3MaterialData.id,
           autoMatched: false,
           ec3MaterialData,
+          materialName:
+            projectWithNestedData?.materials.find(material => material._id === materialId)?.name ||
+            '',
+          projectName: projectWithNestedData?.name || '',
+          elementsAffectedCount,
         })
       })
       setTemporaryMatches(newMatches)
       setSelectedMaterials([])
     },
-    [setSelectedMaterials, setTemporaryMatches, temporaryMatches]
+    [
+      projectWithNestedData?.elements,
+      projectWithNestedData?.materials,
+      projectWithNestedData?.name,
+      setSelectedMaterials,
+      setTemporaryMatches,
+      temporaryMatches,
+    ]
   )
 
   const unMatchMaterial = useCallback(

@@ -11,7 +11,7 @@ export interface MaterialsLibraryStoreActions {
   setSelectedMaterials: (materials: string[]) => void
   setIsSelectAllChecked: (isSelectAllChecked: boolean) => void
   setTemporaryMatches: (matches: TemporaryMatch[]) => void
-  openConfirmMatchesModal: () => void
-  closeConfirmMatchesModal: () => void
+  openPreviewModal: () => void
+  closePreviewModal: () => void
   resetState: () => void
 }

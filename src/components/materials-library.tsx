@@ -14,8 +14,11 @@ import { useEC3Search } from '@/hooks/materials/materials-library/use-ec3-search
 import { useMaterialMatching } from '@/hooks/materials/materials-library/use-material-matching'
 import { useGetMaterialBulkByProject } from '@/hooks/materials/use-material-operations'
 import { useGetProjectWithNestedDataBulkByUser } from '@/hooks/projects/use-project-operations'
+import { useCreateBulkMatch } from '@/hooks/use-create-match'
+import { MaterialChangesPreviewModal } from './material-changes-preview-modal'
 import { EC3Card } from './materials-library/ec3-card'
 import { IFCCard } from './materials-library/ifc-card'
+import { Button } from './ui/button'
 import { LoadingSpinner } from './ui/loading-spinner'
 
 export function MaterialLibraryComponent() {
@@ -32,6 +35,9 @@ export function MaterialLibraryComponent() {
     temporaryMatches,
     matchingProgress,
     setMatchingProgress,
+    isPreviewModalOpen,
+    openPreviewModal,
+    closePreviewModal,
   } = useMaterialsLibraryStore()
   const { data: projectsWithNestedData } = useGetProjectWithNestedDataBulkByUser({
     userId: userId || '',
@@ -49,6 +55,47 @@ export function MaterialLibraryComponent() {
     unMatchMaterial,
     clearMatches,
   } = useMaterialMatching()
+  const { mutateAsync: createBulkMatch, isLoading: isCreatingBulkMatch } = useCreateBulkMatch()
+
+  // Helper function to parse GWP string to number
+  const parseGWP = (gwpString: string): number => {
+    const match = gwpString.match(/(\d+(?:\.\d+)?)/)
+    return match ? parseFloat(match[1]) : 0
+  }
+
+  // Helper function to parse density string to number
+  const parseDensity = (densityString: string): number => {
+    const match = densityString.match(/(\d+(?:\.\d+)?)/)
+    return match ? parseFloat(match[1]) : 0
+  }
+
+  // console.log(
+  //   'TEMPORARY MATCHES_UPDATES#########',
+  //   temporaryMatches.map(match => ({
+  //     ...match.ec3MaterialData,
+  //     gwp: parseGWP(match.ec3MaterialData.gwp?.toString() || ''),
+  //     density: parseDensity(match.ec3MaterialData.density?.toString() || ''),
+  //     ec3MatchId: match.ec3MatchId,
+  //     autoMatched: match.autoMatched,
+  //     materialId: match.materialId,
+  //   }))
+  // )
+
+  const handleConfirmMatches = useCallback(async () => {
+    await createBulkMatch({
+      materialIds: temporaryMatches.map(match => match.materialId),
+      updates: temporaryMatches.map(match => ({
+        ...match.ec3MaterialData,
+        category: null,
+        gwp: parseGWP(match.ec3MaterialData.gwp?.toString() || ''),
+        density: parseDensity(match.ec3MaterialData.density?.toString() || ''),
+        ec3MatchId: match.ec3MatchId,
+        autoMatched: match.autoMatched,
+        materialId: match.materialId,
+      })),
+    })
+    confirmMatches()
+  }, [confirmMatches, createBulkMatch, temporaryMatches])
 
   const handleIFCMaterialSelect = useCallback(
     (materialId: string) => {
@@ -90,27 +137,6 @@ export function MaterialLibraryComponent() {
     })
   }, [materialsData?.length, setMatchingProgress, temporaryMatches.length])
 
-  // // Handlers
-  // const handleMaterialSelect = useCallback(
-  //   (material: IMaterialClient) => {
-  //     handleSelect(material)
-  //     if (selectedMaterialIds.length === 0) {
-  //       scrollToMatchingEC3(material.name)
-  //     }
-  //   },
-  //   [handleSelect, scrollToMatchingEC3, selectedMaterialIds.length]
-  // )
-
-  // const handleEC3Select = useCallback(
-  //   (productId: string) => {
-  //     if (selectedMaterialIds.length > 0) {
-  //       acceptAllMatchesWithConfetti(productId)
-  //       clearSelection()
-  //     }
-  //   },
-  //   [selectedMaterialIds, acceptAllMatchesWithConfetti, clearSelection]
-  // )
-
   // const handleAcceptSuggestion = useCallback(
   //   (materialId: string, openEPDId: string) => {
   //     acceptMatchWithConfetti(openEPDId, materialId)
@@ -149,16 +175,16 @@ export function MaterialLibraryComponent() {
             ))}
           </SelectContent>
         </Select>
-        {/* <div className="flex items-center gap-2">
-              <Button disabled={true} onClick={showPreviewChanges}>
-                Preview Changes
-              </Button>
-              {unappliedMatchesCount > 0 && (
-                <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-                  {unappliedMatchesCount} unapplied matches
-                </Badge>
-              )}
-            </div> */}
+        <div className="flex items-center gap-2">
+          <Button disabled={temporaryMatches.length === 0} onClick={openPreviewModal}>
+            Preview Changes
+          </Button>
+          {/* {unappliedMatchesCount > 0 && (
+            <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+              {unappliedMatchesCount} unapplied matches
+            </Badge>
+          )} */}
+        </div>
       </div>
       <div className="flex gap-6">
         <IFCCard.Root>
@@ -245,14 +271,12 @@ export function MaterialLibraryComponent() {
         </EC3Card.Root>
 
         {/* Preview Modal */}
-        {/* <MaterialChangesPreviewModal
-        changes={previewChanges}
-        isOpen={isOpenMaterialChangesModal}
-        onClose={cancelMatch}
-        onConfirm={confirmMatch}
-        onNavigateToProject={() => {}}
-        isLoading={isMatchingInProgress}
-      /> */}
+        <MaterialChangesPreviewModal
+          isOpen={isPreviewModalOpen}
+          onClose={closePreviewModal}
+          onConfirm={handleConfirmMatches}
+          isLoading={isCreatingBulkMatch}
+        />
       </div>
     </div>
   )

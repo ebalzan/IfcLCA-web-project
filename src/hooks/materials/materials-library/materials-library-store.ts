@@ -13,23 +13,12 @@ const initialState: MaterialsLibraryStoreState = {
     percentage: 0,
   },
   isSelectAllChecked: false,
-  isOpenConfirmMatchesModal: false,
+  isPreviewModalOpen: false,
   autoSuggestedMatches: [],
   ifcSearchValue: '',
   isAutoScrollEnabled: false,
   ec3SearchValue: '',
-  ec3SearchFields: [
-    'id',
-    'name',
-    'manufacturer',
-    'category',
-    'description',
-    'gwp',
-    'ubp',
-    'penre',
-    'density',
-    'declared_unit',
-  ],
+  ec3SearchFields: ['id', 'name', 'category', 'gwp', 'ubp', 'penre', 'density', 'declared_unit'],
   ec3SearchSortBy: '+name',
 }
 
@@ -76,12 +65,12 @@ export const useMaterialsLibraryStore = create<
         set({ temporaryMatches: matches })
       },
 
-      openConfirmMatchesModal: () => {
-        set({ isOpenConfirmMatchesModal: true })
+      openPreviewModal: () => {
+        set({ isPreviewModalOpen: true })
       },
 
-      closeConfirmMatchesModal: () => {
-        set({ isOpenConfirmMatchesModal: false })
+      closePreviewModal: () => {
+        set({ isPreviewModalOpen: false })
       },
 
       setMatchingProgress: (progress: { matchedCount: number; percentage: number }) => {

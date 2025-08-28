@@ -7,8 +7,8 @@ const ec3Schema = new Schema<IEC3Match, IEC3MatchModel>(
   {
     ec3MatchId: { type: String, required: true },
     materialId: { type: Schema.Types.ObjectId, required: true },
+    autoMatched: { type: Boolean, required: true, default: false },
     score: { type: Number, required: false },
-    autoMatched: { type: Boolean, required: false, default: false },
   },
   {
     collection: 'ec3_matches',

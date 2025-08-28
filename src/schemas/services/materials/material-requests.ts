@@ -31,7 +31,7 @@ export const createEC3BulkMatchRequestSchema = defaultRequestSchema(
     updates: z
       .array(
         z.custom<
-          Partial<Omit<IMaterialDB, 'id' | 'ec3MatchId'>> &
+          Partial<Omit<IMaterialDB, 'id' | 'ec3MatchId' | 'uploadId' | 'projectId'>> &
             Pick<IEC3Match, 'score' | 'ec3MatchId' | 'autoMatched'>
         >()
       )
