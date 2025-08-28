@@ -1,23 +1,9 @@
-import IKBOBMaterial from '@/interfaces/materials/IKBOBMaterial'
-import ILCAIndicators from '@/interfaces/materials/ILCAIndicators'
-import IElementClient from '../elements/IElementClient'
+import IMaterialDB, { IMaterialVirtuals } from '@/interfaces/materials/IMaterialDB'
 
-interface IMaterialNewAttributesFromKBOB extends Partial<ILCAIndicators> {
-  category?: string
-  density?: number
-  kbobMatch?: IKBOBMaterial
-  lastCalculated?: Date
-}
-
-interface IMaterialClient extends IMaterialVirtuals, IMaterialNewAttributesFromKBOB {
+export interface IMaterialClient
+  extends Omit<IMaterialDB, '_id' | 'projectId' | 'uploadId'>,
+    IMaterialVirtuals {
   _id: string
-  name: string
   projectId: string
+  uploadId: string
 }
-
-export interface IMaterialVirtuals {
-  totalVolume: number
-  elements: IElementClient[]
-}
-
-export default IMaterialClient

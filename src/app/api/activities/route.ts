@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
-import ActivityResponse from '@/interfaces/activities/ActivityResponse'
 import IActivity from '@/interfaces/client/activities/IActivity'
 import IProjectDB from '@/interfaces/projects/IProjectDB'
 import { getUserId, AuthenticatedRequest, withAuthAndDB } from '@/lib/api-middleware'
 import { Project, Upload, MaterialDeletion } from '@/models'
+import { GetActivitiesResponse } from '@/schemas/api/responses'
 import sortByDate from '@/utils/sortByDate'
 
 async function getActivities(request: AuthenticatedRequest) {
@@ -103,10 +103,16 @@ async function getActivities(request: AuthenticatedRequest) {
   const totalCount = projectsCount + uploadsCount + materialDeletionsCount
   const hasMore = skip + sortedActivities.length < totalCount
 
-  return NextResponse.json<ActivityResponse>({
-    activities: sortedActivities,
-    hasMore,
-    totalCount,
+  return NextResponse.json<GetActivitiesResponse>({
+    data: sortedActivities,
+    pagination: {
+      page,
+      limit,
+      total: totalCount,
+      totalPages: Math.ceil(totalCount / limit),
+      hasNext: hasMore,
+      hasPrev: page > 1,
+    },
   })
 }
 

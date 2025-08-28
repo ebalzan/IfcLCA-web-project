@@ -2,12 +2,12 @@
 
 import { ColumnDef } from '@tanstack/react-table'
 import { Badge } from '@/components/ui/badge'
-import { IElementWithMaterialRefsClient } from '@/interfaces/client/projects/IProjectWithStatsClient'
+import { IElementWithMaterialRefsClient } from '@/interfaces/client/projects/IProjectWithNestedData'
 
 export const elementsColumns: ColumnDef<IElementWithMaterialRefsClient>[] = [
   {
     accessorKey: 'name',
-    header: ({ column }) => <div className="flex items-center">Name</div>,
+    header: () => <div className="flex items-center">Name</div>,
   },
   {
     accessorKey: 'type',
@@ -37,17 +37,16 @@ export const elementsColumns: ColumnDef<IElementWithMaterialRefsClient>[] = [
     accessorKey: 'materials',
     header: 'Materials',
     cell: ({ row }) => {
-      const materials = row.original.materials
+      const materialsLayers = row.original.materialLayers
+
       return (
         <div className="space-y-1 max-w-[250px] lg:max-w-[400px]">
-          {materials.map((materialLayer, index) => (
+          {materialsLayers.map((material, index) => (
             <div key={index} className="flex items-center gap-2 text-sm">
-              <span className="truncate font-medium">
-                {materialLayer.material.kbobMatch?.name || materialLayer.material.name || 'Unknown'}
-              </span>
+              <span className="truncate font-medium">{material.materialName || 'Unknown'}</span>
               <span className="text-muted-foreground whitespace-nowrap">
                 (
-                {materialLayer.volume.toLocaleString('de-CH', {
+                {material.volume.toLocaleString('de-CH', {
                   minimumFractionDigits: 3,
                   maximumFractionDigits: 3,
                 })}{' '}

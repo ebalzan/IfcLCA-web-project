@@ -19,7 +19,7 @@ const projectSchema = new Schema<IProjectDB, IProjectModelType>(
     imageUrl: {
       type: String,
     },
-    emissions: {
+    indicators: {
       gwp: { type: Number, default: 0 },
       ubp: { type: Number, default: 0 },
       penre: { type: Number, default: 0 },
@@ -33,6 +33,6 @@ const projectSchema = new Schema<IProjectDB, IProjectModelType>(
 )
 
 // Add index for better query performance
-projectSchema.index({ 'emissions.lastCalculated': -1 })
+projectSchema.index({ 'indicators.lastCalculated': -1 })
 
 export const Project: IProjectModelType = models.Project || model('Project', projectSchema)

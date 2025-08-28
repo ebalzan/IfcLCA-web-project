@@ -2,20 +2,22 @@
 
 import { ColumnDef } from '@tanstack/react-table'
 import { Badge } from '@/components/ui/badge'
-import IMaterialClient from '@/interfaces/client/materials/IMaterialClient'
+import { IMaterialClient } from '@/interfaces/client/materials/IMaterialClient'
+import { IMaterialVirtuals } from '@/interfaces/materials/IMaterialDB'
 
-export const materialsColumns: ColumnDef<IMaterialClient>[] = [
+export const materialsColumns: ColumnDef<IMaterialClient & IMaterialVirtuals>[] = [
   {
     accessorKey: 'name',
-    header: ({ column }) => <div className="flex items-center">Ifc Material</div>,
+    header: () => <div className="flex items-center">Name</div>,
   },
   {
-    accessorKey: 'kbobMatch.name',
-    header: 'KBOB Material',
+    accessorKey: 'ec3MatchId',
+    header: 'EC3 Material',
     cell: ({ row }) => {
-      const kbobName = row.original.kbobMatch?.name
-      return kbobName ? (
-        <div className="truncate max-w-[200px] lg:max-w-[300px]">{kbobName}</div>
+      const ec3MatchId = row.original.ec3MatchId
+
+      return ec3MatchId ? (
+        <div className="truncate max-w-[200px] lg:max-w-[300px]">{ec3MatchId}</div>
       ) : (
         <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
           No Match
@@ -27,8 +29,8 @@ export const materialsColumns: ColumnDef<IMaterialClient>[] = [
     accessorKey: 'totalVolume',
     header: 'Volume (m³)',
     cell: ({ row }) => {
-      const volume = row.original.totalVolume
-      return volume.toLocaleString('de-CH', {
+      const totalVolume = row.original.totalVolume
+      return totalVolume.toLocaleString('de-CH', {
         minimumFractionDigits: 3,
         maximumFractionDigits: 3,
       })

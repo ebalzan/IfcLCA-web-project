@@ -1,10 +1,11 @@
 import { Types } from 'mongoose'
+import ILCAIndicators from '../materials/ILCAIndicators'
 
-interface IMaterialLayer {
-  material: Types.ObjectId
+export interface IMaterialLayer {
+  materialId: Types.ObjectId
+  materialName: string
   volume: number
-  fraction?: number
-  thickness?: number
+  fraction: number | null
+  thickness: number | null
+  indicators: ILCAIndicators | null
 }
-
-export default IMaterialLayer

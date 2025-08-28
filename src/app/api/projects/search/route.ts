@@ -1,29 +1,58 @@
-import { NextResponse } from 'next/server'
-import IProjectDB from '@/interfaces/projects/IProjectDB'
-import { AuthenticatedRequest, getUserId, withAuthAndDB } from '@/lib/api-middleware'
-import { Project } from '@/models'
+import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
+import { AuthenticatedRequest, getUserId } from '@/lib/api-middleware'
+import { ProjectService } from '@/lib/services/project-service'
+import { withAuthAndDBQueryParams } from '@/lib/validation-middleware'
+import { ValidationContext } from '@/lib/validation-middleware/types'
+import {
+  SearchProjectsRequestApi,
+  searchProjectsRequestSchemaApi,
+  SearchProjectsResponseApi,
+} from '@/schemas/api/projects/search'
 
-export type SearchResult = Pick<IProjectDB, 'name' | 'description' | '_id'>
+async function searchProjects(
+  request: AuthenticatedRequest,
+  context: ValidationContext<never, SearchProjectsRequestApi['query']>
+) {
+  try {
+    const userId = getUserId(request)
+    const { name, sortBy, pagination } = context.query
+    const { page, size } = pagination || { page: 1, size: 50 }
 
-async function getProjectsBySearch(request: AuthenticatedRequest) {
-  const userId = getUserId(request)
+    const response = await ProjectService.searchProjects({
+      data: {
+        userId,
+        name,
+        sortBy,
+        pagination: {
+          page,
+          size,
+        },
+      },
+    })
 
-  const { searchParams } = new URL(request.url)
-  const query = searchParams.get('q') || ''
-  const all = searchParams.get('all') === 'true'
-
-  const queryConditions = {
-    userId,
-    ...(all ? {} : { name: { $regex: query, $options: 'i' } }),
+    return sendApiSuccessResponse<SearchProjectsResponseApi['data']>(
+      {
+        projects: response.projects.map(project => ({
+          ...project,
+          _id: project._id.toString(),
+        })),
+        pagination: {
+          page,
+          size,
+          hasMore: response.pagination?.hasMore || false,
+          totalCount: response.pagination?.totalCount || 0,
+          totalPages: response.pagination?.totalPages || 0,
+        },
+      },
+      'Projects searched successfully',
+      request
+    )
+  } catch (error: unknown) {
+    return sendApiErrorResponse(error, request, { operation: 'search', resource: 'project' })
   }
-
-  const projects = await Project.find(queryConditions)
-    .select<SearchResult>('name description _id')
-    .sort({ name: 1 })
-    .limit(all ? 10 : 5)
-    .lean()
-
-  return NextResponse.json<SearchResult[]>(projects)
 }
 
-export const GET = withAuthAndDB(getProjectsBySearch)
+export const GET = withAuthAndDBQueryParams({
+  queryParamsSchema: searchProjectsRequestSchemaApi.shape.query,
+  handler: searchProjects,
+})

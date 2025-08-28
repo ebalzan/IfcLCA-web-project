@@ -1,75 +1,80 @@
-import { NextResponse } from 'next/server'
 import { Types } from 'mongoose'
-import IKBOBMaterial from '@/interfaces/materials/IKBOBMaterial'
-import IMaterialDB from '@/interfaces/materials/IMaterialDB'
-import { AuthenticatedRequest, getUserId, withAuthAndDBParams } from '@/lib/api-middleware'
-import { Material, Project } from '@/models'
+import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
+import { MaterialService } from '@/lib/services/material-service'
+import { withAuthAndDBValidationWithPathParams } from '@/lib/validation-middleware'
+import {
+  AuthenticatedValidationRequest,
+  ValidationContext,
+} from '@/lib/validation-middleware/types'
+import {
+  CreateEC3MatchRequestApi,
+  createEC3MatchRequestApiSchema,
+} from '@/schemas/api/materials/material-requests'
+import { CreateEC3MatchResponseApi } from '@/schemas/api/materials/material-responses'
 
-interface MatchMaterialRequest {
-  kbobMatchId: Types.ObjectId
-}
-
-interface MatchMaterialResponse extends Omit<IMaterialDB, '_id' | 'kbobMatchId'> {
-  _id: string
-  kbobMatchId: Omit<IKBOBMaterial, '_id'> & { _id: string }
-}
-
-async function matchMaterialsWithKbob(
-  request: AuthenticatedRequest,
-  context: { params: Promise<{ [key: string]: string }> }
+async function createEC3Match(
+  request: AuthenticatedValidationRequest<CreateEC3MatchRequestApi['data']>,
+  context: ValidationContext<CreateEC3MatchRequestApi['pathParams'], never>
 ) {
-  const userId = getUserId(request)
-  const params = await context.params
+  try {
+    const { updates } = request.validatedData
+    const { id: materialId } = await context.params
 
-  const body: MatchMaterialRequest = await request.json()
-  const { kbobMatchId } = body
+    if (!Types.ObjectId.isValid(materialId)) {
+      return sendApiErrorResponse(new Error('Invalid material ID'), request, {
+        resource: 'material',
+      })
+    }
 
-  // Get the material first to check project ownership
-  const material = await Material.findById(params.id)
-    .select('projectId')
-    .lean<Pick<IMaterialDB, 'projectId'>>()
+    if (!Types.ObjectId.isValid(updates.projectId)) {
+      return sendApiErrorResponse(new Error('Invalid project ID'), request, {
+        resource: 'project',
+      })
+    }
 
-  if (!material) {
-    return NextResponse.json({ error: 'Material not found' }, { status: 404 })
-  }
+    if (!Types.ObjectId.isValid(updates.uploadId)) {
+      return sendApiErrorResponse(new Error('Invalid upload ID'), request, {
+        resource: 'upload',
+      })
+    }
 
-  // Verify user has access to this project
-  const project = await Project.findOne({
-    _id: material.projectId,
-    userId,
-  }).lean()
-
-  if (!project) {
-    return NextResponse.json({ error: 'Not authorized to modify this material' }, { status: 403 })
-  }
-
-  // Update the material with KBOB match
-  const updatedMaterial = await Material.findByIdAndUpdate(
-    params.id,
-    {
-      $set: {
-        kbobMatchId,
+    const result = await MaterialService.createEC3Match({
+      data: {
+        materialId: new Types.ObjectId(materialId),
+        updates: {
+          ...updates,
+          projectId: new Types.ObjectId(updates.projectId),
+          uploadId: new Types.ObjectId(updates.uploadId),
+        },
       },
-    },
-    { new: true }
-  )
-    .populate<{
-      kbobMatchId: Pick<IKBOBMaterial, '_id' | 'name' | 'category' | 'gwp' | 'ubp' | 'penre'>
-    }>('kbobMatchId', '_id name category gwp ubp penre')
-    .lean()
+    })
 
-  if (!updatedMaterial) {
-    return NextResponse.json({ error: 'Failed to update material' }, { status: 500 })
+    if (!result) {
+      return sendApiErrorResponse(new Error('Failed to match material with EC3 product'), request, {
+        operation: 'match',
+        resource: 'material',
+      })
+    }
+
+    return sendApiSuccessResponse<CreateEC3MatchResponseApi['data']>(
+      {
+        ...result,
+        _id: result._id.toString(),
+        materialId: result.materialId.toString(),
+      },
+      'Material matched with EC3 product successfully',
+      request
+    )
+  } catch (error: unknown) {
+    return sendApiErrorResponse(error, request, { operation: 'match', resource: 'material' })
   }
-
-  return NextResponse.json<MatchMaterialResponse>({
-    ...updatedMaterial,
-    _id: updatedMaterial._id.toString(),
-    kbobMatchId: {
-      ...updatedMaterial.kbobMatchId,
-      _id: updatedMaterial.kbobMatchId._id.toString(),
-    },
-  })
 }
 
-export const POST = withAuthAndDBParams(matchMaterialsWithKbob)
+export const POST = withAuthAndDBValidationWithPathParams({
+  dataSchema: createEC3MatchRequestApiSchema.shape.data,
+  pathParamsSchema: createEC3MatchRequestApiSchema.shape.pathParams,
+  handler: createEC3Match,
+  options: {
+    method: 'json',
+  },
+})

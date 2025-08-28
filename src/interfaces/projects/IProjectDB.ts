@@ -7,7 +7,7 @@ interface IProjectDB {
   description?: string
   userId: string
   imageUrl?: string
-  emissions: ILCAIndicators
+  indicators: ILCAIndicators & { lastCalculated?: Date }
   createdAt: Date
   updatedAt: Date
 }

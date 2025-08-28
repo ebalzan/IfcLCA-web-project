@@ -1,11 +1,5 @@
-import IMaterialClient from '../materials/IMaterialClient'
+import { IMaterialLayer } from '@/interfaces/elements/IMaterialLayer'
 
-interface IMaterialLayerClient {
-  _id: string
-  material: IMaterialClient
-  volume: number
-  fraction?: number
-  thickness?: number
+export interface IMaterialLayerClient extends Omit<IMaterialLayer, 'materialId'> {
+  materialId: string
 }
-
-export default IMaterialLayerClient

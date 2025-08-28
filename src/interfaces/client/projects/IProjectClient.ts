@@ -1,14 +1,5 @@
-import ILCAIndicators from '@/interfaces/materials/ILCAIndicators'
+import IProjectDB from '@/interfaces/projects/IProjectDB'
 
-interface IProjectClient {
+export interface IProjectClient extends Omit<IProjectDB, '_id'> {
   _id: string
-  name: string
-  description?: string
-  userId: string
-  imageUrl?: string
-  emissions: ILCAIndicators
-  createdAt: Date
-  updatedAt: Date
 }
-
-export default IProjectClient

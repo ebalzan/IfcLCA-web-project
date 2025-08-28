@@ -1,15 +1,20 @@
 import { Model, Schema, model, models } from 'mongoose'
 import mongooseLeanGetters from 'mongoose-lean-getters'
 import mongooseLeanVirtuals from 'mongoose-lean-virtuals'
-import IElementDB, { IElementVirtuals } from '@/interfaces/elements/IElementDB'
-import IMaterialLayer from '@/interfaces/elements/IMaterialLayer'
+import { IElementDB, IElementVirtuals } from '@/interfaces/elements/IElementDB'
+import { IMaterialLayer } from '@/interfaces/elements/IMaterialLayer'
+import { calculateElementIndicators } from '@/utils/calculateElementIndicators'
 
 type IElementModelType = Model<IElementDB, {}, {}, IElementVirtuals>
 
 const materialLayerSchema = new Schema<IMaterialLayer>({
-  material: {
+  materialId: {
     type: Schema.Types.ObjectId,
     ref: 'Material',
+    required: true,
+  },
+  materialName: {
+    type: String,
     required: true,
   },
   volume: {
@@ -26,15 +31,25 @@ const materialLayerSchema = new Schema<IMaterialLayer>({
     required: true,
     min: 0,
     max: 1,
+    default: null,
+    nullable: true,
   },
   thickness: {
     type: Number,
+    required: true,
     min: 0,
+    default: null,
+    nullable: true,
   },
 })
 
 const elementSchema = new Schema<IElementDB, IElementModelType, {}, IElementVirtuals>(
   {
+    uploadId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Upload',
+      required: true,
+    },
     projectId: {
       type: Schema.Types.ObjectId,
       ref: 'Project',
@@ -60,7 +75,7 @@ const elementSchema = new Schema<IElementDB, IElementModelType, {}, IElementVirt
       type: Boolean,
       default: false,
     },
-    materials: [materialLayerSchema],
+    materialLayers: [materialLayerSchema],
   },
   {
     timestamps: true,
@@ -69,41 +84,25 @@ const elementSchema = new Schema<IElementDB, IElementModelType, {}, IElementVirt
 
 // Indexes
 elementSchema.index({ projectId: 1, guid: 1 }, { unique: true })
-elementSchema.index({ 'materials.material': 1 })
+elementSchema.index({ 'materialLayers.materialId': 1 })
 
-// Virtuals
+// Plugins
 elementSchema.plugin(mongooseLeanVirtuals)
 elementSchema.plugin(mongooseLeanGetters)
 
-// Virtual for total volume
+// Virtuals
 elementSchema.virtual('totalVolume').get(function () {
-  return this.materials.reduce((sum, materialLayer) => sum + (materialLayer.volume || 0), 0)
+  return this.materialLayers.reduce((sum, materialLayer) => sum + (materialLayer.volume || 0), 0)
 })
 
-// Virtual for emissions (calculated on-the-fly)
-elementSchema.virtual('emissions').get(function () {
-  return this.materials.reduce(
-    (acc, materialLayer) => {
-      const material = materialLayer.material as any // Will be populated
-      if (!material?.kbobMatchId) return acc
-
-      const volume = materialLayer.volume || 0
-      const density = material.density || 0
-      const mass = volume * density
-
-      return {
-        gwp: acc.gwp + mass * (material.kbobMatchId.GWP || 0),
-        ubp: acc.ubp + mass * (material.kbobMatchId.UBP || 0),
-        penre: acc.penre + mass * (material.kbobMatchId.PENRE || 0),
-      }
-    },
-    { gwp: 0, ubp: 0, penre: 0 }
-  )
+// Virtual for emissions
+elementSchema.virtual('indicators').get(async function () {
+  return await calculateElementIndicators({ data: { elementId: this._id } })
 })
 
 // Middleware to validate material fractions sum to 1
 elementSchema.pre('save', function (next) {
-  const totalFraction = this.materials.reduce(
+  const totalFraction = this.materialLayers.reduce(
     (sum, materialLayer) => sum + (materialLayer?.fraction || 0),
     0
   )

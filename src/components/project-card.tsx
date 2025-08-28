@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { MoreVertical, Pencil, Trash2, Upload, Box } from 'lucide-react'
-import IProjectWithStatsClient from '@/interfaces/client/projects/IProjectWithStatsClient'
+import { IProjectWithNestedDataClient } from '@/interfaces/client/projects/IProjectWithNestedData'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
@@ -16,7 +16,7 @@ import {
 } from './ui/dropdown-menu'
 
 interface ProjectCardProps {
-  project: IProjectWithStatsClient
+  project: IProjectWithNestedDataClient
   onEdit: () => void
   onDelete: () => void
 }

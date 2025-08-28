@@ -7,7 +7,6 @@ import { Edit, UploadCloud } from 'lucide-react'
 import { Breadcrumbs } from '@/components/breadcrumbs'
 import { DataTable } from '@/components/data-table'
 import { elementsColumns } from '@/components/elements-columns'
-import { GraphPageComponent } from '@/components/graph-page'
 import { materialsColumns } from '@/components/materials-columns'
 import { ProjectSummary } from '@/components/project-summary'
 import { Badge } from '@/components/ui/badge'
@@ -24,36 +23,22 @@ import {
 } from '@/components/ui/pagination'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { UploadModal } from '@/components/upload-modal'
-import { useProjectWithStatsById } from '@/hooks/projects/use-project-operations'
-import IMaterialLayerClient from '@/interfaces/client/elements/IMaterialLayerClient'
-import IMaterialClient from '@/interfaces/client/materials/IMaterialClient'
-import IProjectWithStatsClient from '@/interfaces/client/projects/IProjectWithStatsClient'
-import IUploadClient from '@/interfaces/client/uploads/IUploadClient'
+import { useGetMaterialBulkByProject } from '@/hooks/materials/use-material-operations'
+import { useGetProjectWithNestedData } from '@/hooks/projects/use-project-operations'
+import { IMaterialClient } from '@/interfaces/client/materials/IMaterialClient'
+import { IProjectWithNestedDataClient } from '@/interfaces/client/projects/IProjectWithNestedData'
+import { IUploadClient } from '@/interfaces/client/uploads/IUploadClient'
+import { GetProjectWithNestedDataSchema } from '@/schemas/client/project-schemas'
 
 export default function ProjectPage() {
   const router = useRouter()
-  const params = useParams<{ id: string }>()
-  const projectId = params.id
+  const { id: projectId } = useParams<GetProjectWithNestedDataSchema>()
   const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false)
-  const { data: project, isLoading } = useProjectWithStatsById(projectId)
+  const { data: project, isLoading } = useGetProjectWithNestedData({ id: projectId })
 
   function handleNavigateToEditProject() {
     router.push(`/projects/${projectId}/edit`)
   }
-
-  // function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>) {
-  //   const file = event.target.files?.[0];
-  //   if (file) {
-  //     const reader = new FileReader();
-  //     reader.onloadend = () => {
-  //       const imageUrl = reader.result as string;
-  //       setProject((prevProject) =>
-  //         prevProject ? { ...prevProject, imageUrl } : null
-  //       );
-  //     };
-  //     reader.readAsDataURL(file);
-  //   }
-  // }
 
   if (!project || isLoading) {
     return (
@@ -92,7 +77,7 @@ const ProjectHeader = ({
   onUpload,
   onEdit,
 }: {
-  project: IProjectWithStatsClient
+  project: IProjectWithNestedDataClient
   onUpload: () => void
   onEdit: () => void
 }) => (
@@ -120,7 +105,7 @@ const ProjectTabs = ({
   project,
   onUpload,
 }: {
-  project: IProjectWithStatsClient
+  project: IProjectWithNestedDataClient
   onUpload: () => void
 }) => (
   <Tabs defaultValue="uploads" className="w-full">
@@ -153,7 +138,7 @@ const UploadsTab = ({
   project,
   onUpload,
 }: {
-  project: IProjectWithStatsClient
+  project: IProjectWithNestedDataClient
   onUpload: () => void
 }) => {
   const [currentPage, setCurrentPage] = useState(1)
@@ -179,10 +164,6 @@ const UploadsTab = ({
             {project?.uploads?.length || 0}
           </Badge>
         </h2>
-        <Button onClick={onUpload} variant="outline">
-          <UploadCloud className="h-4 w-4 mr-2" />
-          Add New Ifc
-        </Button>
       </div>
       {!project?.uploads || project.uploads.length === 0 ? (
         <EmptyState
@@ -245,8 +226,8 @@ const UploadCard = ({ upload }: { upload: IUploadClient }) => (
         <p className="text-sm text-muted-foreground">
           Uploaded on {new Date(upload.createdAt).toLocaleString()}
         </p>
-        {upload.elementCount > 0 && (
-          <p className="text-sm text-muted-foreground">Elements: {upload.elementCount}</p>
+        {upload._count.elements > 0 && (
+          <p className="text-sm text-muted-foreground">Elements: {upload._count.elements}</p>
         )}
       </div>
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
@@ -265,7 +246,7 @@ const UploadCard = ({ upload }: { upload: IUploadClient }) => (
   </Card>
 )
 
-const ElementsTab = ({ project }: { project: IProjectWithStatsClient }) => {
+const ElementsTab = ({ project }: { project: IProjectWithNestedDataClient }) => {
   const elementCount = project._count.elements
   const elements = useMemo(() => project.elements, [project])
 
@@ -288,45 +269,59 @@ const ElementsTab = ({ project }: { project: IProjectWithStatsClient }) => {
   )
 }
 
-const MaterialsTab = ({ project }: { project: IProjectWithStatsClient }) => {
+const MaterialsTab = ({ project }: { project: IProjectWithNestedDataClient }) => {
+  const { data: materials } = useGetMaterialBulkByProject({
+    projectId: project._id,
+  })
+
   const data = useMemo(() => {
     // Group materials by name and sum volumes
-    const materialGroups = project.elements.reduce(
-      (acc, element) => {
-        element.materials.forEach((materialLayer: IMaterialLayerClient) => {
-          const key = materialLayer.material._id
-          if (!acc[key]) {
-            acc[key] = {
-              ...materialLayer.material,
-              totalVolume: 0,
-              gwp: 0,
-              ubp: 0,
-              penre: 0,
-            }
-          }
-          acc[key].totalVolume += materialLayer.volume
-          // acc[key].gwp +=
-          //   materialLayer.volume *
-          //   (materialLayer.material.density || 0) *
-          //   (materialLayer.material.kbobMatch?.gwp || 0);
-          // acc[key].ubp +=
-          //   materialLayer.volume *
-          //   (materialLayer.material.density || 0) *
-          //   (materialLayer.material.kbobMatch?.ubp || 0);
-          // acc[key].penre +=
-          //   materialLayer.volume *
-          //   (materialLayer.material.density || 0) *
-          //   (materialLayer.material.kbobMatch?.penre || 0);
-        })
-        return acc
-      },
-      {} as Record<string, IMaterialClient>
-    )
+    console.log('MATERIALS#########', materials)
+    const materialGroups =
+      materials &&
+      materials.map(material => ({
+        ...material,
+        ec3MatchId: material.ec3MatchId !== null ? material.ec3MatchId : null,
+        density: material.density || 0,
+        gwp: material.gwp || 0,
+        ubp: material.ubp || 0,
+        penre: material.penre || 0,
+        totalVolume: material.totalVolume || 0,
+      }))
+    // const materialGroups = project.elements.reduce(
+    //   (acc, element) => {
+    //     element.materialRefs.forEach((materialLayer: IMaterialClient) => {
+    //       const key = materialLayer._id
+    //       if (!acc[key]) {
+    //         acc[key] = {
+    //           ...materialLayer,
+    //           // totalVolume: 0,
+    //           gwp: 0,
+    //           ubp: 0,
+    //           penre: 0,
+    //         }
+    //       }
+    //       acc[key].totalVolume += materialLayer.totalVolume || 0
+    //       acc[key].gwp +=
+    //         materialLayer.totalVolume *
+    //         (materialLayer.density || 0) *
+    //         (materialLayer.indicators.gwp || 0)
+    //       acc[key].ubp +=
+    //         materialLayer.totalVolume *
+    //         (materialLayer.density || 0) *
+    //         (materialLayer.indicators.ubp || 0)
+    //       acc[key].penre +=
+    //         materialLayer.volume *
+    //         (materialLayer.material.density || 0) *
+    //         (materialLayer.material.kbobMatch?.penre || 0)
+    //     })
+    //     return acc
+    //   },
+    //   {} as Record<string, IMaterialClient>
+    // )
 
-    console.log('🔄 Material groups:', { materialGroups })
-
-    return Object.values(materialGroups)
-  }, [project])
+    return materialGroups
+  }, [materials])
 
   return (
     <>
@@ -334,42 +329,42 @@ const MaterialsTab = ({ project }: { project: IProjectWithStatsClient }) => {
         <h2 className="text-2xl font-semibold">
           Materials{' '}
           <Badge variant="secondary" className="ml-2">
-            {data.length}
+            {data?.length || 0}
           </Badge>
         </h2>
       </div>
       <Card>
         <CardContent className="p-0">
-          <DataTable columns={materialsColumns} data={data} />
+          <DataTable columns={materialsColumns} data={data || []} />
         </CardContent>
       </Card>
     </>
   )
 }
 
-const GraphTab = ({ project }: { project: IProjectWithStatsClient }) => {
+const GraphTab = ({ project }: { project: IProjectWithNestedDataClient }) => {
   const materialsData = project.elements.flatMap(element =>
     // Create one entry per element-material combination
-    element.materials.map((material: IMaterialLayerClient) => ({
+    element.materialRefs.map((material: IMaterialClient) => ({
       name: element.name, // Element name from elements table
       elementName: element.name, // Explicit element name for grouping
-      ifcMaterial: material.material?.name || 'Unknown',
-      kbobMaterial: material.material?.kbobMatch?.name,
+      ifcMaterial: material.name || 'Unknown',
+      openEPDMaterial: material.ec3MatchId,
       category: element.type, // Ifc entity type
-      volume: material.volume, // Use individual material volume
+      // volume: material.volume, // Use individual material volume
       indicators: {
-        gwp:
-          material.volume *
-          (material.material?.density || 0) *
-          (material.material?.kbobMatch?.gwp || 0),
-        ubp:
-          material.volume *
-          (material.material?.density || 0) *
-          (material.material?.kbobMatch?.ubp || 0),
-        penre:
-          material.volume *
-          (material.material?.density || 0) *
-          (material.material?.kbobMatch?.penre || 0),
+        gwp: 0,
+        // material.volume *
+        // (material.material?.density || 0) *
+        // (material.material?.openEPDMatch?.gwp || 0),
+        ubp: 0,
+        // material.volume *
+        // (material.material?.density || 0) *
+        // (material.material?.openEPDMatch?.ubp || 0),
+        penre: 0,
+        // material.volume *
+        // (material.material?.density || 0) *
+        // (material.material?.openEPDMatch?.penre || 0),
       },
     }))
   )
@@ -379,7 +374,7 @@ const GraphTab = ({ project }: { project: IProjectWithStatsClient }) => {
       <div className="grid gap-4">
         <Card>
           <CardContent className="pt-6">
-            <GraphPageComponent materialsData={materialsData} />
+            {/* <GraphPageComponent materialsData={materialsData} /> */}
           </CardContent>
         </Card>
       </div>
@@ -398,9 +393,9 @@ const EmptyState = ({
   description: string
   action: React.ReactNode
 }) => (
-  <Card>
-    <CardContent className="flex flex-col items-center justify-center h-32">
-      <Icon className="h-12 w-12 text-muted-foreground mb-2" />
+  <Card className="bg-muted/50">
+    <CardContent className="flex flex-col items-center justify-center">
+      <Icon className="h-10 w-10 text-muted-foreground mb-1" />
       <p className="text-muted-foreground text-center">{title}</p>
       <p className="text-sm text-muted-foreground text-center mt-1">{description}</p>
       <div className="mt-2">{action}</div>

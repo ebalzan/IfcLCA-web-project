@@ -1,23 +1,22 @@
 import { Types } from 'mongoose'
-import IMaterialLayer from './IMaterialLayer'
+import { IMaterialLayer } from './IMaterialLayer'
 import ILCAIndicators from '../materials/ILCAIndicators'
 
 export interface IElementVirtuals {
   totalVolume: number
-  emissions: ILCAIndicators
+  indicators: ILCAIndicators
 }
 
-interface IElementDB {
+export interface IElementDB {
   _id: Types.ObjectId
-  guid: string
   projectId: Types.ObjectId
-  isExternal: boolean
-  loadBearing: boolean
-  materials: IMaterialLayer[]
+  uploadId: Types.ObjectId
+  guid: string
   name: string
   type: string
+  loadBearing: boolean
+  isExternal: boolean
+  materialLayers: IMaterialLayer[]
   createdAt: Date
   updatedAt: Date
 }
-
-export default IElementDB

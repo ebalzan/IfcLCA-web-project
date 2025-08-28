@@ -1,20 +1,20 @@
 'use client'
 
-// import { MaterialLibraryComponent } from "@/components/materials-library";
+import { MaterialLibraryComponent } from '@/components/materials-library'
 
 export default function MaterialsLibraryPage() {
   return (
     <div className="main-container">
-      <div className="page-header mb-4">
+      <div className="page-header m-0">
         <div>
           <h1 className="page-title">Material Library</h1>
           <p className="page-description">
-            Match project materials with KBOB environmental indicators
+            Match project materials with EC3 environmental indicators
           </p>
         </div>
       </div>
 
-      {/* <MaterialLibraryComponent /> */}
+      <MaterialLibraryComponent />
     </div>
   )
 }

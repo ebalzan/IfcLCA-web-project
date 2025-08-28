@@ -15,44 +15,52 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import {
   useDeleteProject,
-  useProjectWithStatsById,
+  useGetProject,
   useUpdateProject,
 } from '@/hooks/projects/use-project-operations'
-import { UpdateProjectSchema, updateProjectSchema } from '@/schemas/projects/updateProjectSchema'
+import {
+  updateProjectFormSchema,
+  UpdateProjectFormSchema,
+} from '@/schemas/client/forms/project-schemas'
 
 export default function EditProjectPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-
+  const [hasInitialized, setHasInitialized] = useState(false)
   const router = useRouter()
   const params = useParams<{ id: string }>()
   const projectId = params.id
-  const { data: project, isLoading: isLoadingProject } = useProjectWithStatsById(projectId)
-  const { mutate: updateProject, isLoading: isUpdatingProject } = useUpdateProject(projectId)
-  const { mutate: deleteProject, isLoading: isDeletingProject } = useDeleteProject()
+  const { data: project, isLoading: isLoadingProject } = useGetProject({ id: projectId })
+  const { mutate: updateProject, isLoading: isUpdatingProject } = useUpdateProject({
+    id: projectId,
+  })
+  const { mutate: deleteProject, isLoading: isDeletingProject } = useDeleteProject({
+    id: projectId,
+  })
 
-  const form = useForm<UpdateProjectSchema>({
-    resolver: zodResolver(updateProjectSchema),
+  const form = useForm<UpdateProjectFormSchema>({
+    resolver: zodResolver(updateProjectFormSchema),
     defaultValues: {
-      name: project?.name || '',
-      description: project?.description || '',
+      name: '',
+      description: '',
     },
   })
   const {
     register,
-    getValues,
     handleSubmit,
     reset,
     formState: { isDirty },
   } = form
 
+  // Use useEffect instead of useMemo for form initialization
   useEffect(() => {
-    if (project) {
+    if (project && !hasInitialized) {
       reset({
         name: project.name || '',
         description: project.description || '',
       })
+      setHasInitialized(true)
     }
-  }, [project, reset])
+  }, [project, reset, hasInitialized])
 
   const breadcrumbItems = [
     { label: 'Projects', href: '/projects' },
@@ -115,7 +123,14 @@ export default function EditProjectPage() {
         </CardHeader>
         <CardContent>
           <form
-            onSubmit={handleSubmit(() => updateProject({ ...getValues() }))}
+            onSubmit={handleSubmit(data =>
+              updateProject({
+                updates: {
+                  ...data,
+                  updatedAt: new Date(),
+                },
+              })
+            )}
             className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="name" className="text-sm font-medium">
@@ -147,7 +162,7 @@ export default function EditProjectPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => router.back()}
+                onClick={router.back}
                 disabled={isUpdatingProject}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Cancel
@@ -168,7 +183,7 @@ export default function EditProjectPage() {
       <DeleteProjectDialog
         isOpen={isDeleteDialogOpen}
         onClose={() => setIsDeleteDialogOpen(false)}
-        onDelete={() => deleteProject(projectId)}
+        onDelete={() => deleteProject()}
       />
     </div>
   )
