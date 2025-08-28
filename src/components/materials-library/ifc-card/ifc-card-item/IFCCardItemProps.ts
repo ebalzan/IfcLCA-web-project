@@ -1,3 +1,4 @@
+import { TemporaryMatch } from '@/hooks/materials/materials-library/interfaces/TemporaryMatch'
 import { IMaterialClient } from '@/interfaces/client/materials/IMaterialClient'
 import { AutoSuggestedMatch } from './AutoSuggestedMatch'
 

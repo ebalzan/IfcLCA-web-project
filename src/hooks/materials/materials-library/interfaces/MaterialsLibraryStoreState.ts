@@ -1,10 +1,14 @@
 import { AutoSuggestedMatch } from '@/components/materials-library/ifc-card/ifc-card-item/AutoSuggestedMatch'
-import { IEC3MatchClient } from '@/interfaces/client/materials/IEC3MatchClient'
+import { TemporaryMatch } from './TemporaryMatch'
 
 export interface MaterialsLibraryStoreState {
   selectedProject: string
-  temporaryMatches: Omit<IEC3MatchClient, '_id'>[]
+  temporaryMatches: TemporaryMatch[]
   selectedMaterials: string[]
+  matchingProgress: {
+    matchedCount: number
+    percentage: number
+  }
   isSelectAllChecked: boolean
   isOpenConfirmMatchesModal: boolean
   autoSuggestedMatches: AutoSuggestedMatch[]
