@@ -1624,19 +1624,21 @@ export class ProjectService {
   }: DeleteProjectRequest): Promise<DeleteProjectResponse> {
     return withTransaction(async useSession => {
       try {
-        await this.getProject({
+        const {
+          elements: _elements,
+          materials: _materials,
+          uploads: _uploads,
+        } = await this.getProjectWithNestedData({
           data: { projectId, userId },
           session: useSession,
         })
 
-        const [uploads, elements, materials] = await Promise.all([
-          Upload.deleteMany({ projectId }).session(useSession),
-          Element.deleteMany({ projectId }).session(useSession),
-          Material.deleteMany({ projectId }).session(useSession),
-        ])
-
-        if (uploads.deletedCount < 1 || elements.deletedCount < 1 || materials.deletedCount < 1) {
-          throw new ProjectDeleteError('Failed to delete project')
+        if (_elements.length !== 0 || _materials.length !== 0 || _uploads.length !== 0) {
+          await Promise.all([
+            Upload.deleteMany({ projectId }).session(useSession),
+            Element.deleteMany({ projectId }).session(useSession),
+            Material.deleteMany({ projectId }).session(useSession),
+          ])
         }
 
         const deleteResult = await Project.findOneAndDelete({ _id: projectId, userId })
