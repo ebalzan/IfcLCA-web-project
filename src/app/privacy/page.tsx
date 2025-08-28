@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function PrivacyPage() {
   return (
@@ -16,10 +16,7 @@ export default function PrivacyPage() {
             <li>Ifc files that you upload for analysis</li>
             <li>Calculation results and reports generated from your data</li>
             <li>Usage data to improve our service</li>
-            <li>
-              Technical information (browser type, IP address) for service
-              delivery
-            </li>
+            <li>Technical information (browser type, IP address) for service delivery</li>
           </ul>
         </CardContent>
       </Card>
@@ -37,14 +34,13 @@ export default function PrivacyPage() {
             <li>Maintaining and securing your account</li>
           </ul>
           <p className="mt-4">
-            As an open-source project, we are committed to transparency in how
-            we handle your data. Our source code is available for review on{" "}
+            As an open-source project, we are committed to transparency in how we handle your data.
+            Our source code is available for review on{' '}
             <a
               href="https://github.com/IfcLCA/IfcLCA"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-primary hover:underline"
-            >
+              className="text-primary hover:underline">
               GitHub
             </a>
             .
@@ -75,13 +71,12 @@ export default function PrivacyPage() {
           <p>We share data only in the following circumstances:</p>
           <ul className="list-disc pl-6 space-y-2">
             <li>With your explicit consent</li>
-            <li>With team members you've granted access to your projects</li>
+            <li>With team members you&apos;ve granted access to your projects</li>
             <li>With service providers who help operate our platform</li>
             <li>When required by law or to protect our rights</li>
           </ul>
           <p className="mt-4">
-            We do not sell your personal data or uploaded content to third
-            parties.
+            We do not sell your personal data or uploaded content to third parties.
           </p>
         </CardContent>
       </Card>
@@ -129,8 +124,7 @@ export default function PrivacyPage() {
             <li>Cloud storage and processing services</li>
           </ul>
           <p className="mt-4">
-            Each third-party service has its own privacy policy and data
-            handling practices.
+            Each third-party service has its own privacy policy and data handling practices.
           </p>
         </CardContent>
       </Card>
@@ -138,15 +132,12 @@ export default function PrivacyPage() {
       <div className="text-sm text-muted-foreground mt-8">
         <p>Last updated: {new Date().toLocaleDateString()}</p>
         <p>
-          For privacy-related inquiries, please contact us at{" "}
-          <a
-            href="mailto:info@lt.plus"
-            className="text-primary hover:underline"
-          >
+          For privacy-related inquiries, please contact us at{' '}
+          <a href="mailto:info@lt.plus" className="text-primary hover:underline">
             info@lt.plus
           </a>
         </p>
       </div>
     </div>
-  );
+  )
 }

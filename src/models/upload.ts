@@ -1,54 +1,54 @@
-import mongoose from "mongoose";
+import { Model, Schema, model, models } from 'mongoose'
+import IUploadDB from '@/interfaces/uploads/IUploadDB'
 
-const uploadSchema = new mongoose.Schema(
+type IUploadModelType = Model<IUploadDB>
+
+const uploadSchema = new Schema<IUploadDB, IUploadModelType>(
   {
     projectId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Project",
-      required: [true, "Project ID is required"],
+      type: Schema.Types.ObjectId,
+      ref: 'Project',
+      required: [true, 'Project ID is required'],
     },
     userId: {
       type: String,
-      required: [true, "User ID is required"],
+      required: [true, 'User ID is required'],
     },
     filename: {
       type: String,
-      required: [true, "Filename is required"],
+      required: [true, 'Filename is required'],
     },
     status: {
       type: String,
-      enum: ["Processing", "Completed", "Failed"],
-      default: "Processing",
+      enum: ['Processing', 'Completed', 'Failed'],
+      default: 'Processing',
     },
-    elementCount: {
-      type: Number,
-      default: 0,
-    },
-    materialCount: {
-      type: Number,
-      default: 0,
-    },
-    deleted: {
-      type: Boolean,
-      default: false,
+    _count: {
+      elements: {
+        type: Number,
+        default: 0,
+      },
+      materials: {
+        type: Number,
+        default: 0,
+      },
     },
   },
   {
     timestamps: true,
     strict: true,
-    collection: "uploads", // Explicitly set collection name
+    collection: 'uploads', // Explicitly set collection name
   }
-);
+)
 
 // Add validation middleware
-uploadSchema.pre("save", function (next) {
+uploadSchema.pre('save', function (next) {
   if (!this.projectId || !this.userId) {
-    next(new Error("ProjectId and UserId are required"));
-    return;
+    next(new Error('ProjectId and UserId are required'))
+    return
   }
-  next();
-});
+  next()
+})
 
 // Export as a named constant to ensure consistent usage
-export const Upload =
-  mongoose.models.Upload || mongoose.model("Upload", uploadSchema);
+export const Upload: IUploadModelType = models.Upload || model('Upload', uploadSchema)

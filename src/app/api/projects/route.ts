@@ -1,160 +1,178 @@
-import { connectToDatabase } from "@/lib/mongodb";
-import { Project } from "@/models";
-import { auth } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
+import { Types } from 'mongoose'
+import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
+import { AuthenticatedRequest, getUserId } from '@/lib/api-middleware'
+import { ProjectService } from '@/lib/services/project-service'
+import { withAuthAndDBQueryParams, withAuthAndDBValidation } from '@/lib/validation-middleware'
+import {
+  AuthenticatedValidationRequest,
+  ValidationContext,
+} from '@/lib/validation-middleware/types'
+import {
+  CreateProjectBulkRequestApi,
+  createProjectBulkRequestApiSchema,
+  DeleteProjectBulkRequestApi,
+  deleteProjectBulkRequestApiSchema,
+  GetProjectBulkRequestApi,
+  getProjectBulkRequestApiSchema,
+  UpdateProjectBulkRequestApi,
+  updateProjectBulkRequestApiSchema,
+} from '@/schemas/api/projects/project-requests'
+import {
+  CreateProjectBulkResponseApi,
+  DeleteProjectBulkResponseApi,
+  GetProjectBulkResponseApi,
+  UpdateProjectBulkResponseApi,
+} from '@/schemas/api/projects/project-responses'
 
-export const runtime = "nodejs";
-
-export async function GET() {
+async function createProjectBulk(
+  request: AuthenticatedValidationRequest<CreateProjectBulkRequestApi['data']>
+) {
   try {
-    const { userId } = await auth();
+    const userId = getUserId(request)
+    const { projects } = request.validatedData
 
-    if (!userId) {
-      return new Response("Unauthorized", { status: 401 });
-    }
+    const result = await ProjectService.createProjectBulk({
+      data: { projects, userId },
+    })
 
-    await connectToDatabase();
-
-    // Aggregate projects with their latest activity timestamps
-    const projects = await Project.aggregate([
-      { $match: { userId } },
-      {
-        $lookup: {
-          from: "uploads",
-          localField: "_id",
-          foreignField: "projectId",
-          as: "uploads",
-        },
-      },
-      {
-        $lookup: {
-          from: "elements",
-          localField: "_id",
-          foreignField: "projectId",
-          as: "elements",
-        },
-      },
-      {
-        $lookup: {
-          from: "materials",
-          localField: "_id",
-          foreignField: "projectId",
-          as: "materials",
-        },
-      },
-      {
-        $addFields: {
-          lastActivityAt: {
-            $max: [
-              "$updatedAt",
-              { $max: "$uploads.createdAt" },
-              { $max: "$elements.createdAt" },
-              { $max: "$materials.createdAt" },
-            ],
-          },
-          _count: {
-            elements: { $size: "$elements" },
-            uploads: { $size: "$uploads" },
-            materials: { $size: "$materials" },
-          },
-          emissions: {
-            $ifNull: [
-              "$emissions",
-              {
-                gwp: 0,
-                ubp: 0,
-                penre: 0,
-                lastCalculated: new Date(),
-              },
-            ],
-          },
-          elements: {
-            $map: {
-              input: "$elements",
-              as: "element",
-              in: {
-                _id: "$$element._id",
-                name: "$$element.name",
-                type: "$$element.type",
-                volume: "$$element.volume",
-                materials: {
-                  $map: {
-                    input: "$$element.materials",
-                    as: "material",
-                    in: {
-                      volume: "$$material.volume",
-                      indicators: {
-                        gwp: "$$material.indicators.gwp",
-                        ubp: "$$material.indicators.ubp",
-                        penre: "$$material.indicators.penre",
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-      { $sort: { lastActivityAt: -1 } },
-    ]);
-
-    const transformedProjects = projects.map((project) => ({
-      id: project._id.toString(),
-      name: project.name,
-      description: project.description,
-      imageUrl: project.imageUrl,
-      updatedAt: project.lastActivityAt || project.updatedAt,
-      _count: project._count,
-      elements: project.elements.map((element) => ({
-        ...element,
-        _id: element._id.toString(),
-        materials: element.materials || [],
+    return sendApiSuccessResponse<CreateProjectBulkResponseApi['data']>(
+      result.map(project => ({
+        ...project,
+        _id: project._id.toString(),
       })),
-    }));
-
-    return NextResponse.json(transformedProjects);
-  } catch (error) {
-    console.error("API - Error fetching projects:", error);
-    return new NextResponse("Internal Server Error", { status: 500 });
+      'Projects created successfully',
+      request
+    )
+  } catch (error: unknown) {
+    return sendApiErrorResponse(error, request, { operation: 'create bulk', resource: 'project' })
   }
 }
 
-export async function POST(req: Request) {
+async function getProjectBulk(
+  request: AuthenticatedRequest,
+  context: ValidationContext<never, GetProjectBulkRequestApi['query']>
+) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { projectIds, pagination } = context.query
+    const { page, size } = pagination || { page: 1, size: 50 }
+
+    if (!projectIds.every(id => Types.ObjectId.isValid(id))) {
+      return sendApiErrorResponse(new Error('Invalid project ID'), request, {
+        resource: 'project',
+      })
     }
 
-    const body = await req.json();
-    await connectToDatabase();
-
-    const project = await Project.create({
-      ...body,
-      userId,
-      emissions: {
-        gwp: 0,
-        ubp: 0,
-        penre: 0,
-        lastCalculated: new Date(),
+    const projects = await ProjectService.getProjectBulk({
+      data: {
+        projectIds: projectIds.map(id => new Types.ObjectId(id)),
+        pagination: { page, size },
       },
-    });
+    })
 
-    return NextResponse.json(project);
-  } catch (error) {
-    console.error("Failed to create project:", error);
-
-    // Track the error with PostHog
-    const { captureServerError } = await import("@/lib/posthog-client");
-    captureServerError(error as Error, userId, {
-      action: "create_project",
-      body: body,
-    });
-
-    return NextResponse.json(
-      { error: "Failed to create project" },
-      { status: 500 }
-    );
+    return sendApiSuccessResponse<GetProjectBulkResponseApi['data']>(
+      {
+        projects: projects.projects.map(project => ({
+          ...project,
+          _id: project._id.toString(),
+        })),
+        pagination: {
+          size,
+          page,
+          hasMore: projects.pagination?.hasMore || false,
+          totalCount: projects.pagination?.totalCount || 0,
+          totalPages: projects.pagination?.totalPages || 0,
+        },
+      },
+      'Projects fetched successfully',
+      request
+    )
+  } catch (error: unknown) {
+    return sendApiErrorResponse(error, request, { operation: 'fetch', resource: 'projects' })
   }
 }
+
+async function updateProjectBulk(
+  request: AuthenticatedValidationRequest<UpdateProjectBulkRequestApi['data']>
+) {
+  try {
+    const userId = getUserId(request)
+    const { projectIds, updates } = request.validatedData
+
+    if (!projectIds.every(id => Types.ObjectId.isValid(id))) {
+      return sendApiErrorResponse(new Error('Invalid project ID'), request, {
+        resource: 'project',
+      })
+    }
+
+    const result = await ProjectService.updateProjectBulk({
+      data: { projectIds: projectIds.map(id => new Types.ObjectId(id)), updates, userId },
+    })
+
+    return sendApiSuccessResponse<UpdateProjectBulkResponseApi['data']>(
+      result.map(project => ({
+        ...project,
+        _id: project._id.toString(),
+      })),
+      'Projects updated successfully',
+      request
+    )
+  } catch (error: unknown) {
+    return sendApiErrorResponse(error, request, { operation: 'update bulk', resource: 'project' })
+  }
+}
+
+async function deleteProjectBulk(
+  request: AuthenticatedValidationRequest<DeleteProjectBulkRequestApi['data']>
+) {
+  try {
+    const userId = getUserId(request)
+    const { projectIds } = request.validatedData
+
+    if (!projectIds.every(id => Types.ObjectId.isValid(id))) {
+      return sendApiErrorResponse(new Error('Invalid project ID'), request, {
+        resource: 'project',
+      })
+    }
+
+    const result = await ProjectService.deleteProjectBulk({
+      data: { projectIds: projectIds.map(id => new Types.ObjectId(id)), userId },
+    })
+
+    return sendApiSuccessResponse<DeleteProjectBulkResponseApi['data']>(
+      result.map(project => ({
+        ...project,
+        _id: project._id.toString(),
+      })),
+      'Projects deleted successfully',
+      request
+    )
+  } catch (error: unknown) {
+    return sendApiErrorResponse(error, request, { operation: 'delete bulk', resource: 'project' })
+  }
+}
+
+export const POST = withAuthAndDBValidation({
+  dataSchema: createProjectBulkRequestApiSchema.shape.data,
+  handler: createProjectBulk,
+  options: {
+    method: 'json',
+  },
+})
+export const GET = withAuthAndDBQueryParams({
+  queryParamsSchema: getProjectBulkRequestApiSchema.shape.query,
+  handler: getProjectBulk,
+})
+export const PATCH = withAuthAndDBValidation({
+  dataSchema: updateProjectBulkRequestApiSchema.shape.data,
+  handler: updateProjectBulk,
+  options: {
+    method: 'json',
+  },
+})
+export const DELETE = withAuthAndDBValidation({
+  dataSchema: deleteProjectBulkRequestApiSchema.shape.data,
+  handler: deleteProjectBulk,
+  options: {
+    method: 'json',
+  },
+})

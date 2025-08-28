@@ -1,87 +1,80 @@
-import { NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/mongodb";
-import { Material, Project } from "@/models";
-import mongoose from "mongoose";
-import { auth } from "@clerk/nextjs/server";
+import { Types } from 'mongoose'
+import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
+import { MaterialService } from '@/lib/services/material-service'
+import { withAuthAndDBValidationWithPathParams } from '@/lib/validation-middleware'
+import {
+  AuthenticatedValidationRequest,
+  ValidationContext,
+} from '@/lib/validation-middleware/types'
+import {
+  CreateEC3MatchRequestApi,
+  createEC3MatchRequestApiSchema,
+} from '@/schemas/api/materials/material-requests'
+import { CreateEC3MatchResponseApi } from '@/schemas/api/materials/material-responses'
 
-export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
+async function createEC3Match(
+  request: AuthenticatedValidationRequest<CreateEC3MatchRequestApi['data']>,
+  context: ValidationContext<CreateEC3MatchRequestApi['pathParams'], never>
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return new Response("Unauthorized", { status: 401 });
+    const { updates } = request.validatedData
+    const { id: materialId } = await context.params
+
+    if (!Types.ObjectId.isValid(materialId)) {
+      return sendApiErrorResponse(new Error('Invalid material ID'), request, {
+        resource: 'material',
+      })
     }
 
-    await connectToDatabase();
-    const { kbobId } = await request.json();
-
-    // Get the material first to check project ownership
-    const material = await Material.findById(params.id)
-      .select("projectId")
-      .lean();
-
-    if (!material) {
-      return NextResponse.json(
-        { error: "Material not found" },
-        { status: 404 }
-      );
+    if (!Types.ObjectId.isValid(updates.projectId)) {
+      return sendApiErrorResponse(new Error('Invalid project ID'), request, {
+        resource: 'project',
+      })
     }
 
-    // Verify user has access to this project
-    const project = await Project.findOne({
-      _id: material.projectId,
-      userId
-    }).lean();
-
-    if (!project) {
-      return NextResponse.json(
-        { error: "Not authorized to modify this material" },
-        { status: 403 }
-      );
+    if (!Types.ObjectId.isValid(updates.uploadId)) {
+      return sendApiErrorResponse(new Error('Invalid upload ID'), request, {
+        resource: 'upload',
+      })
     }
 
-    // Update the material with KBOB match
-    const updatedMaterial = await Material.findByIdAndUpdate(
-      params.id,
-      {
-        $set: {
-          kbobMatchId: new mongoose.Types.ObjectId(kbobId),
+    const result = await MaterialService.createEC3Match({
+      data: {
+        materialId: new Types.ObjectId(materialId),
+        updates: {
+          ...updates,
+          projectId: new Types.ObjectId(updates.projectId),
+          uploadId: new Types.ObjectId(updates.uploadId),
         },
       },
-      { new: true }
-    ).populate("kbobMatchId");
+    })
 
-    if (!updatedMaterial) {
-      return NextResponse.json(
-        { error: "Failed to update material" },
-        { status: 500 }
-      );
+    if (!result) {
+      return sendApiErrorResponse(new Error('Failed to match material with EC3 product'), request, {
+        operation: 'match',
+        resource: 'material',
+      })
     }
 
-    return NextResponse.json({
-      id: updatedMaterial._id.toString(),
-      name: updatedMaterial.name,
-      category: updatedMaterial.category,
-      volume: updatedMaterial.volume,
-      kbobMatch: updatedMaterial.kbobMatchId
-        ? {
-          id: updatedMaterial.kbobMatchId._id.toString(),
-          name: updatedMaterial.kbobMatchId.Name,
-          indicators: {
-            gwp: updatedMaterial.kbobMatchId.GWP,
-            ubp: updatedMaterial.kbobMatchId.UBP,
-            penre: updatedMaterial.kbobMatchId.PENRE,
-          },
-        }
-        : null,
-    });
-  } catch (error) {
-    console.error("Failed to match material:", error);
-    return NextResponse.json(
-      { error: "Failed to match material" },
-      { status: 500 }
-    );
+    return sendApiSuccessResponse<CreateEC3MatchResponseApi['data']>(
+      {
+        ...result,
+        _id: result._id.toString(),
+        materialId: result.materialId.toString(),
+      },
+      'Material matched with EC3 product successfully',
+      request
+    )
+  } catch (error: unknown) {
+    return sendApiErrorResponse(error, request, { operation: 'match', resource: 'material' })
   }
 }
+
+export const POST = withAuthAndDBValidationWithPathParams({
+  dataSchema: createEC3MatchRequestApiSchema.shape.data,
+  pathParamsSchema: createEC3MatchRequestApiSchema.shape.pathParams,
+  handler: createEC3Match,
+  options: {
+    method: 'json',
+  },
+})

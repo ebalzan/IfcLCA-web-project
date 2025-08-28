@@ -1,60 +1,53 @@
-"use client";
+'use client'
 
-import { uploadProjectImage } from "@/app/actions/upload-image";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
-import { ImageIcon } from "lucide-react";
-import Image from "next/image";
-import { useState } from "react";
+import { ChangeEvent, useState } from 'react'
+import Image from 'next/image'
+import { ImageIcon } from 'lucide-react'
+import { uploadProjectImage } from '@/app/actions/upload-image'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { useToast } from '@/hooks/use-toast'
 
 interface ProjectImageUploadProps {
-  projectId: string;
-  imageUrl?: string;
-  className?: string;
+  projectId: string
+  imageUrl?: string
 }
 
-export function ProjectImageUpload({
-  projectId,
-  imageUrl,
-  className,
-}: ProjectImageUploadProps) {
-  const [isUploading, setIsUploading] = useState(false);
-  const [currentImageUrl, setCurrentImageUrl] = useState(imageUrl);
-  const { toast } = useToast();
+export function ProjectImageUpload({ projectId, imageUrl }: ProjectImageUploadProps) {
+  const [isUploading, setIsUploading] = useState(false)
+  const [currentImageUrl, setCurrentImageUrl] = useState(imageUrl)
+  const { toast } = useToast()
 
-  const handleImageUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  async function handleImageUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
 
     try {
-      setIsUploading(true);
+      setIsUploading(true)
 
       // Create FormData
-      const formData = new FormData();
-      formData.append("file", file);
+      const formData = new FormData()
+      formData.append('file', file)
 
       // Upload using server action
-      const newImageUrl = await uploadProjectImage(projectId, formData);
+      const newImageUrl = await uploadProjectImage(projectId, formData)
 
-      setCurrentImageUrl(newImageUrl);
+      setCurrentImageUrl(newImageUrl)
       toast({
-        title: "Success",
-        description: "Project image updated successfully",
-      });
+        title: 'Success',
+        description: 'Project image updated successfully',
+      })
     } catch (error) {
-      console.error("Upload error:", error);
+      console.error('Upload error:', error)
       toast({
-        title: "Error",
-        description: "Failed to upload image",
-        variant: "destructive",
-      });
+        title: 'Error',
+        description: 'Failed to upload image',
+        variant: 'destructive',
+      })
     } finally {
-      setIsUploading(false);
+      setIsUploading(false)
     }
-  };
+  }
 
   return (
     <Card className="h-full flex flex-col">
@@ -75,10 +68,9 @@ export function ProjectImageUpload({
                   variant="outline"
                   size="sm"
                   className="relative overflow-hidden bg-white/10 backdrop-blur-sm"
-                  disabled={isUploading}
-                >
+                  disabled={isUploading}>
                   <ImageIcon className="h-3 w-3 mr-2" />
-                  {isUploading ? "Uploading..." : "Change Image"}
+                  {isUploading ? 'Uploading...' : 'Change Image'}
                   <input
                     type="file"
                     className="absolute inset-0 opacity-0 cursor-pointer"
@@ -99,10 +91,9 @@ export function ProjectImageUpload({
                 variant="outline"
                 size="sm"
                 className="relative overflow-hidden"
-                disabled={isUploading}
-              >
+                disabled={isUploading}>
                 <ImageIcon className="h-3 w-3 mr-2" />
-                {isUploading ? "Uploading..." : "Upload"}
+                {isUploading ? 'Uploading...' : 'Upload'}
                 <input
                   type="file"
                   className="absolute inset-0 opacity-0 cursor-pointer"
@@ -116,5 +107,5 @@ export function ProjectImageUpload({
         </div>
       </CardContent>
     </Card>
-  );
+  )
 }

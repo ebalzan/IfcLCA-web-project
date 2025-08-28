@@ -1,15 +1,8 @@
-"use client";
+'use client'
 
-import * as React from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { ReactNode } from 'react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
   BarChart3,
@@ -21,87 +14,84 @@ import {
   FileBarChart2,
   Boxes,
   History,
-} from "lucide-react";
-import { UploadIfcButton } from "@/components/upload-ifc-button";
+} from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { UploadIfcButton } from '@/components/upload-ifc-button'
+import { cn } from '@/utils/cn'
 
 interface SidebarProps {
-  currentPage: string;
-  projectId?: string;
-  collapsed?: boolean;
+  projectId?: string
+  collapsed?: boolean
 }
 
 interface SidebarItem {
-  title: string;
-  icon: React.ReactNode;
-  href: string;
+  title: string
+  icon: ReactNode
+  href: string
   badge?: {
-    text: string;
-    variant: "default" | "secondary" | "destructive" | "outline";
-  };
+    text: string
+    variant: 'default' | 'secondary' | 'destructive' | 'outline'
+  }
 }
 
 const primaryItems: SidebarItem[] = [
   {
-    title: "Home",
+    title: 'Home',
     icon: <LayoutDashboard className="h-5 w-5" />,
-    href: "/",
+    href: '/',
   },
   {
-    title: "Projects",
+    title: 'Projects',
     icon: <Building className="h-5 w-5" />,
-    href: "/projects",
+    href: '/projects',
   },
   {
-    title: "Materials",
+    title: 'Materials',
     icon: <Database className="h-5 w-5" />,
-    href: "/materials-library",
+    href: '/materials-library',
   },
   {
-    title: "Reports",
+    title: 'Reports',
     icon: <FileBarChart2 className="h-5 w-5" />,
-    href: "#",
+    href: '#',
     badge: {
-      text: "Coming Soon",
-      variant: "secondary",
+      text: 'Coming Soon',
+      variant: 'secondary',
     },
   },
-];
+]
 
 const projectItems: SidebarItem[] = [
   {
-    title: "Project Overview",
+    title: 'Project Overview',
     icon: <Home className="h-5 w-5" />,
-    href: "/project/:id",
+    href: '/project/:id',
   },
   {
-    title: "Building Elements",
+    title: 'Building Elements',
     icon: <Boxes className="h-5 w-5" />,
-    href: "/project/:id/elements",
+    href: '/project/:id/elements',
   },
   {
-    title: "LCA Analysis",
+    title: 'LCA Analysis',
     icon: <BarChart3 className="h-5 w-5" />,
-    href: "/project/:id/lca",
+    href: '/project/:id/lca',
   },
   {
-    title: "3D Viewer",
+    title: '3D Viewer',
     icon: <Box className="h-5 w-5" />,
-    href: "/project/:id/viewer",
+    href: '/project/:id/viewer',
   },
   {
-    title: "Upload History",
+    title: 'Upload History',
     icon: <History className="h-5 w-5" />,
-    href: "/project/:id/uploads",
+    href: '/project/:id/uploads',
   },
-];
+]
 
-export function SidebarNavigation({
-  currentPage,
-  projectId,
-  collapsed,
-}: SidebarProps) {
-  const pathname = usePathname();
-  const items = projectId ? [...primaryItems, ...projectItems] : primaryItems;
+export function SidebarNavigation({ projectId, collapsed }: SidebarProps) {
+  const pathname = usePathname()
+  const items = projectId ? [...primaryItems, ...projectItems] : primaryItems
 
   return (
     <TooltipProvider>
@@ -116,13 +106,10 @@ export function SidebarNavigation({
                     <Link
                       href={item.href}
                       className={cn(
-                        "flex items-center justify-center w-10 h-10 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors relative group",
-                        pathname === item.href
-                          ? "bg-accent text-accent-foreground"
-                          : "transparent",
-                        item.href === "#" && "opacity-60 pointer-events-none"
-                      )}
-                    >
+                        'flex items-center justify-center w-10 h-10 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors relative group',
+                        pathname === item.href ? 'bg-accent text-accent-foreground' : 'transparent',
+                        item.href === '#' && 'opacity-60 pointer-events-none'
+                      )}>
                       {item.icon}
                       {item.badge && (
                         <span className="absolute bottom-0 right-0 -mr-1 mb-0">
@@ -134,17 +121,14 @@ export function SidebarNavigation({
                       )}
                     </Link>
                   </TooltipTrigger>
-                  <TooltipContent
-                    side="right"
-                    className="flex items-center gap-2"
-                  >
+                  <TooltipContent side="right" className="flex items-center gap-2">
                     <span>{item.title}</span>
                     {item.badge && (
                       <span className="px-1.5 py-0.5 text-xs font-medium bg-secondary text-secondary-foreground rounded">
                         {item.badge.text}
                       </span>
                     )}
-                    {item.title === "Reports" && (
+                    {item.title === 'Reports' && (
                       <span className="text-xs text-muted-foreground">
                         Generate detailed environmental impact reports
                       </span>
@@ -169,8 +153,7 @@ export function SidebarNavigation({
                 <TooltipTrigger asChild>
                   <Link
                     href="/projects/new"
-                    className="flex items-center justify-center w-10 h-10 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                  >
+                    className="flex items-center justify-center w-10 h-10 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
                     <PlusCircle className="h-5 w-5" />
                   </Link>
                 </TooltipTrigger>
@@ -181,5 +164,5 @@ export function SidebarNavigation({
         </div>
       </aside>
     </TooltipProvider>
-  );
+  )
 }

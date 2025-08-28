@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function CookiesPage() {
   return (
@@ -11,9 +11,9 @@ export default function CookiesPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p>
-            Cookies are small text files that are stored on your device when you
-            visit our website. They help us provide you with a better experience
-            and are essential for some of our website's functionality.
+            Cookies are small text files that are stored on your device when you visit our website.
+            They help us provide you with a better experience and are essential for some of our
+            website&apos;s functionality.
           </p>
         </CardContent>
       </Card>
@@ -23,10 +23,7 @@ export default function CookiesPage() {
           <CardTitle>2. Essential Cookies</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p>
-            These cookies are necessary for the website to function and cannot
-            be disabled:
-          </p>
+          <p>These cookies are necessary for the website to function and cannot be disabled:</p>
           <ul className="list-disc pl-6 space-y-2">
             <li>Authentication cookies (managed by Clerk)</li>
             <li>Session cookies to maintain your login state</li>
@@ -79,8 +76,8 @@ export default function CookiesPage() {
             <li>GitHub (for source code repository links)</li>
           </ul>
           <p className="mt-4">
-            These services have their own privacy and cookie policies which you
-            can review on their respective websites.
+            These services have their own privacy and cookie policies which you can review on their
+            respective websites.
           </p>
         </CardContent>
       </Card>
@@ -97,8 +94,7 @@ export default function CookiesPage() {
                 href="https://support.google.com/chrome/answer/95647"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
+                className="text-primary hover:underline">
                 Google Chrome
               </a>
             </li>
@@ -107,8 +103,7 @@ export default function CookiesPage() {
                 href="https://support.mozilla.org/en-US/kb/enhanced-tracking-protection-firefox-desktop"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
+                className="text-primary hover:underline">
                 Mozilla Firefox
               </a>
             </li>
@@ -117,8 +112,7 @@ export default function CookiesPage() {
                 href="https://support.microsoft.com/en-us/microsoft-edge/delete-cookies-in-microsoft-edge-63947406-40ac-c3b8-57b9-2a946a29ae09"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
+                className="text-primary hover:underline">
                 Microsoft Edge
               </a>
             </li>
@@ -127,15 +121,13 @@ export default function CookiesPage() {
                 href="https://support.apple.com/guide/safari/manage-cookies-and-website-data-sfri11471"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
+                className="text-primary hover:underline">
                 Safari
               </a>
             </li>
           </ul>
           <p className="mt-4 text-muted-foreground">
-            Note: Disabling essential cookies may affect the functionality of
-            our service.
+            Note: Disabling essential cookies may affect the functionality of our service.
           </p>
         </CardContent>
       </Card>
@@ -146,9 +138,8 @@ export default function CookiesPage() {
         </CardHeader>
         <CardContent>
           <p>
-            We may update this cookie policy to reflect changes in our practices
-            or for operational, legal, or regulatory reasons. We encourage you
-            to review this policy periodically.
+            We may update this cookie policy to reflect changes in our practices or for operational,
+            legal, or regulatory reasons. We encourage you to review this policy periodically.
           </p>
         </CardContent>
       </Card>
@@ -156,15 +147,12 @@ export default function CookiesPage() {
       <div className="text-sm text-muted-foreground mt-8">
         <p>Last updated: {new Date().toLocaleDateString()}</p>
         <p>
-          For questions about our cookie policy, please contact us at{" "}
-          <a
-            href="mailto:info@lt.plus"
-            className="text-primary hover:underline"
-          >
+          For questions about our cookie policy, please contact us at{' '}
+          <a href="mailto:info@lt.plus" className="text-primary hover:underline">
             info@lt.plus
           </a>
         </p>
       </div>
     </div>
-  );
+  )
 }

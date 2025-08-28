@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function DocumentationPage() {
   return (
@@ -11,27 +11,23 @@ export default function DocumentationPage() {
         <CardContent className="space-y-4">
           <ol className="list-decimal pl-6 space-y-2">
             <li>
-              <strong>Register</strong> — Use the sign-up link and create your account
-              with Clerk.
+              <strong>Register</strong> — Use the sign-up link and create your account with Clerk.
             </li>
             <li>
-              <strong>Create a Project</strong> — Click <em>New Project</em> on your
-              dashboard and provide a name.
+              <strong>Create a Project</strong> — Click <em>New Project</em> on your dashboard and
+              provide a name.
             </li>
             <li>
               <strong>Upload an IFC</strong> — Export your BIM model with materials and
-              <em>Ifc Base Quantities</em> included, then upload it from the project
-              page.
+              <em>Ifc Base Quantities</em> included, then upload it from the project page.
             </li>
             <li>
-              <strong>Map Materials</strong> — Open the <em>Materials</em> tab and search
-              the KBOB database for each material to combine your model with
-              environmental impact data.
+              <strong>Map Materials</strong> — Open the <em>Materials</em> tab and search the KBOB
+              database for each material to combine your model with environmental impact data.
             </li>
             <li>
-              <strong>View Charts</strong> — Check the <em>Charts</em> tab to explore GWP,
-              UBP and PEnr graphs. Use the printer icon to save charts as PDF
-              files.
+              <strong>View Charts</strong> — Check the <em>Charts</em> tab to explore GWP, UBP and
+              PEnr graphs. Use the printer icon to save charts as PDF files.
             </li>
             <li>
               <strong>Export Tables</strong> — The <em>Materials</em> and <em>Elements</em>
@@ -41,5 +37,5 @@ export default function DocumentationPage() {
         </CardContent>
       </Card>
     </div>
-  );
+  )
 }

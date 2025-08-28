@@ -1,0 +1,170 @@
+'use client'
+
+import { CheckIcon } from '@radix-ui/react-icons'
+import { Trash2Icon } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { IFCCardItemProps } from './IFCCardItemProps'
+
+export function IFCCardItem({
+  material,
+  isSelected,
+  isTemporaryMatch,
+  autoSuggestedMatch,
+  isSelectable,
+  onSelect,
+  onUnmatch,
+  onDelete,
+  onAcceptSuggestion,
+  ec3MaterialData,
+}: IFCCardItemProps) {
+  return (
+    <div
+      className={`
+        ${isSelected ? 'bg-primary/10' : 'hover:bg-secondary/30'}
+        relative p-4 cursor-pointer
+        transition-all duration-300 ease-out
+        hover:z-10
+        group
+        ${
+          isTemporaryMatch
+            ? 'animate-in zoom-in-95 duration-500 ease-spring slide-in-from-left-5'
+            : ''
+        }
+        rounded-md
+      `}
+      onClick={isSelectable ? () => onSelect(material._id) : undefined}>
+      {/* Match overlay */}
+      {isTemporaryMatch && (
+        <div className="absolute inset-0 bg-primary/5 animate-in fade-in duration-500 ease-spring">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-in zoom-in-50 duration-300 ease-spring">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <CheckIcon className="w-6 h-6 text-primary animate-in zoom-in duration-300 delay-150" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete action */}
+      <div className="absolute top-2 right-2 z-20">
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8"
+              onClick={e => {
+                e.stopPropagation()
+                onDelete(material._id)
+              }}>
+              <Trash2Icon className="h-4 w-4 text-destructive" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Material</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete <span className="font-medium">{material.name}</span>
+                ? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => onDelete(material._id)}>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+
+      {/* Material content */}
+      <div className={`flex items-start justify-between gap-4 relative z-10`}>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="font-medium truncate">{material.name}</h3>
+            {material.category && (
+              <Badge variant="outline" className="shrink-0">
+                {material.category.name}
+              </Badge>
+            )}
+          </div>
+
+          {material.totalVolume && (
+            <p className="text-sm text-muted-foreground mt-1">
+              Volume: {material.totalVolume.toFixed(2)} m³
+            </p>
+          )}
+
+          {/* Match status */}
+          {isTemporaryMatch && ec3MaterialData ? (
+            <div className="mt-2 flex items-center justify-between gap-2 p-2 bg-secondary/20 rounded-md">
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm truncate">{ec3MaterialData.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  Category: {ec3MaterialData.category.name}
+                </p>
+                <p className="text-sm text-muted-foreground">GWP: {ec3MaterialData.gwp}</p>
+              </div>
+              {isTemporaryMatch && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={e => {
+                    e.stopPropagation()
+                    onUnmatch(material._id, null)
+                  }}>
+                  Unmatch
+                </Button>
+              )}
+            </div>
+          ) : autoSuggestedMatch ? (
+            <div className="mt-2 flex items-center justify-between gap-2 p-2 bg-yellow-500/10 rounded-md">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="font-medium text-sm truncate text-yellow-700">
+                    Suggested: {autoSuggestedMatch.ec3MaterialData.name}
+                  </p>
+                  <Badge variant="outline" className="text-yellow-600 border-yellow-400">
+                    Auto
+                  </Badge>
+                </div>
+                <p className="text-sm text-yellow-600">
+                  Click to review and confirm this suggestion to match with EC3 materials
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0 border-yellow-400 text-yellow-700 hover:bg-yellow-50"
+                onClick={e => {
+                  e.stopPropagation()
+                  onAcceptSuggestion(material._id, autoSuggestedMatch.ec3MatchId)
+                }}>
+                Accept
+              </Button>
+            </div>
+          ) : (
+            <div className="mt-2 p-2 bg-yellow-500/10 text-yellow-600 rounded-md text-sm">
+              Click to match with EC3 materials
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

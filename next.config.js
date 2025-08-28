@@ -5,6 +5,7 @@ const nextConfig = {
       config.experiments = {};
     }
     config.experiments.topLevelAwait = true;
+    config.experiments.asyncWebAssembly = true;
 
     if (!config.resolve) {
       config.resolve = {};
@@ -17,19 +18,19 @@ const nextConfig = {
 
     config.ignoreWarnings = [{ module: /node_modules\/punycode/ }];
 
+    // Handle WebAssembly files
+    config.module.rules.push({
+      test: /\.wasm$/,
+      type: 'asset/resource',
+    });
+
     if (!dev) {
       config.devtool = false;
     }
 
     return config;
   },
-  logging: {
-    fetches: {
-      fullUrl: true,
-    },
-    level: "info",
-    debug: true,
-  },
+  // ... existing code ...
   typescript: {
     // !! WARN !!
     // Dangerously allow production builds to successfully complete even if
@@ -37,9 +38,10 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   eslint: {
-    // Warning: This allows production builds to successfully complete even if
-    // your project has ESLint errors.
-    ignoreDuringBuilds: true,
+    // // Warning: This allows production builds to successfully complete even if
+    // // your project has ESLint errors.
+    // ignoreDuringBuilds: true,
+    dirs: ["src"],
   },
   images: {
     remotePatterns: [
@@ -51,19 +53,7 @@ const nextConfig = {
       },
     ],
   },
-  async headers() {
-    return [
-      {
-        source: "/_next/static/:path*",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
-      },
-    ];
-  },
+  // ... existing code ...
   async rewrites() {
     return [
       {

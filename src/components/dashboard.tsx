@@ -1,58 +1,29 @@
-"use client";
+'use client'
 
-import { ActivityFeed } from "@/components/activity-feed";
-import { EmissionsSummaryCard } from "@/components/emissions-summary-card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { UploadIfcButton } from "@/components/upload-ifc-button";
-import { UploadModal } from "@/components/upload-modal";
-import { Activity as ActivityType } from "@/lib/types/activity";
-import { Box, Building, Layers, PlusCircle, UploadCloud } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DashboardEmissionsCard } from "@/components/dashboard-emissions-card";
-
-interface Project {
-  id: string;
-  name: string;
-  description: string;
-  elements: number;
-  thumbnail: string;
-  updatedAt: string;
-  imageUrl?: string;
-  _count: {
-    elements: number;
-    uploads: number;
-    materials: number;
-  };
-}
+import Link from 'next/link'
+import { Box, Building, Layers, PlusCircle } from 'lucide-react'
+// import { ActivityFeed } from '@/components/activity-feed'
+import { Button } from '@/components/ui/button'
+// import {
+//   Dialog,
+//   DialogContent,
+//   DialogDescription,
+//   DialogHeader,
+//   DialogTitle,
+// } from "@/components/ui/dialog";
+// import { UploadIfcButton } from "@/components/upload-ifc-button";
+// import { UploadModal } from "@/components/upload-modal";
+// import { useRouter } from "next/navigation";
+// import { useState } from "react";
+import ILCAIndicators from '@/interfaces/materials/ILCAIndicators'
+// import { useProjectsWithStats } from "@/hooks/projects/use-projects-with-stats";
+import { ProjectOverview } from './project-overview'
 
 interface DashboardStatistics {
-  totalProjects: number;
-  totalElements: number;
-  totalMaterials: number;
-  recentActivities: number;
-  totalEmissions?: {
-    gwp: number;
-    ubp: number;
-    penre: number;
-  };
-}
-
-interface DashboardProps {
-  initialRecentProjects?: Project[];
-  statistics?: DashboardStatistics;
-  initialActivities?: ActivityType[];
+  totalProjects: number
+  totalElements: number
+  totalMaterials: number
+  totalEmissions?: ILCAIndicators
 }
 
 // Define the icon components explicitly
@@ -60,254 +31,172 @@ const Icons = {
   Building: Building,
   Box: Box,
   Layers: Layers,
-} as const;
+} as const
 
 // Type for the metrics
 interface Metric {
-  title: string;
-  value: number;
-  description: string;
-  icon: keyof typeof Icons;
+  title: string
+  value: number
+  description: string
+  icon: keyof typeof Icons
 }
 
-export function Dashboard({
-  initialRecentProjects = [],
-  statistics: initialStatistics = {
-    totalProjects: 0,
-    totalElements: 0,
-    totalMaterials: 0,
-    recentActivities: 0,
-  },
-  initialActivities = [],
-}: DashboardProps) {
-  const [showProjectSelect, setShowProjectSelect] = useState(false);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
-    null
-  );
-  const [projects, setProjects] = useState<Project[]>([]);
-  const router = useRouter();
-  const [statistics, setStatistics] = useState<DashboardStatistics>({
-    totalProjects: 0,
-    totalElements: 0,
-    totalMaterials: 0,
-    recentActivities: 0,
-  });
-  const [recentProjects, setRecentProjects] = useState<Project[]>(
-    initialRecentProjects
-  );
-  const [maxElements, setMaxElements] = useState(0);
-  const [activities, setActivities] = useState(initialActivities);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [isLoadingActivities, setIsLoadingActivities] = useState(false);
-  const [isLoadingStatistics, setIsLoadingStatistics] = useState(false);
-  const ITEMS_PER_PAGE = 5;
+export default function Dashboard() {
+  // const [showProjectSelect, setShowProjectSelect] = useState(false);
+  // const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
+  //   null
+  // );
+  // const router = useRouter();
+  // const [statistics, setStatistics] = useState<DashboardStatistics>({
+  //   totalProjects: 0,
+  //   totalElements: 0,
+  //   totalMaterials: 0,
+  // });
 
-  const abortControllerRef = useRef<AbortController>();
-  const lastFetchRef = useRef<number>(0);
+  // const metrics: Metric[] = useMemo(
+  //   () => [
+  //     {
+  //       title: "Total Projects",
+  //       value: statistics.totalProjects,
+  //       description: "Active projects in your workspace",
+  //       icon: "Building" as const,
+  //     },
+  //     {
+  //       title: "Total Elements",
+  //       value: statistics.totalElements,
+  //       description: "Building elements across all projects",
+  //       icon: "Box" as const,
+  //     },
+  //     {
+  //       title: "Total Materials",
+  //       value: statistics.totalMaterials,
+  //       description: "Unique materials in use",
+  //       icon: "Layers" as const,
+  //     },
+  //   ],
+  //   [
+  //     statistics.totalProjects,
+  //     statistics.totalElements,
+  //     statistics.totalMaterials,
+  //   ]
+  // )
 
-  const CACHE_TIMEOUT = 5 * 60 * 1000;
+  // const { projectsWithStats, isLoading: isLoadingProjects } =
+  //   useProjectsWithStats();
 
-  const metrics = useMemo(
-    () => [
-      {
-        title: "Total Projects",
-        value: statistics.totalProjects,
-        description: "Active projects in your workspace",
-        icon: "Building" as const,
-      },
-      {
-        title: "Total Elements",
-        value: statistics.totalElements,
-        description: "Building elements across all projects",
-        icon: "Box" as const,
-      },
-      {
-        title: "Total Materials",
-        value: statistics.totalMaterials,
-        description: "Unique materials in use",
-        icon: "Layers" as const,
-      },
-    ],
-    [
-      statistics.totalProjects,
-      statistics.totalElements,
-      statistics.totalMaterials,
-    ]
-  );
+  // const fetchStatistics = useCallback(
+  //   async (force = false) => {
+  //     const now = Date.now();
+  //     if (!force && now - lastFetchRef.current < CACHE_TIMEOUT) {
+  //       return; // Use cached data
+  //     }
 
-  const fetchProjects = useCallback(async () => {
-    try {
-      const response = await fetch("/api/projects", {
-        cache: "no-store",
-      });
-      const data = await response.json();
-      setProjects(data);
-    } catch (error) {
-      console.error("Failed to fetch projects:", error);
-    }
-  }, []);
+  //     try {
+  //       setIsLoadingStatistics(true);
 
-  const fetchStatistics = useCallback(
-    async (force = false) => {
-      const now = Date.now();
-      if (!force && now - lastFetchRef.current < CACHE_TIMEOUT) {
-        return; // Use cached data
-      }
+  //       // Cancel previous request if it exists
+  //       if (abortControllerRef.current) {
+  //         abortControllerRef.current.abort();
+  //       }
+  //       abortControllerRef.current = new AbortController();
 
-      try {
-        setIsLoadingStatistics(true);
+  //       const [projectsRes, emissionsRes] = await Promise.all([
+  //         fetch("/api/projects?withStats=true", {
+  //           signal: abortControllerRef.current.signal,
+  //           cache: "no-store",
+  //         }),
+  //         fetch("/api/emissions", {
+  //           signal: abortControllerRef.current.signal,
+  //           cache: "no-store",
+  //         }),
+  //       ]);
 
-        // Cancel previous request if it exists
-        if (abortControllerRef.current) {
-          abortControllerRef.current.abort();
-        }
-        abortControllerRef.current = new AbortController();
+  //       if (!projectsRes.ok || !emissionsRes.ok) {
+  //         console.error("API Response not OK:", {
+  //           projects: projectsRes.status,
+  //           emissions: emissionsRes.status,
+  //         });
+  //         throw new Error("Failed to fetch data");
+  //       }
 
-        const [projectsRes, emissionsRes] = await Promise.all([
-          fetch("/api/projects", {
-            signal: abortControllerRef.current.signal,
-            cache: "no-store",
-          }),
-          fetch("/api/emissions", {
-            signal: abortControllerRef.current.signal,
-            cache: "no-store",
-          }),
-        ]);
+  //       const [projects, emissions] = await Promise.all([
+  //         projectsRes.json(),
+  //         emissionsRes.json(),
+  //       ]);
 
-        if (!projectsRes.ok || !emissionsRes.ok) {
-          console.error("API Response not OK:", {
-            projects: projectsRes.status,
-            emissions: emissionsRes.status,
-          });
-          throw new Error("Failed to fetch data");
-        }
+  //       // Add null checks
+  //       if (!Array.isArray(projects)) {
+  //         console.error("Projects is not an array:", projects);
+  //         throw new Error("Invalid projects data received");
+  //       }
 
-        const [projects, emissions] = await Promise.all([
-          projectsRes.json(),
-          emissionsRes.json(),
-        ]);
+  //       const recentProjects = projects.slice(0, 3);
+  //       const totalElements = projects.reduce(
+  //         (acc: number, project: any) => acc + (project._count?.elements || 0),
+  //         0
+  //       );
+  //       const totalMaterials = projects.reduce(
+  //         (acc: number, project: any) => acc + (project._count?.materials || 0),
+  //         0
+  //       );
 
-        const recentProjects = projects.slice(0, 3);
-        const totalElements = projects.reduce(
-          (acc: number, project: any) => acc + (project._count?.elements || 0),
-          0
-        );
-        const totalMaterials = projects.reduce(
-          (acc: number, project: any) => acc + (project._count?.materials || 0),
-          0
-        );
+  //       const newStatistics = {
+  //         ...statistics,
+  //         totalProjects: projects.length,
+  //         totalElements,
+  //         totalMaterials,
+  //         totalEmissions: emissions || 0,
+  //       };
 
-        const newStatistics = {
-          ...statistics,
-          totalProjects: projects.length,
-          totalElements,
-          totalMaterials,
-          totalEmissions: emissions,
-        };
+  //       setStatistics(newStatistics);
+  //       setRecentProjects(recentProjects);
+  //       lastFetchRef.current = now;
+  //     } catch (error: unknown) {
+  //       if (error instanceof Error && error.name !== "AbortError") {
+  //         console.error("Failed to fetch statistics:", error);
+  //       }
+  //     } finally {
+  //       setIsLoadingStatistics(false);
+  //     }
+  //   },
+  //   [statistics]
+  // );
 
-        setStatistics(newStatistics);
-        setRecentProjects(recentProjects);
-        lastFetchRef.current = now;
-      } catch (error: unknown) {
-        if (error instanceof Error && error.name !== "AbortError") {
-          console.error("Failed to fetch statistics:", error);
-        }
-      } finally {
-        setIsLoadingStatistics(false);
-      }
-    },
-    [statistics]
-  );
+  // useEffect(() => {
+  //   if (showProjectSelect) {
+  //     fetchProjects();
+  //   }
+  // }, [showProjectSelect, fetchProjects]);
 
-  const fetchActivities = useCallback(async () => {
-    try {
-      setIsLoadingActivities(true);
-      const response = await fetch("/api/activities?limit=6", {
-        cache: "no-store",
-      });
-      const data = await response.json();
-      setActivities(data.activities);
-    } catch (error) {
-      console.error("Failed to fetch activities:", error);
-    } finally {
-      setIsLoadingActivities(false);
-    }
-  }, []);
+  // useEffect(() => {
+  //   fetchStatistics();
+  //   const intervalId = setInterval(() => {
+  //     fetchStatistics(true);
+  //   }, CACHE_TIMEOUT);
 
-  useEffect(() => {
-    fetchActivities();
-  }, [fetchActivities]);
+  //   return () => {
+  //     clearInterval(intervalId);
+  //     if (abortControllerRef.current) {
+  //       abortControllerRef.current.abort();
+  //     }
+  //   };
+  // }, [fetchStatistics]);
 
-  const prefetchNextPage = useCallback(() => {
-    if (hasMore && !isLoadingActivities) {
-      const nextPage = page + 1;
-      const prefetchController = new AbortController();
+  // const handleUploadClick = async () => {
+  //   try {
+  //     const response = await fetch("/api/projects", {
+  //       cache: "no-store",
+  //     });
+  //     const projects = await response.json();
 
-      fetch(`/api/activities?page=${nextPage}`, {
-        signal: prefetchController.signal,
-        cache: "no-store",
-      }).catch(() => {});
-    }
-  }, [hasMore, isLoadingActivities, page]);
-
-  useEffect(() => {
-    if (showProjectSelect) {
-      fetchProjects();
-    }
-  }, [showProjectSelect, fetchProjects]);
-
-  useEffect(() => {
-    fetchStatistics();
-    const intervalId = setInterval(() => {
-      fetchStatistics(true);
-    }, CACHE_TIMEOUT);
-
-    return () => {
-      clearInterval(intervalId);
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
-  }, [fetchStatistics]);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (
-        window.innerHeight + window.scrollY >=
-        document.documentElement.scrollHeight - 1000
-      ) {
-        prefetchNextPage();
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [prefetchNextPage]);
-
-  const handleLoadMore = () => {
-    if (!isLoadingActivities && hasMore) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      fetchActivities();
-    }
-  };
-
-  const handleUploadClick = async () => {
-    try {
-      const response = await fetch("/api/projects", {
-        cache: "no-store",
-      });
-      const projects = await response.json();
-
-      if (!projects?.length) {
-        return;
-      }
-      setShowProjectSelect(true);
-    } catch (error) {
-      console.error("Failed to check projects:", error);
-    }
-  };
+  //     if (!projects?.length) {
+  //       return;
+  //     }
+  //     setShowProjectSelect(true);
+  //   } catch (error) {
+  //     console.error("Failed to check projects:", error);
+  //   }
+  // };
 
   return (
     <div className="main-container space-y-8">
@@ -315,9 +204,7 @@ export function Dashboard({
         <div className="page-header">
           <div>
             <h1 className="page-title">Home</h1>
-            <p className="page-description">
-              Overview of your projects and recent activity
-            </p>
+            <p className="page-description">Overview of your projects and recent activity</p>
           </div>
           <div className="flex gap-4">
             <Button asChild>
@@ -326,12 +213,12 @@ export function Dashboard({
                 Create New Project
               </Link>
             </Button>
-            <UploadIfcButton variant="outline" />
+            {/* <UploadIfcButton variant="outline" /> */}
           </div>
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {/* <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {metrics.map((metric) => {
           const Icon = Icons[metric.icon];
           return (
@@ -357,16 +244,16 @@ export function Dashboard({
           );
         })}
         <DashboardEmissionsCard emissions={statistics.totalEmissions} />
-      </section>
+      </section> */}
 
       <section>
         <h2 className="text-2xl font-bold mb-4">Recent Projects</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {recentProjects.map((project) => (
+        {/* <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {projectsWithStats?.map((project) => (
             <Card
-              key={project.id}
+              key={project._id}
               className="group relative transition-all hover:shadow-lg border-2 border-muted overflow-hidden cursor-pointer"
-              onClick={() => router.push(`/projects/${project.id}`)}
+              onClick={() => router.push(`/projects/${project._id}`)}
             >
               <div className="aspect-video relative bg-muted">
                 {project.imageUrl ? (
@@ -423,22 +310,18 @@ export function Dashboard({
               </CardContent>
             </Card>
           ))}
-        </div>
+        </div> */}
+        {/* <ProjectOverview /> */}
       </section>
 
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold">Activity Feed</h2>
         </div>
-        <ActivityFeed
-          activities={activities}
-          isLoading={isLoadingActivities}
-          hasMore={false}
-          onLoadMore={handleLoadMore}
-        />
+        {/* <ActivityFeed /> */}
       </section>
 
-      <Dialog open={showProjectSelect} onOpenChange={setShowProjectSelect}>
+      {/* <Dialog open={showProjectSelect} onOpenChange={setShowProjectSelect}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Select Project</DialogTitle>
@@ -447,13 +330,13 @@ export function Dashboard({
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
-            {projects.map((project) => (
+            {projectsWithStats?.map((project) => (
               <Button
-                key={project.id}
+                key={project._id}
                 variant="outline"
                 className="w-full justify-start"
                 onClick={() => {
-                  setSelectedProjectId(project.id);
+                  setSelectedProjectId(project._id);
                   setShowProjectSelect(false);
                 }}
               >
@@ -462,9 +345,9 @@ export function Dashboard({
             ))}
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog> */}
 
-      {selectedProjectId && (
+      {/* {selectedProjectId && (
         <UploadModal
           projectId={selectedProjectId}
           open={true}
@@ -473,13 +356,12 @@ export function Dashboard({
               setSelectedProjectId(null);
             }
           }}
-          onSuccess={(upload: { id: string }) => {
+          onSuccess={() => {
             setSelectedProjectId(null);
             router.push(`/projects/${selectedProjectId}`);
           }}
-          onProgress={(progress: number) => {}}
         />
-      )}
+      )} */}
     </div>
-  );
+  )
 }

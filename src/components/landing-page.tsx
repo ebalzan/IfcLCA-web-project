@@ -1,20 +1,8 @@
-"use client";
+'use client'
 
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import Link from "next/link";
-import Image from "next/image";
+import { useState, useEffect } from 'react'
+import Image from 'next/image'
+import Link from 'next/link'
 import {
   ArrowRight,
   BarChart3,
@@ -26,39 +14,48 @@ import {
   Upload,
   Code,
   Zap,
-} from "lucide-react";
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export default function LandingPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [isDarkMode, setIsDarkMode] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   useEffect(() => {
-    if (
-      window.matchMedia &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches
-    ) {
-      setIsDarkMode(true);
-      document.documentElement.classList.add("dark");
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      setIsDarkMode(true)
+      document.documentElement.classList.add('dark')
     }
-  }, []);
+  }, [])
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-  };
+    e.preventDefault()
+  }
 
   const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
-    document.documentElement.classList.toggle("dark");
-  };
+    setIsDarkMode(!isDarkMode)
+    document.documentElement.classList.toggle('dark')
+  }
 
   const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
+    setIsMenuOpen(!isMenuOpen)
+  }
 
   return (
-    <div className={`min-h-screen flex flex-col ${isDarkMode ? "dark" : ""}`}>
+    <div className={`min-h-screen flex flex-col ${isDarkMode ? 'dark' : ''}`}>
       <div className="fixed inset-0 transition-colors duration-500 bg-gradient-to-br from-orange-50 via-blue-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 -z-10">
         <div className="absolute inset-0 bg-grid-pattern opacity-20 dark:opacity-40" />
         <div className="absolute inset-0 bg-gradient-to-br from-transparent via-orange-500/10 to-transparent dark:via-orange-500/20 animate-gradient" />
@@ -73,35 +70,22 @@ export default function LandingPage() {
             height={32}
             className="h-8 w-8 rounded-lg"
           />
-          <span className="text-2xl font-bold text-gray-800 dark:text-white">
-            IfcLCA
-          </span>
+          <span className="text-2xl font-bold text-gray-800 dark:text-white">IfcLCA</span>
         </div>
         <nav className="hidden md:flex items-center space-x-4">
           <Link
             href="/sign-in?redirect_url=/"
-            className="text-sm text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white"
-          >
+            className="text-sm text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white">
             Login
           </Link>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleDarkMode}
-            className="relative"
-          >
+          <Button variant="ghost" size="icon" onClick={toggleDarkMode} className="relative">
             <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             <span className="sr-only">Toggle dark mode</span>
           </Button>
         </nav>
         <div className="md:hidden flex items-center">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleDarkMode}
-            className="relative mr-2"
-          >
+          <Button variant="ghost" size="icon" onClick={toggleDarkMode} className="relative mr-2">
             <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             <span className="sr-only">Toggle dark mode</span>
@@ -119,8 +103,7 @@ export default function LandingPage() {
             <Link
               href="/sign-in?redirect_url=/"
               className="text-sm text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white"
-              onClick={toggleMenu}
-            >
+              onClick={toggleMenu}>
               Login
             </Link>
           </nav>
@@ -133,15 +116,13 @@ export default function LandingPage() {
             Life Cycle Assessment for the Built Environment
           </h1>
           <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto">
-            IfcLCA empowers architects, engineers, and sustainability experts to
-            make data-driven decisions for environmentally optimized structures
-            across the AEC industry.
+            IfcLCA empowers architects, engineers, and sustainability experts to make data-driven
+            decisions for environmentally optimized structures across the AEC industry.
           </p>
           <Link href="/sign-in?redirect_url=/">
             <Button
               size="lg"
-              className="bg-orange-600 hover:bg-orange-700 dark:bg-orange-500 dark:hover:bg-orange-600"
-            >
+              className="bg-orange-600 hover:bg-orange-700 dark:bg-orange-500 dark:hover:bg-orange-600">
               Get Started <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </Link>
@@ -149,8 +130,7 @@ export default function LandingPage() {
 
         <section
           id="features"
-          className="py-12 px-4 bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm"
-        >
+          className="py-12 px-4 bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm">
           <h2 className="text-3xl font-bold text-center text-gray-800 dark:text-white mb-8">
             Key Features
           </h2>
@@ -158,53 +138,49 @@ export default function LandingPage() {
             {[
               {
                 icon: Code,
-                title: "Open Source",
+                title: 'Open Source',
                 description:
-                  "Fully open-source solution allowing for collaborative and transparent approach to LCA.",
+                  'Fully open-source solution allowing for collaborative and transparent approach to LCA.',
               },
               {
                 icon: Upload,
-                title: "Ifc Integration",
+                title: 'Ifc Integration',
                 description:
-                  "Deep Ifc integration with custom parser for accurate material and quantity analysis.",
+                  'Deep Ifc integration with custom parser for accurate material and quantity analysis.',
               },
               {
                 icon: BarChart3,
-                title: "Environmental Impact Data",
+                title: 'Environmental Impact Data',
                 description:
-                  "Utilizes Swiss KBOB data for precise environmental impact assessment.",
+                  'Utilizes Swiss KBOB data for precise environmental impact assessment.',
               },
               {
                 icon: Leaf,
-                title: "No Data Storage",
-                description:
-                  "We don't save your Ifc files, ensuring data privacy and security.",
+                title: 'No Data Storage',
+                description: "We don't save your Ifc files, ensuring data privacy and security.",
               },
               {
                 icon: Users,
-                title: "Collaboration",
+                title: 'Collaboration',
                 description:
-                  "Foster teamwork and knowledge sharing in sustainable design and analysis.",
+                  'Foster teamwork and knowledge sharing in sustainable design and analysis.',
               },
               {
                 icon: Zap,
-                title: "Real-Time Analysis",
+                title: 'Real-Time Analysis',
                 description:
-                  "Instant feedback and analysis results for quick decision-making in your design process.",
+                  'Instant feedback and analysis results for quick decision-making in your design process.',
               },
             ].map((feature, index) => (
               <Card
                 key={index}
-                className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm transition-all duration-300 hover:scale-105"
-              >
+                className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm transition-all duration-300 hover:scale-105">
                 <CardHeader>
                   <feature.icon className="h-10 w-10 text-orange-600 dark:text-orange-400 mb-2" />
                   <CardTitle>{feature.title}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-600 dark:text-gray-300">
-                    {feature.description}
-                  </p>
+                  <p className="text-gray-600 dark:text-gray-300">{feature.description}</p>
                 </CardContent>
               </Card>
             ))}
@@ -218,24 +194,21 @@ export default function LandingPage() {
                 About IfcLCA
               </h2>
               <p className="text-gray-600 dark:text-gray-300 mb-4">
-                IfcLCA is the next generation of open-source Life Cycle
-                Assessment tools for the entire built environment. By leveraging
-                Industry Foundation Classes (Ifc) and advanced analytics, we
-                provide unparalleled insights into the environmental impact of
-                structures throughout their lifecycle.
+                IfcLCA is the next generation of open-source Life Cycle Assessment tools for the
+                entire built environment. By leveraging Industry Foundation Classes (Ifc) and
+                advanced analytics, we provide unparalleled insights into the environmental impact
+                of structures throughout their lifecycle.
               </p>
               <p className="text-gray-600 dark:text-gray-300 mb-4">
-                Our mission is to empower professionals in the AEC industry to
-                create more sustainable, efficient, and environmentally friendly
-                built environments. With our commitment to open-source
-                development, we foster collaboration and transparency in the
-                pursuit of a greener future.
+                Our mission is to empower professionals in the AEC industry to create more
+                sustainable, efficient, and environmentally friendly built environments. With our
+                commitment to open-source development, we foster collaboration and transparency in
+                the pursuit of a greener future.
               </p>
               <p className="text-gray-600 dark:text-gray-300">
-                To get started, simply upload any Ifc file with BaseQuantities.
-                Our custom Ifc parser will analyze the file, extracting
-                materials and quantities along with metadata, without storing
-                any of your sensitive data.
+                To get started, simply upload any Ifc file with BaseQuantities. Our custom Ifc
+                parser will analyze the file, extracting materials and quantities along with
+                metadata, without storing any of your sensitive data.
               </p>
             </div>
             <div className="md:w-1/2">
@@ -261,48 +234,42 @@ export default function LandingPage() {
               height={32}
               className="h-6 w-6 rounded-lg text-green-600 dark:text-green-400"
             />
-            <span className="text-xl font-bold text-gray-800 dark:text-white">
-              IfcLCA
-            </span>
+            <span className="text-xl font-bold text-gray-800 dark:text-white">IfcLCA</span>
           </div>
           <nav className="flex flex-wrap justify-center gap-4 mb-4 md:mb-0">
             <Link
               href="https://github.com/IfcLCA/IfcLCA"
               className="text-sm text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white"
               target="_blank"
-              rel="noopener noreferrer"
-            >
+              rel="noopener noreferrer">
               GitHub
             </Link>
             <Link
               href="/documentation"
-              className="text-sm text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white"
-            >
+              className="text-sm text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white">
               Documentation
             </Link>
             <Link
               href="https://www.lt.plus"
               className="text-sm text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white"
               target="_blank"
-              rel="noopener noreferrer"
-            >
+              rel="noopener noreferrer">
               Contact
             </Link>
           </nav>
           <div className="text-sm text-gray-600 dark:text-gray-400">
-            &copy; {new Date().getFullYear()} IfcLCA,{" "}
+            &copy; {new Date().getFullYear()} IfcLCA,{' '}
             <Link
               href="https://www.gnu.org/licenses/agpl-3.0.en.html"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:underline"
-            >
+              className="hover:underline">
               AGPL-3.0
-            </Link>{" "}
+            </Link>{' '}
             licensed.
           </div>
         </div>
       </footer>
     </div>
-  );
+  )
 }

@@ -1,37 +1,58 @@
-import { NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/mongodb";
-import { Project } from "@/models";
-import { auth } from "@clerk/nextjs/server";
+import { sendApiErrorResponse, sendApiSuccessResponse } from '@/lib/api-error-response'
+import { AuthenticatedRequest, getUserId } from '@/lib/api-middleware'
+import { ProjectService } from '@/lib/services/project-service'
+import { withAuthAndDBQueryParams } from '@/lib/validation-middleware'
+import { ValidationContext } from '@/lib/validation-middleware/types'
+import {
+  SearchProjectsRequestApi,
+  searchProjectsRequestSchemaApi,
+  SearchProjectsResponseApi,
+} from '@/schemas/api/projects/search'
 
-export async function GET(request: Request) {
+async function searchProjects(
+  request: AuthenticatedRequest,
+  context: ValidationContext<never, SearchProjectsRequestApi['query']>
+) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const userId = getUserId(request)
+    const { name, sortBy, pagination } = context.query
+    const { page, size } = pagination || { page: 1, size: 50 }
 
-    const { searchParams } = new URL(request.url);
-    const query = searchParams.get("q") || "";
-    const all = searchParams.get("all") === "true";
+    const response = await ProjectService.searchProjects({
+      data: {
+        userId,
+        name,
+        sortBy,
+        pagination: {
+          page,
+          size,
+        },
+      },
+    })
 
-    await connectToDatabase();
-
-    const queryConditions = {
-      userId,
-      ...(all ? {} : { name: { $regex: query, $options: "i" } }),
-    };
-
-    const projects = await Project.find(queryConditions)
-      .select("name description _id")
-      .sort({ name: 1 })
-      .limit(all ? 10 : 5)
-      .lean();
-
-    return NextResponse.json(projects);
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to search projects" },
-      { status: 500 }
-    );
+    return sendApiSuccessResponse<SearchProjectsResponseApi['data']>(
+      {
+        projects: response.projects.map(project => ({
+          ...project,
+          _id: project._id.toString(),
+        })),
+        pagination: {
+          page,
+          size,
+          hasMore: response.pagination?.hasMore || false,
+          totalCount: response.pagination?.totalCount || 0,
+          totalPages: response.pagination?.totalPages || 0,
+        },
+      },
+      'Projects searched successfully',
+      request
+    )
+  } catch (error: unknown) {
+    return sendApiErrorResponse(error, request, { operation: 'search', resource: 'project' })
   }
 }
+
+export const GET = withAuthAndDBQueryParams({
+  queryParamsSchema: searchProjectsRequestSchemaApi.shape.query,
+  handler: searchProjects,
+})

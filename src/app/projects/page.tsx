@@ -1,9 +1,9 @@
-"use client";
+'use client'
 
-import { ProjectOverview } from "@/components/project-overview";
-import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
-import Link from "next/link";
+import Link from 'next/link'
+import { PlusCircle } from 'lucide-react'
+import { ProjectOverview } from '@/components/project-overview'
+import { Button } from '@/components/ui/button'
 
 export default function ProjectsPage() {
   return (
@@ -12,9 +12,7 @@ export default function ProjectsPage() {
         <div className="page-header">
           <div>
             <h1 className="page-title">Projects</h1>
-            <p className="page-description">
-              Manage and analyze your construction projects
-            </p>
+            <p className="page-description">Manage and analyze your construction projects</p>
           </div>
           <div className="flex items-center gap-4">
             <Button asChild>
@@ -28,5 +26,5 @@ export default function ProjectsPage() {
         <ProjectOverview />
       </section>
     </div>
-  );
+  )
 }

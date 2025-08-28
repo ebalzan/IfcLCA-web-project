@@ -1,7 +1,7 @@
-"use client";
+'use client'
 
-import * as React from "react";
-import { useMemo, useState, useEffect } from "react";
+import { ReloadIcon } from '@radix-ui/react-icons'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -9,8 +9,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+} from '@/components/ui/dialog'
 import {
   Table,
   TableBody,
@@ -18,76 +17,41 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ChevronDownIcon } from "@radix-ui/react-icons";
-import { ReloadIcon } from "@radix-ui/react-icons";
-import { Slider } from "@/components/ui/slider";
-import { MaterialChange } from "@/types/material";
+} from '@/components/ui/table'
+import { useMaterialsLibraryStore } from '@/hooks/materials/materials-library/materials-library-store'
 
 interface MaterialChangesPreviewModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: (changesWithDensity: MaterialChange[]) => void;
-  onNavigateToProject?: (projectId: string) => void;
-  changes: MaterialChange[];
-  isLoading?: boolean;
+  isOpen: boolean
+  onClose: () => void
+  onConfirm: () => void
+  isLoading: boolean
 }
 
 export function MaterialChangesPreviewModal({
-  changes,
   isOpen,
   onClose,
   onConfirm,
-  onNavigateToProject,
-  isLoading = false,
+  isLoading,
 }: MaterialChangesPreviewModalProps) {
-  const [localChanges, setLocalChanges] =
-    React.useState<MaterialChange[]>(changes);
+  const { temporaryMatches } = useMaterialsLibraryStore()
 
-  React.useEffect(() => {
-    setLocalChanges(
-      changes.map((change) => ({
-        ...change,
-        selectedDensity: change.newMatch.Density,
-      }))
-    );
-  }, [changes]);
+  // // Check if all materials are from the same project
+  // const singleProjectId = useMemo(() => {
+  //   if (!changes.length) return null
 
-  const handleDensityChange = (materialId: string, newValue: number[]) => {
-    setLocalChanges((prev) =>
-      prev.map((change) =>
-        change.materialId === materialId
-          ? { ...change, selectedDensity: newValue[0] }
-          : change
-      )
-    );
-  };
+  //   // Get all unique project IDs
+  //   const uniqueProjectIds = new Set<string>()
+  //   changes.forEach(change => {
+  //     if (change.projects) {
+  //       change.projects.forEach(projectId => {
+  //         uniqueProjectIds.add(projectId.toString())
+  //       })
+  //     }
+  //   })
 
-  const handleConfirm = () => {
-    onConfirm(localChanges);
-  };
-
-  // Check if all materials are from the same project
-  const singleProjectId = useMemo(() => {
-    if (!changes.length) return null;
-
-    // Get all unique project IDs
-    const uniqueProjectIds = new Set<string>();
-    changes.forEach((change) => {
-      if (change.projectId) {
-        uniqueProjectIds.add(change.projectId);
-      }
-    });
-
-    // Return the project ID if there's exactly one, otherwise null
-    return uniqueProjectIds.size === 1 ? Array.from(uniqueProjectIds)[0] : null;
-  }, [changes]);
+  //   // Return the project ID if there's exactly one, otherwise null
+  //   return uniqueProjectIds.size === 1 ? Array.from(uniqueProjectIds)[0] : null
+  // }, [changes])
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -104,68 +68,62 @@ export function MaterialChangesPreviewModal({
             <TableHeader>
               <TableRow>
                 <TableHead>Material</TableHead>
-                <TableHead>KBOB Match</TableHead>
+                <TableHead>EC3 Match</TableHead>
                 <TableHead>Density (kg/m³)</TableHead>
                 <TableHead>Affected Elements</TableHead>
                 <TableHead>Projects</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {localChanges.map((change) => (
-                <TableRow key={change.materialId}>
-                  <TableCell>{change.materialName}</TableCell>
-                  <TableCell>
-                    {change.oldMatch && (
+              {temporaryMatches.map(match => (
+                <TableRow key={match.ec3MaterialData.id}>
+                  <TableCell>{match.materialName}</TableCell>
+                  {/* <TableCell>
+                    {match.oldEC3Match && (
                       <div className="line-through text-muted-foreground">
-                        {change.oldMatch.Name}
+                        {match.oldEC3Match.name}
                       </div>
                     )}
-                    <div className="text-green-600">{change.newMatch.Name}</div>
-                  </TableCell>
+                    <div className="text-green-600">{change.newEC3Match?.name}</div>
+                  </TableCell> */}
+                  <TableCell>{match.ec3MaterialData.name}</TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-2">
-                      {change.oldMatch && (
+                      {/* {change.oldEC3Match && (
                         <div className="line-through text-muted-foreground">
-                          {change.oldMatch.Density.toFixed(0)} kg/m³
+                          {change.oldDensity?.toFixed(0)} kg/m³
                         </div>
-                      )}
+                      )} */}
                       <div className="flex items-center justify-between">
                         <span className="text-green-600">
-                          {change.selectedDensity?.toFixed(0) ||
-                            change.newMatch.Density.toFixed(0)}{" "}
-                          kg/m³
+                          {match.ec3MaterialData.density || 'No density set'}
                         </span>
                       </div>
-                      {change.newMatch.hasDensityRange &&
-                        change.newMatch.minDensity !== undefined &&
-                        change.newMatch.maxDensity !== undefined && (
+                      {/* {change.newEC3Match &&
+                        change.newEC3Match['min density'] !== undefined &&
+                        change.newEC3Match['max density'] !== undefined && (
                           <>
                             <Slider
-                              value={[
-                                change.selectedDensity ||
-                                  change.newMatch.Density,
-                              ]}
-                              min={change.newMatch.minDensity}
-                              max={change.newMatch.maxDensity}
+                              value={[change.newDensity]}
+                              min={change.newEC3Match['min density']}
+                              max={change.newEC3Match['max density']}
                               step={1}
-                              onValueChange={(value) =>
-                                handleDensityChange(change.materialId, value)
+                              onValueChange={value =>
+                                handleDensityChange(change.materialId.toString(), value)
                               }
                               className="w-[120px]"
                             />
                             <div className="text-xs text-muted-foreground">
-                              Range: {change.newMatch.minDensity.toFixed(0)} -{" "}
-                              {change.newMatch.maxDensity.toFixed(0)} kg/m³
+                              Range: {change.newEC3Match['min density'].toFixed(0)} -{' '}
+                              {change.newEC3Match['max density'].toFixed(0)} kg/m³
                             </div>
                           </>
-                        )}
+                        )} */}
                     </div>
                   </TableCell>
-                  <TableCell>{change.elements}</TableCell>
+                  <TableCell>{match.elementsAffectedCount}</TableCell>
                   <TableCell>
-                    <div className="max-w-[200px] truncate">
-                      {change.projects.join(", ")}
-                    </div>
+                    <div className="max-w-[200px] truncate">{match.projectName}</div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -182,34 +140,32 @@ export function MaterialChangesPreviewModal({
               <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />
               Applying Changes...
             </Button>
-          ) : singleProjectId && onNavigateToProject ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button className="gap-2 pr-3">
-                  <span>Confirm Changes</span>
-                  <div className="h-4 w-[1px] bg-white/20" />
-                  <ChevronDownIcon className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={async () => {
-                    await handleConfirm();
-                    onNavigateToProject(singleProjectId);
-                  }}
-                >
-                  Go to Project
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleConfirm}>
-                  Return to Library
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           ) : (
-            <Button onClick={handleConfirm}>Confirm Changes</Button>
+            // singleProjectId && onNavigateToProject ? (
+            //   <DropdownMenu>
+            //     <DropdownMenuTrigger asChild>
+            //       <Button className="gap-2 pr-3">
+            //         <span>Confirm Changes</span>
+            //         <div className="h-4 w-[1px] bg-white/20" />
+            //         <ChevronDownIcon className="h-4 w-4" />
+            //       </Button>
+            //     </DropdownMenuTrigger>
+            //     <DropdownMenuContent align="end">
+            //       <DropdownMenuItem
+            //         onClick={() => {
+            //           handleConfirm()
+            //           onNavigateToProject(singleProjectId)
+            //         }}>
+            //         Go to Project
+            //       </DropdownMenuItem>
+            //       <DropdownMenuItem onClick={handleConfirm}>Return to Library</DropdownMenuItem>
+            //     </DropdownMenuContent>
+            //   </DropdownMenu>
+            // ) : (
+            <Button onClick={onConfirm}>Confirm Changes</Button>
           )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

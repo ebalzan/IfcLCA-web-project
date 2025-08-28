@@ -1,145 +1,139 @@
-"use client";
+'use client'
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
-import { logger } from "@/lib/logger";
-import { parseIFCFile } from "@/lib/services/ifc-parser-client";
-import { ReloadIcon } from "@radix-ui/react-icons";
-import { UploadCloud } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
-import { useDropzone } from "react-dropzone";
+import { useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import { ReloadIcon } from '@radix-ui/react-icons'
+import { UploadCloud } from 'lucide-react'
+import { useDropzone } from 'react-dropzone'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { useCreateUpload } from '@/hooks/uploads/use-upload-operations'
+import { useIfcParser } from '@/hooks/use-ifc-parser'
+import { logger } from '@/lib/logger'
 
 interface UploadModalProps {
-  projectId: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSuccess?: (upload: { id: string }) => void;
-  onProgress?: (progress: number) => void;
+  open: boolean
+  projectId: string
+  onOpenChange: (open: boolean) => void
+  onSuccess?: () => void
 }
 
-export function UploadModal({
-  projectId,
-  open,
-  onOpenChange,
-  onSuccess,
-  onProgress,
-}: UploadModalProps) {
-  const [isUploading, setIsUploading] = useState(false);
-  const { toast } = useToast();
-  const router = useRouter();
+export function UploadModal({ open, onOpenChange, projectId, onSuccess }: UploadModalProps) {
+  const router = useRouter()
+  const { parseIfcFileWasm, isLoading: isParsing } = useIfcParser()
+  const { mutateAsync: createUpload } = useCreateUpload()
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
       try {
-        setIsUploading(true);
-        const file = acceptedFiles[0];
-        logger.debug("Starting file upload");
+        const file = acceptedFiles[0]
+        logger.debug('Starting file upload', {
+          filename: file.name,
+          size: (file.size / 1024 / 1024).toFixed(2) + 'MB',
+          type: file.type,
+        })
 
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(
-            () => reject(new Error("Upload timed out after 50 seconds")),
-            50000
-          );
-        });
+        // Step 1: Parse IFC file on client-side
+        logger.debug('Parsing IFC file on client-side')
+        const parsedData = await parseIfcFileWasm(file)
+        const { elements } = parsedData
+        logger.debug('IFC WASM parsing completed', { elements: elements.length })
 
-        const uploadPromise = parseIFCFile(file, projectId);
-        const results = (await Promise.race([
-          uploadPromise,
-          timeoutPromise,
-        ])) as any;
+        // Step 2: Send parsed data to server for processing
+        logger.debug('Sending parsed data to server for processing')
 
-        logger.debug("Upload results", {
-          elementCount: results.elementCount,
-          materialCount: results.materialCount,
-          unmatchedMaterialCount: results.unmatchedMaterialCount,
-          shouldRedirectToLibrary: results.shouldRedirectToLibrary,
-        });
+        const response = await createUpload({
+          projectId,
+          elements,
+          filename: file.name,
+        })
 
-        toast({
-          title: "Upload Successful",
-          description:
-            results.unmatchedMaterialCount > 0
-              ? `Successfully processed ${results.elementCount} elements. Found ${results.unmatchedMaterialCount} materials that need matching.`
-              : `Successfully processed ${results.elementCount} elements`,
-        });
-
-        onOpenChange(false);
-
-        if (results.shouldRedirectToLibrary) {
-          logger.debug("Redirecting to materials library");
-          router.push(`/materials-library?projectId=${projectId}`);
-          router.refresh();
-        } else {
-          logger.debug("No redirection needed, refreshing page");
-          router.refresh();
-          onSuccess?.({ id: results.id });
+        if (!response.success) {
+          throw new Error('Failed to process IFC data on server')
         }
-      } catch (error) {
-        logger.error("Upload failed:", error);
-        toast({
-          title: "Upload Failed",
-          description:
-            error instanceof Error &&
-            error.message === "Upload timed out after 50 seconds"
-              ? "The upload timed out. Please try again with a smaller file."
-              : "There was an error processing your file. Please try again or contact support if the issue persists.",
-          variant: "destructive",
-        });
-        onOpenChange(false);
-      } finally {
-        setIsUploading(false);
+
+        const { projectId: resultProjectId, shouldRedirectToLibrary } = response.data
+
+        onOpenChange(false)
+
+        if (shouldRedirectToLibrary) {
+          logger.debug('Redirecting to materials library')
+          router.push(`/materials-library?projectId=${resultProjectId}`)
+          router.refresh()
+        } else {
+          logger.debug('No redirection needed, refreshing page')
+          router.refresh()
+          onSuccess?.()
+        }
+      } catch (error: unknown) {
+        logger.error('Upload failed:', {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          name: error instanceof Error ? error.name : undefined,
+        })
+
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        let userFriendlyMessage =
+          'There was an error processing your file. Please try again or contact support if the issue persists.'
+
+        if (errorMessage.includes('IFC4X1') || errorMessage.includes('No schema named')) {
+          userFriendlyMessage =
+            'Your IFC file uses the IFC4X1 schema which requires special processing. The system will automatically use an external service to handle this format.'
+        } else if (errorMessage.includes('Upload timed out')) {
+          userFriendlyMessage = 'The upload timed out. Please try again with a smaller file.'
+        } else if (errorMessage.includes('No elements found')) {
+          userFriendlyMessage =
+            'No building elements found in the IFC file. Please ensure the file contains building elements and try again.'
+        }
+
+        onOpenChange(false)
       }
     },
-    [projectId, onSuccess, onOpenChange, router, toast]
-  );
+    [parseIfcFileWasm, createUpload, projectId, onOpenChange, router, onSuccess]
+  )
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     maxFiles: 1,
     accept: {
-      "application/ifc": [".ifc"],
-      "application/x-step": [".ifc"],
+      'application/ifc': ['.ifc'],
+      'application/x-step': ['.ifc'],
     },
-    disabled: isUploading,
-  });
+    disabled: isParsing,
+  })
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Load Ifc File</DialogTitle>
+          <DialogTitle>Upload IFC File</DialogTitle>
         </DialogHeader>
-        {isUploading ? (
-          <div className="flex flex-col items-center justify-center py-8">
-            <ReloadIcon className="h-8 w-8 animate-spin text-primary mb-4" />
-            <p className="text-sm text-muted-foreground">
-              Processing Ifc file...
-            </p>
-          </div>
-        ) : (
-          <div
-            {...getRootProps()}
-            className={`
-              border-2 border-dashed rounded-lg p-8 text-center cursor-pointer
-              ${isDragActive ? "border-primary bg-primary/10" : "border-border"}
-            `}
-          >
-            <input {...getInputProps()} />
-            <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
-            <p className="mt-2 text-sm text-muted-foreground">
-              {isDragActive
-                ? "Drop the file here"
-                : "Drag and drop an Ifc file, or click to select"}
-            </p>
-          </div>
-        )}
+        <div
+          {...getRootProps()}
+          className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+            isDragActive
+              ? 'border-primary bg-primary/5'
+              : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+          } ${isParsing ? 'opacity-50 cursor-not-allowed' : ''}`}>
+          <input {...getInputProps()} />
+          {isParsing ? (
+            <div className="flex flex-col items-center space-y-2">
+              <ReloadIcon className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">
+                {isParsing ? 'Parsing IFC file...' : 'Processing data...'}
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center space-y-2">
+              <UploadCloud className="h-8 w-8 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                {isDragActive
+                  ? 'Drop the IFC file here'
+                  : 'Drag and drop an IFC file here, or click to select'}
+              </p>
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

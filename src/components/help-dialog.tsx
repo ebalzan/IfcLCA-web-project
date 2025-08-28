@@ -1,5 +1,8 @@
-"use client";
+'use client'
 
+import { HelpCircle, Github, Globe, Video, Users } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -7,18 +10,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import {
-  HelpCircle,
-  Github,
-  Linkedin,
-  Globe,
-  Video,
-  Users,
-} from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
+} from '@/components/ui/dialog'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export function HelpDialog() {
   return (
@@ -42,7 +35,9 @@ export function HelpDialog() {
             <TabsTrigger value="docs">How it Works</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="about" className="h-[600px] overflow-y-auto data-[state=active]:block space-y-4">
+          <TabsContent
+            value="about"
+            className="h-[600px] overflow-y-auto data-[state=active]:block space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Card>
                 <CardContent className="pt-6">
@@ -52,15 +47,13 @@ export function HelpDialog() {
                       Overview
                     </h4>
                     <p className="text-sm text-muted-foreground">
-                      IfcLCA leverages openBIM and Open Data Standards to analyze
-                      environmental impact of construction projects through Ifc files
-                      using Swiss KBOB data from{" "}
+                      IfcLCA leverages openBIM and Open Data Standards to analyze environmental
+                      impact of construction projects through Ifc files using Swiss KBOB data from{' '}
                       <a
                         href="https://lcadata.ch"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-primary hover:underline"
-                      >
+                        className="text-primary hover:underline">
                         lcadata.ch
                       </a>
                       .
@@ -77,16 +70,17 @@ export function HelpDialog() {
                       Creator
                     </h4>
                     <p className="text-sm text-muted-foreground">
-                      Built by{" "}
+                      Built by{' '}
                       <a
                         href="https://www.linkedin.com/in/louistrue/"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-primary hover:underline"
-                      >
+                        className="text-primary hover:underline">
                         Louis Trümpler
                       </a>
-                      , combining construction expertise with digital innovation to create sustainable solutions and make environmental impact assessment accessible to everyone.
+                      , combining construction expertise with digital innovation to create
+                      sustainable solutions and make environmental impact assessment accessible to
+                      everyone.
                     </p>
                   </div>
                 </CardContent>
@@ -101,14 +95,13 @@ export function HelpDialog() {
                     Open Source
                   </h4>
                   <p className="text-sm text-muted-foreground">
-                    IfcLCA is and will always be Open Source. Sustainability is a team
-                    effort and requires trust and transparency. The project is licensed under{" "}
+                    IfcLCA is and will always be Open Source. Sustainability is a team effort and
+                    requires trust and transparency. The project is licensed under{' '}
                     <a
                       href="https://www.gnu.org/licenses/agpl-3.0.en.html"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-primary hover:underline"
-                    >
+                      className="text-primary hover:underline">
                       AGPL-3.0
                     </a>
                     .
@@ -118,18 +111,13 @@ export function HelpDialog() {
                       <a
                         href="https://github.com/IfcLCA/IfcLCA"
                         target="_blank"
-                        rel="noopener noreferrer"
-                      >
+                        rel="noopener noreferrer">
                         <Github className="mr-2 h-4 w-4" />
                         GitHub
                       </a>
                     </Button>
                     <Button variant="outline" size="sm" asChild>
-                      <a
-                        href="https://lt.plus"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
+                      <a href="https://lt.plus" target="_blank" rel="noopener noreferrer">
                         <Globe className="mr-2 h-4 w-4" />
                         LT Plus
                       </a>
@@ -147,16 +135,15 @@ export function HelpDialog() {
                     Community
                   </h4>
                   <p className="text-sm text-muted-foreground">
-                    Join our community to discuss features, share ideas, and get help.
-                    Watch the presentation at opensource.construction to learn more.
+                    Join our community to discuss features, share ideas, and get help. Watch the
+                    presentation at opensource.construction to learn more.
                   </p>
                   <div className="flex flex-wrap gap-2 pt-2">
                     <Button variant="outline" size="sm" asChild>
                       <a
                         href="https://github.com/IfcLCA/IfcLCA/discussions"
                         target="_blank"
-                        rel="noopener noreferrer"
-                      >
+                        rel="noopener noreferrer">
                         <Users className="mr-2 h-4 w-4" />
                         Community Forum
                       </a>
@@ -165,8 +152,7 @@ export function HelpDialog() {
                       <a
                         href="https://www.youtube.com/watch?v=r31YEUAzAuE"
                         target="_blank"
-                        rel="noopener noreferrer"
-                      >
+                        rel="noopener noreferrer">
                         <Video className="mr-2 h-4 w-4" />
                         OSC Community Standup on Youtube
                       </a>
@@ -177,7 +163,9 @@ export function HelpDialog() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="docs" className="h-[600px] overflow-y-auto data-[state=active]:block space-y-4 max-h-[600px] overflow-y-auto pr-2">
+          <TabsContent
+            value="docs"
+            className="h-[600px] overflow-y-auto data-[state=active]:block space-y-4 max-h-[600px] pr-2">
             <div className="grid grid-cols-1 gap-4">
               <Card>
                 <CardContent className="pt-6">
@@ -190,9 +178,20 @@ export function HelpDialog() {
                         <div className="grid grid-cols-1 gap-2 pl-4">
                           <div>
                             <ul className="list-disc list-inside">
-                              <li>Ifc version: preferrably <span className="font-bold">IFC4</span>, 2x3 should work too</li>
-                              <li>Include all "Ifc Base Quantities" in the file, we use <span className="font-bold">NetVolume or GrossVolume</span></li>
-                              <li>Include all assembly layers during export, we prefer <span className="font-bold">IfcMaterialLayerset</span> but can work with <span className="font-bold">IfcMaterialConstituentSet</span> as well</li>
+                              <li>
+                                Ifc version: preferrably <span className="font-bold">IFC4</span>,
+                                2x3 should work too
+                              </li>
+                              <li>
+                                Include all &quot;Ifc Base Quantities&quot; in the file, we use{' '}
+                                <span className="font-bold">NetVolume or GrossVolume</span>
+                              </li>
+                              <li>
+                                Include all assembly layers during export, we prefer{' '}
+                                <span className="font-bold">IfcMaterialLayerset</span> but can work
+                                with <span className="font-bold">IfcMaterialConstituentSet</span> as
+                                well
+                              </li>
                             </ul>
                           </div>
                         </div>
@@ -212,7 +211,7 @@ export function HelpDialog() {
                         <p>Drop your Ifc file in the upload area or click to browse:</p>
                         <ul className="list-disc list-inside">
                           <li>Files are processed locally</li>
-                          <li>Ifc don't get stored on our servers</li>
+                          <li>Ifc don&apos;t get stored on our servers</li>
                         </ul>
                       </div>
                     </div>
@@ -294,7 +293,14 @@ export function HelpDialog() {
                         <div className="mt-2">
                           <h5 className="font-medium text-foreground">Get Support</h5>
                           <ul className="list-disc list-inside">
-                            Join our community, report issues or ask for help if things go wrong: <a href="https://github.com/IfcLCA/IfcLCA/discussions" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Community Forum</a>
+                            Join our community, report issues or ask for help if things go wrong:{' '}
+                            <a
+                              href="https://github.com/IfcLCA/IfcLCA/discussions"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline">
+                              Community Forum
+                            </a>
                           </ul>
                         </div>
                       </div>
@@ -307,5 +313,5 @@ export function HelpDialog() {
         </Tabs>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

@@ -1,9 +1,9 @@
-import Link from "next/link";
-import Image from "next/image";
-import { Linkedin, Github, Mail, ExternalLink } from "lucide-react";
+import Image from 'next/image'
+import Link from 'next/link'
+import { Linkedin, Github, Mail, ExternalLink } from 'lucide-react'
 
 export function Footer() {
-  const currentYear = new Date().getFullYear();
+  const currentYear = new Date().getFullYear()
 
   return (
     <footer className="bg-background border-t py-4">
@@ -28,24 +28,21 @@ export function Footer() {
                     href="https://github.com/IfcLCA/IfcLCA"
                     aria-label="GitHub"
                     target="_blank"
-                    rel="noopener noreferrer"
-                  >
+                    rel="noopener noreferrer">
                     <Github className="h-4 w-4 text-muted-foreground hover:text-primary" />
                   </Link>
                   <Link
                     href="https://www.lt.plus"
                     aria-label="LT Plus"
                     target="_blank"
-                    rel="noopener noreferrer"
-                  >
+                    rel="noopener noreferrer">
                     <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-primary" />
                   </Link>
                   <Link
                     href="https://www.linkedin.com/in/louistrue/"
                     aria-label="LinkedIn"
                     target="_blank"
-                    rel="noopener noreferrer"
-                  >
+                    rel="noopener noreferrer">
                     <Linkedin className="h-4 w-4 text-muted-foreground hover:text-primary" />
                   </Link>
                 </div>
@@ -62,9 +59,7 @@ export function Footer() {
                 </Link>
                 <span className="text-muted-foreground flex items-center gap-1 cursor-not-allowed">
                   Reports
-                  <span className="text-[10px] text-muted-foreground">
-                    (Coming Soon)
-                  </span>
+                  <span className="text-[10px] text-muted-foreground">(Coming Soon)</span>
                 </span>
               </nav>
             </div>
@@ -77,8 +72,7 @@ export function Footer() {
                     href="https://www.lcadata.ch"
                     className="text-primary hover:underline flex items-center gap-1"
                     target="_blank"
-                    rel="noopener noreferrer"
-                  >
+                    rel="noopener noreferrer">
                     lcadata.ch
                     <ExternalLink className="h-3 w-3" />
                   </Link>
@@ -100,5 +94,5 @@ export function Footer() {
         </div>
       </div>
     </footer>
-  );
+  )
 }

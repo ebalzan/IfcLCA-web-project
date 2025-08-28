@@ -1,40 +1,43 @@
-import mongoose from "mongoose";
+import { Model, Schema, model, models } from 'mongoose'
+import IMaterialDeletion from '@/interfaces/materials/IMaterialDeletion'
 
-const materialDeletionSchema = new mongoose.Schema(
+type IMaterialDeletionModelType = Model<IMaterialDeletion>
+
+const materialDeletionSchema = new Schema<IMaterialDeletion, IMaterialDeletionModelType>(
   {
     projectId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Project",
-      required: [true, "Project ID is required"],
+      type: Schema.Types.ObjectId,
+      ref: 'Project',
+      required: [true, 'Project ID is required'],
     },
     userId: {
       type: String,
-      required: [true, "User ID is required"],
+      required: [true, 'User ID is required'],
     },
     materialName: {
       type: String,
-      required: [true, "Material name is required"],
+      required: [true, 'Material name is required'],
     },
     reason: {
       type: String,
+      required: [true, 'Reason is required'],
     },
   },
   {
     timestamps: true,
     strict: true,
-    collection: "material_deletions",
+    collection: 'material_deletions',
   }
-);
+)
 
 // Add validation middleware
-materialDeletionSchema.pre("save", function (next) {
+materialDeletionSchema.pre('save', function (next) {
   if (!this.projectId || !this.userId) {
-    next(new Error("ProjectId and UserId are required"));
-    return;
+    next(new Error('ProjectId and UserId are required'))
+    return
   }
-  next();
-});
+  next()
+})
 
-export const MaterialDeletion =
-  mongoose.models.MaterialDeletion ||
-  mongoose.model("MaterialDeletion", materialDeletionSchema);
+export const MaterialDeletion: IMaterialDeletionModelType =
+  models.MaterialDeletion || model('MaterialDeletion', materialDeletionSchema)

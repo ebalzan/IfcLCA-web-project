@@ -1,43 +1,75 @@
-import mongoose from "mongoose";
+import { Schema, model, models, Model } from 'mongoose'
+import mongooseLeanGetters from 'mongoose-lean-getters'
+import mongooseLeanVirtuals from 'mongoose-lean-virtuals'
+import IMaterialDB, { IMaterialVirtuals } from '@/interfaces/materials/IMaterialDB'
 
-interface IMaterial {
-  projectId: mongoose.Types.ObjectId;
-  name: string;
-  category?: string;
-  density?: number;
-  kbobMatchId?: mongoose.Types.ObjectId;
-  lastCalculated?: Date;
-}
+type IMaterialModelType = Model<IMaterialDB, {}, {}, IMaterialVirtuals>
 
-const materialSchema = new mongoose.Schema<IMaterial>(
+const materialSchema = new Schema<IMaterialDB, IMaterialModelType, {}, IMaterialVirtuals>(
   {
-    projectId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Project",
+    uploadId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Upload',
       required: true,
-      index: true,
+      default: null,
+      nullable: true,
+    },
+    projectId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Project',
+      required: true,
+    },
+    ec3MatchId: {
+      type: String,
+      required: true,
+      default: null,
+      nullable: true,
     },
     name: {
       type: String,
       required: true,
     },
+    manufacturer: {
+      type: String,
+    },
     category: {
+      type: String,
+    },
+    description: {
+      type: String,
+    },
+    gwp: {
+      type: Number,
+    },
+    ubp: {
+      type: Number,
+    },
+    penre: {
+      type: Number,
+    },
+    unit: {
       type: String,
     },
     density: {
       type: Number,
-      min: 0,
-      validate: {
-        validator: (v: number) => v === 0 || Number.isFinite(v),
-        message: "Density must be 0 or a finite number",
-      },
     },
-    kbobMatchId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "KBOBMaterial",
+    declaredUnit: {
+      type: String,
     },
-    lastCalculated: {
-      type: Date,
+    validFrom: {
+      type: String,
+    },
+    validTo: {
+      type: String,
+    },
+    'kg/unit': {
+      type: Number,
+    },
+    'min density': {
+      type: Number,
+    },
+    'max density': {
+      type: Number,
     },
   },
   {
@@ -45,60 +77,33 @@ const materialSchema = new mongoose.Schema<IMaterial>(
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   }
-);
+)
 
 // Indexes
-materialSchema.index({ projectId: 1, name: 1 }, { unique: true });
-materialSchema.index({ kbobMatchId: 1 });
+materialSchema.index({ projectId: 1, name: 1 }, { unique: true })
+materialSchema.index({ ec3MatchId: 1 })
+
+// Plugins
+materialSchema.plugin(mongooseLeanVirtuals)
+materialSchema.plugin(mongooseLeanGetters)
 
 // Virtual for elements using this material
-materialSchema.virtual("elements", {
-  ref: "Element",
-  localField: "_id",
-  foreignField: "materials.material",
-});
+materialSchema.virtual('elements', {
+  ref: 'Element',
+  localField: '_id',
+  foreignField: 'materialLayers.materialId',
+})
 
-// Virtual for total volume across all elements
-materialSchema.virtual("totalVolume").get(async function () {
-  const result = await mongoose.model("Element").aggregate([
-    {
-      $match: {
-        "materials.material": this._id,
-      },
-    },
-    {
-      $unwind: "$materials",
-    },
-    {
-      $match: {
-        "materials.material": this._id,
-      },
-    },
-    {
-      $group: {
-        _id: null,
-        totalVolume: { $sum: "$materials.volume" },
-      },
-    },
-  ]);
+// Virtual for total volume
+materialSchema.virtual('totalVolume').get(async function () {
+  const result = await model('Element').aggregate<Pick<IMaterialVirtuals, 'totalVolume'>>([
+    { $match: { 'materialLayers.materialId': this._id } },
+    { $unwind: '$materialLayers' },
+    { $match: { 'materialLayers.materialId': this._id } },
+    { $group: { _id: null, totalVolume: { $sum: '$materialLayers.volume' } } },
+  ])
 
-  return result[0]?.totalVolume || 0;
-});
+  return result[0]?.totalVolume || 0
+})
 
-// Virtual for emissions factors from KBOB match
-materialSchema.virtual("emissionFactors").get(function () {
-  if (!this.populated("kbobMatchId")) return null;
-
-  const kbob = this.kbobMatchId as any;
-  if (!kbob) return null;
-
-  return {
-    gwp: kbob.GWP || 0,
-    ubp: kbob.UBP || 0,
-    penre: kbob.PENRE || 0,
-  };
-});
-
-export const Material =
-  mongoose.models.Material ||
-  mongoose.model<IMaterial>("Material", materialSchema);
+export const Material: IMaterialModelType = models.Material || model('Material', materialSchema)

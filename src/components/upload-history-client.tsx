@@ -1,29 +1,30 @@
-"use client";
+'use client'
 
-import { useState, useEffect } from "react";
-import { DataTable } from "@/components/data-table";
-import { Button } from "@/components/ui/button";
-import { FileDown, Trash2 } from "lucide-react";
-import { UploadModal } from "@/components/upload-modal";
+import { useState, useEffect, useCallback } from 'react'
+import { FileDown, Trash2 } from 'lucide-react'
+import { DataTable } from '@/components/data-table'
+import { Button } from '@/components/ui/button'
+import { UploadModal } from '@/components/upload-modal'
+import { api } from '@/lib/fetch'
 
 const columns = [
   {
-    accessorKey: "filename",
-    header: "Filename",
+    accessorKey: 'filename',
+    header: 'Filename',
   },
   {
-    accessorKey: "status",
-    header: "Status",
+    accessorKey: 'status',
+    header: 'Status',
   },
   {
-    accessorKey: "createdAt",
-    header: "Upload Date",
+    accessorKey: 'createdAt',
+    header: 'Upload Date',
     cell: ({ row }: { row: { original: { createdAt: string } } }) =>
       new Date(row.original.createdAt).toLocaleDateString(),
   },
   {
-    accessorKey: "actions",
-    header: "Actions",
+    accessorKey: 'actions',
+    header: 'Actions',
     cell: ({ row }: { row: any }) => (
       <div className="flex gap-2">
         <Button variant="ghost" size="sm">
@@ -35,30 +36,29 @@ const columns = [
       </div>
     ),
   },
-];
+]
 
 export function UploadHistoryClient({ projectId }: { projectId: string }) {
-  const [uploadHistory, setUploadHistory] = useState([]);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [uploadHistory, setUploadHistory] = useState<any[]>([])
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
-  const refreshData = async () => {
+  const refreshData = useCallback(async () => {
     try {
-      const response = await fetch(`/api/projects/${projectId}/uploads`);
-      const data = await response.json();
-      setUploadHistory(data);
+      const data = await api.get<any[]>(`/api/projects/${projectId}/uploads`)
+      setUploadHistory(data)
     } catch (error) {
-      console.error("Failed to fetch upload history:", error);
+      console.error('Failed to fetch upload history:', error)
     }
-  };
+  }, [projectId])
 
   useEffect(() => {
-    refreshData();
-  }, [projectId]);
+    refreshData()
+  }, [projectId, refreshData])
 
   const handleUploadComplete = () => {
-    setIsRefreshing(true);
-    refreshData().finally(() => setIsRefreshing(false));
-  };
+    setIsRefreshing(true)
+    refreshData().finally(() => setIsRefreshing(false))
+  }
 
   return (
     <div className="space-y-6">
@@ -66,10 +66,12 @@ export function UploadHistoryClient({ projectId }: { projectId: string }) {
         <h1 className="text-2xl font-bold">Upload History</h1>
         <UploadModal
           projectId={projectId}
-          onUploadComplete={handleUploadComplete}
+          open={false}
+          onOpenChange={() => {}}
+          onSuccess={handleUploadComplete}
         />
       </div>
       <DataTable columns={columns} data={uploadHistory} />
     </div>
-  );
+  )
 }
