@@ -1,13 +1,17 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
-import { IEC3MatchClient } from '@/interfaces/client/materials/IEC3MatchClient'
 import { MaterialsLibraryStoreActions } from './interfaces/MaterialsLibraryStoreActions'
 import { MaterialsLibraryStoreState } from './interfaces/MaterialsLibraryStoreState'
+import { TemporaryMatch } from './interfaces/TemporaryMatch'
 
 const initialState: MaterialsLibraryStoreState = {
   selectedProject: 'all',
   temporaryMatches: [],
   selectedMaterials: [],
+  matchingProgress: {
+    matchedCount: 0,
+    percentage: 0,
+  },
   isSelectAllChecked: false,
   isOpenConfirmMatchesModal: false,
   autoSuggestedMatches: [],
@@ -37,9 +41,7 @@ export const useMaterialsLibraryStore = create<
       ...initialState,
 
       setSelectedProject: (projectId: string) => {
-        const newSelectedProject = projectId === 'all' ? 'all' : projectId
-
-        set({ selectedProject: newSelectedProject })
+        set({ selectedProject: projectId })
       },
 
       setIfcSearchValue: (value: string) => {
@@ -70,31 +72,8 @@ export const useMaterialsLibraryStore = create<
         set({ isSelectAllChecked })
       },
 
-      confirmMatches: () => {
-        set({ isOpenConfirmMatchesModal: false, temporaryMatches: [] })
-      },
-
-      acceptMatch: (match: Omit<IEC3MatchClient, '_id'>) => {
-        const { temporaryMatches } = get()
-        const newMatches = [...temporaryMatches]
-        newMatches.push(match)
-        set({ temporaryMatches: newMatches })
-      },
-
-      acceptAllMatches: () => {
-        const { autoSuggestedMatches, temporaryMatches } = get()
-        const newMatches = [...temporaryMatches]
-        autoSuggestedMatches.forEach(match => {
-          newMatches.push({
-            ...match,
-            autoMatched: false,
-          })
-        })
-        set({ temporaryMatches: newMatches })
-      },
-
-      cancelMatch: () => {
-        set({ isOpenConfirmMatchesModal: false })
+      setTemporaryMatches: (matches: TemporaryMatch[]) => {
+        set({ temporaryMatches: matches })
       },
 
       openConfirmMatchesModal: () => {
@@ -103,6 +82,10 @@ export const useMaterialsLibraryStore = create<
 
       closeConfirmMatchesModal: () => {
         set({ isOpenConfirmMatchesModal: false })
+      },
+
+      setMatchingProgress: (progress: { matchedCount: number; percentage: number }) => {
+        set({ matchingProgress: progress })
       },
 
       resetState: () => set(initialState),
