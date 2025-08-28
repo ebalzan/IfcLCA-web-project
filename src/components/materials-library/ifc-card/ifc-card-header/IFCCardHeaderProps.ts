@@ -1,6 +1,5 @@
 export interface IFCCardHeaderProps {
   isSelectAllChecked: boolean
-  onSelectAllCheckedChange: (isChecked: boolean) => void
   materialsCount: number
   materialsSelectedCount: number
   matchingProgress: {
@@ -8,5 +7,7 @@ export interface IFCCardHeaderProps {
     percentage: number
   }
   searchValue: string
+  onSelectAllCheckedChange: (isChecked: boolean) => void
+  clearMatches: () => void
   onSearchChange: (value: string) => void
 }

@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { MagnifyingGlassIcon } from '@radix-ui/react-icons'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -15,6 +16,7 @@ export function IFCCardHeader({
   onSearchChange,
   isSelectAllChecked,
   onSelectAllCheckedChange,
+  clearMatches,
 }: IFCCardHeaderProps) {
   return (
     <div className="flex flex-col gap-2 p-4 border-b">
@@ -30,7 +32,7 @@ export function IFCCardHeader({
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5">
-              <div className="w-24 h-2 bg-secondary/20 rounded-full overflow-hidden">
+              <div className="w-24 h-2 bg-primary-foreground/10 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-primary rounded-full transition-all duration-300"
                   style={{
@@ -64,13 +66,25 @@ export function IFCCardHeader({
         />
       </div>
 
-      <div className="flex items-center gap-2">
-        <Checkbox
-          id="select-all"
-          checked={isSelectAllChecked}
-          onCheckedChange={onSelectAllCheckedChange}
-        />
-        <Label htmlFor="select-all">Select all</Label>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="select-all"
+            checked={isSelectAllChecked}
+            onCheckedChange={onSelectAllCheckedChange}
+          />
+          <Label htmlFor="select-all">Select all</Label>
+        </div>
+
+        <Link
+          href="/materials/library/matches"
+          className="text-sm text-muted-foreground hover:text-primary"
+          onClick={e => {
+            e.preventDefault()
+            clearMatches()
+          }}>
+          Clear
+        </Link>
       </div>
     </div>
   )
