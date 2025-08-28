@@ -9,6 +9,12 @@ export type ActivityType =
   | 'project_member_added'
   | 'project_member_removed'
   | 'image_uploaded'
+  | 'material_matched'
+  | 'material_unmatched'
+  | 'material_matched_ec3'
+  | 'material_unmatched_ec3'
+  | 'material_matched_kbob'
+  | 'material_unmatched_kbob'
 
 interface IActivity {
   id: string

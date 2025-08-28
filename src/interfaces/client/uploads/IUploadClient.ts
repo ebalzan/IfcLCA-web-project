@@ -1,13 +1,6 @@
-interface IUploadClient {
+import IUploadDB from '@/interfaces/uploads/IUploadDB'
+
+export interface IUploadClient extends Omit<IUploadDB, '_id' | 'projectId'> {
   _id: string
   projectId: string
-  userId: string
-  filename: string
-  status: 'Processing' | 'Completed' | 'Failed'
-  elementCount: number
-  materialCount: number
-  deleted: boolean
-  createdAt: Date
-  updatedAt: Date
 }
-export default IUploadClient

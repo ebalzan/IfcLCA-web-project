@@ -6,9 +6,10 @@ interface IUploadDB {
   userId: string
   filename: string
   status: 'Processing' | 'Completed' | 'Failed'
-  elementCount: number
-  materialCount: number
-  deleted: boolean
+  _count: {
+    elements: number
+    materials: number
+  }
   createdAt: Date
   updatedAt: Date
 }

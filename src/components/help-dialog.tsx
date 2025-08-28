@@ -165,7 +165,7 @@ export function HelpDialog() {
 
           <TabsContent
             value="docs"
-            className="h-[600px] overflow-y-auto data-[state=active]:block space-y-4 max-h-[600px] overflow-y-auto pr-2">
+            className="h-[600px] overflow-y-auto data-[state=active]:block space-y-4 max-h-[600px] pr-2">
             <div className="grid grid-cols-1 gap-4">
               <Card>
                 <CardContent className="pt-6">

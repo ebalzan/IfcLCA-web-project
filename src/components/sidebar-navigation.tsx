@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { UploadIfcButton } from '@/components/upload-ifc-button'
-import { cn } from '@/lib/utils'
+import { cn } from '@/utils/cn'
 
 interface SidebarProps {
   projectId?: string

@@ -1,37 +1,4 @@
-// Custom error types for better error handling
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    public status: number,
-    public url: string,
-    public responseText?: string
-  ) {
-    super(message)
-    this.name = 'ApiError'
-  }
-}
-
-export class NetworkError extends Error {
-  constructor(
-    message: string,
-    public url: string,
-    public originalError?: Error
-  ) {
-    super(message)
-    this.name = 'NetworkError'
-  }
-}
-
-export class ParseError extends Error {
-  constructor(
-    message: string,
-    public url: string,
-    public originalError?: Error
-  ) {
-    super(message)
-    this.name = 'ParseError'
-  }
-}
+import { ApiError, NetworkError, ParseError } from '@/lib/errors'
 
 // Global configuration
 interface FetchConfig {
@@ -85,6 +52,11 @@ export async function fetchApi<T>(url: string, options?: FetchApiOptions): Promi
   const headers = {
     ...config.defaultHeaders,
     ...fetchOptions.headers,
+  }
+
+  // Don't override Content-Type for FormData
+  if (fetchOptions.body instanceof FormData) {
+    delete (headers as Record<string, string>)['Content-Type']
   }
 
   const attemptRequest = async (attempt: number = 1): Promise<T> => {

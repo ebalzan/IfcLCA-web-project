@@ -6,7 +6,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useRouter } from 'next/navigation'
-import { UserButton, SignedIn, SignedOut, SignInButton } from '@clerk/nextjs'
+import { UserButton, SignedIn, SignedOut, SignInButton, useAuth } from '@clerk/nextjs'
 import {
   Bell,
   HelpCircle,
@@ -23,7 +23,6 @@ import {
 } from 'lucide-react'
 import { Loader2 } from 'lucide-react'
 import { useTheme } from 'next-themes'
-import { SearchResult } from '@/app/api/projects/search/route'
 import { HelpDialog } from '@/components/help-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -46,11 +45,15 @@ import {
 } from '@/components/ui/navigation-menu'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { UploadModal } from '@/components/upload-modal'
-import { useProjectsWithStats } from '@/hooks/projects/use-project-operations'
+import {
+  useGetProjectBulkByUser,
+  useGetProjectWithNestedDataBulk,
+  useSearchProjects,
+} from '@/hooks/projects/use-project-operations'
 import { useDebounce } from '@/hooks/use-debounce'
-import IProjectClient from '@/interfaces/client/projects/IProjectClient'
+import { IProjectClient } from '@/interfaces/client/projects/IProjectClient'
 import { api } from '@/lib/fetch'
-import { cn } from '@/lib/utils'
+import { cn } from '@/utils/cn'
 
 interface Notification {
   id: string
@@ -65,10 +68,10 @@ interface NavBarProps {
 }
 
 interface SearchResultsProps {
-  results: SearchResult[]
+  results: IProjectClient[] | null
   isExpanded: boolean
   selectedIndex: number
-  onSelect: (result: SearchResult) => void
+  onSelect: (result: IProjectClient) => void
   onMouseEnter: (index: number) => void
   onShowMore: () => void
 }
@@ -81,12 +84,12 @@ function SearchResults({
   onMouseEnter,
   onShowMore,
 }: SearchResultsProps) {
-  const displayResults = isExpanded ? results : results.slice(0, 5)
-  const hasMore = !isExpanded && results.length > 5
+  const displayResults = isExpanded ? results : results?.slice(0, 5)
+  const hasMore = !isExpanded && results && results.length > 5
 
   return (
     <div className="space-y-1">
-      {displayResults.map((result, index) => (
+      {displayResults?.map((result, index) => (
         <Button
           key={result._id.toString()}
           variant="ghost"
@@ -114,7 +117,7 @@ function SearchResults({
             e.preventDefault()
             e.stopPropagation()
           }}>
-          Show all {results.length} results
+          Show all {results?.length} results
         </Button>
       )}
     </div>
@@ -122,11 +125,11 @@ function SearchResults({
 }
 
 export function NavigationBar({ currentProject, notifications }: NavBarProps) {
+  const { userId } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const debouncedSearch = useDebounce(searchQuery, 300)
   const [selectedIndex, setSelectedIndex] = useState(-1)
@@ -135,83 +138,59 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
   const { theme, setTheme } = useTheme()
   const [showProjectSelect, setShowProjectSelect] = useState(false)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
-  const { data: projectsWithStats } = useProjectsWithStats()
+  const { data: projects } = useGetProjectBulkByUser({ userId: userId || '' })
 
-  useEffect(() => {
-    const searchProjects = async () => {
-      if (isFocused && !debouncedSearch) {
-        setIsSearching(true)
-        try {
-          const data = await api.get<SearchResult[]>('/api/projects/search?all=true')
-          setSearchResults(data)
-        } catch (error) {
-          console.error('Failed to fetch projects:', error)
-        } finally {
-          setIsSearching(false)
-        }
-        return
-      }
+  const {
+    data: searchResults,
+    isLoading,
+    isError,
+    error,
+  } = useSearchProjects({
+    name: debouncedSearch,
+    sortBy: 'name',
+  })
 
-      if (!debouncedSearch) {
-        setSearchResults([])
-        return
-      }
+  // const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  //   if (!searchResults.length) return
 
-      setIsSearching(true)
-      try {
-        const data = await api.get<SearchResult[]>(`/api/projects/search?q=${debouncedSearch}`)
-        setSearchResults(data)
-      } catch (error) {
-        console.error('Failed to search projects:', error)
-      } finally {
-        setIsSearching(false)
-      }
-    }
-
-    searchProjects()
-  }, [debouncedSearch, isFocused])
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!searchResults.length) return
-
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault()
-        setSelectedIndex(prev => (prev < searchResults.length - 1 ? prev + 1 : prev))
-        break
-      case 'ArrowUp':
-        e.preventDefault()
-        setSelectedIndex(prev => (prev > 0 ? prev - 1 : -1))
-        break
-      case 'Enter':
-        e.preventDefault()
-        if (selectedIndex >= 0) {
-          const selected = searchResults[selectedIndex]
-          router.push(`/projects/${selected._id}`)
-          setSearchQuery('')
-          setSearchResults([])
-          setSelectedIndex(-1)
-        }
-        break
-      case 'Escape':
-        setSearchQuery('')
-        setSearchResults([])
-        setSelectedIndex(-1)
-        break
-    }
-  }
+  //   switch (e.key) {
+  //     case 'ArrowDown':
+  //       e.preventDefault()
+  //       setSelectedIndex(prev => (prev < searchResults.length - 1 ? prev + 1 : prev))
+  //       break
+  //     case 'ArrowUp':
+  //       e.preventDefault()
+  //       setSelectedIndex(prev => (prev > 0 ? prev - 1 : -1))
+  //       break
+  //     case 'Enter':
+  //       e.preventDefault()
+  //       if (selectedIndex >= 0) {
+  //         const selected = searchResults[selectedIndex]
+  //         router.push(`/projects/${selected._id}`)
+  //         setSearchQuery('')
+  //         setSearchResults([])
+  //         setSelectedIndex(-1)
+  //       }
+  //       break
+  //     case 'Escape':
+  //       setSearchQuery('')
+  //       setSearchResults([])
+  //       setSelectedIndex(-1)
+  //       break
+  //   }
+  // }
 
   useEffect(() => {
     setSelectedIndex(-1)
   }, [searchResults])
 
-  const handleSelect = (result: SearchResult) => {
-    router.push(`/projects/${result._id}`)
-    setSearchQuery('')
-    setSearchResults([])
-    setSelectedIndex(-1)
-    setIsExpanded(false)
-  }
+  // const handleSelect = (result: SearchResult) => {
+  //   router.push(`/projects/${result._id}`)
+  //   setSearchQuery('')
+  //   setSearchResults([])
+  //   setSelectedIndex(-1)
+  //   setIsExpanded(false)
+  // }
 
   const handleShowMore = (e?: React.MouseEvent) => {
     e?.preventDefault()
@@ -257,7 +236,7 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
               </span>
             </div>
           </Link>
-          <NavigationMenu>
+          {/* <NavigationMenu>
             <NavigationMenuList>
               <NavigationMenuItem className="relative">
                 <div className="flex items-center gap-1">
@@ -390,7 +369,7 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
                 </div>
               </NavigationMenuItem>
             </NavigationMenuList>
-          </NavigationMenu>
+          </NavigationMenu> */}
         </div>
 
         <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
@@ -421,7 +400,7 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
               type="search"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              onKeyDown={handleKeyDown}
+              // onKeyDown={handleKeyDown}
               onFocus={() => setIsFocused(true)}
               onBlur={e => {
                 const isShowMoreButton = (e.relatedTarget as HTMLElement)?.classList.contains(
@@ -436,26 +415,28 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
               }}
             />
 
-            {(searchResults.length > 0 || isSearching) && (isFocused || searchQuery) && (
-              <Card className="absolute top-full mt-2 w-full z-50">
-                <CardContent className="p-2">
-                  {isSearching ? (
-                    <div className="flex items-center justify-center p-4">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    </div>
-                  ) : (
-                    <SearchResults
-                      results={searchResults}
-                      isExpanded={isExpanded}
-                      selectedIndex={selectedIndex}
-                      onSelect={handleSelect}
-                      onMouseEnter={setSelectedIndex}
-                      onShowMore={handleShowMore}
-                    />
-                  )}
-                </CardContent>
-              </Card>
-            )}
+            {((searchResults && searchResults.length > 0) || isSearching) &&
+              (isFocused || searchQuery) && (
+                <Card className="absolute top-full mt-2 w-full z-50">
+                  <CardContent className="p-2">
+                    {isSearching ? (
+                      <div className="flex items-center justify-center p-4">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      </div>
+                    ) : (
+                      <SearchResults
+                        results={searchResults}
+                        isExpanded={isExpanded}
+                        selectedIndex={selectedIndex}
+                        onSelect={() => {}}
+                        // onSelect={handleSelect}
+                        onMouseEnter={setSelectedIndex}
+                        onShowMore={handleShowMore}
+                      />
+                    )}
+                  </CardContent>
+                </Card>
+              )}
           </div>
           <nav className="flex items-center space-x-2">
             <Button
@@ -501,7 +482,7 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
             <DialogDescription>Choose a project to upload the Ifc file to</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
-            {projectsWithStats?.map(project => (
+            {projects?.map(project => (
               <Button
                 key={project._id}
                 variant="outline"
@@ -526,7 +507,7 @@ export function NavigationBar({ currentProject, notifications }: NavBarProps) {
               setSelectedProjectId(null)
             }
           }}
-          onSuccess={(upload: { id: string }) => {
+          onSuccess={() => {
             setSelectedProjectId(null)
             router.push(`/projects/${selectedProjectId}`)
           }}

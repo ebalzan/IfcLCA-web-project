@@ -23,17 +23,15 @@ const uploadSchema = new Schema<IUploadDB, IUploadModelType>(
       enum: ['Processing', 'Completed', 'Failed'],
       default: 'Processing',
     },
-    elementCount: {
-      type: Number,
-      default: 0,
-    },
-    materialCount: {
-      type: Number,
-      default: 0,
-    },
-    deleted: {
-      type: Boolean,
-      default: false,
+    _count: {
+      elements: {
+        type: Number,
+        default: 0,
+      },
+      materials: {
+        type: Number,
+        default: 0,
+      },
     },
   },
   {

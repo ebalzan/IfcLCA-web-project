@@ -1,17 +1,12 @@
 import { Types } from 'mongoose'
-import ILCAIndicators from './ILCAIndicators'
+import { IEC3Material } from './IEC3Material'
 
-interface IMaterialNewAttributesFromKBOB extends Partial<ILCAIndicators> {
-  category?: string
-  density?: number
-  kbobMatchId?: Types.ObjectId
-  lastCalculated?: Date
-}
-
-interface IMaterialDB extends IMaterialNewAttributesFromKBOB {
+interface IMaterialDB extends Partial<Omit<IEC3Material, 'id' | 'name'>> {
   _id: Types.ObjectId
   name: string
   projectId: Types.ObjectId
+  uploadId: Types.ObjectId
+  ec3MatchId: string | null
 }
 
 export interface IMaterialVirtuals {

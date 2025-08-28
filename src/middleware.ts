@@ -10,7 +10,7 @@ const isPublicRoute = createRouteMatcher([
   '/privacy',
   '/cookies',
   '/api/accept-terms(.*)',
-  '/api/kbob(.*)',
+  '/api/ec3(.*)',
 ])
 
 // Define routes that require terms acceptance
@@ -28,6 +28,11 @@ export default clerkMiddleware(async (auth, req) => {
 
   // Allow public routes to pass through
   if (isPublicRoute(req)) {
+    return NextResponse.next()
+  }
+
+  // Allow all API routes to pass through (they handle their own auth)
+  if (pathname.startsWith('/api/')) {
     return NextResponse.next()
   }
 

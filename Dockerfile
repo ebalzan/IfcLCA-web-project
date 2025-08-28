@@ -43,10 +43,4 @@ RUN npm ci
 # Copy source code
 COPY --chown=nextjs:nodejs . .
 
-# Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
-# COPY --chown=nextjs:nodejs /opt/ifclca-development/public ./public
-# COPY --chown=nextjs:nodejs /opt/ifclca-development/.next/static ./.next/static
-
-
 CMD ["npm", "run", "dev"]

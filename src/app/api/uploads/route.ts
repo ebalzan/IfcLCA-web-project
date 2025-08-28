@@ -1,63 +1,113 @@
-import { NextResponse } from 'next/server'
-import { ClientSession } from 'mongoose'
-import { AuthenticatedRequest } from '@/lib/api-middleware'
-import { Element, Material, Upload } from '@/models'
+import { Types } from 'mongoose'
+import { sendApiErrorResponse } from '@/lib/api-error-response'
+import { sendApiSuccessResponse } from '@/lib/api-error-response'
+import { AuthenticatedRequest, getUserId } from '@/lib/api-middleware'
+import { UploadService } from '@/lib/services/upload-service'
+import {
+  withAuthAndDBValidation,
+  withAuthAndDBValidationWithQueryParams,
+} from '@/lib/validation-middleware'
+import {
+  AuthenticatedValidationRequest,
+  ValidationContext,
+} from '@/lib/validation-middleware/types'
+import {
+  DeleteUploadBulkRequestApi,
+  deleteUploadBulkRequestSchemaApi,
+  GetUploadBulkRequestApi,
+  getUploadBulkRequestSchemaApi,
+  UpdateUploadBulkRequestApi,
+  updateUploadBulkRequestSchemaApi,
+} from '@/schemas/api/uploads/upload-requests'
 
-export async function processMaterials(
-  projectId: string,
-  // elements: Array<{
-  //   id: string;
-  //   name: string;
-  //   type: string;
-  //   globalId: string;
-  //   netVolume?: number | { net: number; gross: number };
-  //   grossVolume?: number | { net: number; gross: number };
-  //   materialLayers?: any;
-  //   properties?: {
-  //     loadBearing?: boolean;
-  //     isExternal?: boolean;
-  //   };
-  // }>,
-  uploadId: string,
+async function getUploadBulk(
   request: AuthenticatedRequest,
-  context: { params: Promise<{ id: string }> }
+  context: ValidationContext<never, GetUploadBulkRequestApi['query']>
 ) {
-  const { id } = await context.params
-  const upload = await Upload.findById(id).populate('elements')
+  try {
+    const { uploadIds, pagination } = context.query
+    const { page, size } = pagination || { page: 1, size: 50 }
 
-  if (!upload) {
-    return NextResponse.json({ error: 'Upload not found' }, { status: 404 })
+    if (!uploadIds.every(id => Types.ObjectId.isValid(id))) {
+      return sendApiErrorResponse(new Error('Invalid upload ID'), request, {
+        resource: 'upload',
+      })
+    }
+
+    const uploads = await UploadService.getUploadBulk({
+      data: {
+        uploadIds: uploadIds.map(id => new Types.ObjectId(id)),
+        pagination: { size, page },
+      },
+    })
+
+    return sendApiSuccessResponse(uploads, 'Uploads fetched successfully', request)
+  } catch (error: unknown) {
+    return sendApiErrorResponse(error, request, { operation: 'get', resource: 'Uploads' })
   }
-
-  // Create elements
-  // const processedElements = await Element.create(
-  //   elements.map((element) => {
-  //     const volume = (() => {
-  //       if (typeof element.netVolume === "object") {
-  //         return element.netVolume.net;
-  //       }
-  //       if (typeof element.netVolume === "number") {
-  //         return element.netVolume;
-  //       }
-  //       if (typeof element.grossVolume === "object") {
-  //         return element.grossVolume.net;
-  //       }
-  //       if (typeof element.grossVolume === "number") {
-  //         return element.grossVolume;
-  //       }
-  //       return 0;
-  //     })();
-
-  //     return {
-  //       projectId,
-  //       guid: element.globalId,
-  //       name: element.name,
-  //       type: element.type,
-  //       volume: volume,
-  //       loadBearing: element.properties?.loadBearing || false,
-  //       isExternal: element.properties?.isExternal || false,
-  //       materials: [],
-  //     };
-  //   })
-  // );
 }
+
+async function updateUploadBulk(
+  request: AuthenticatedValidationRequest<UpdateUploadBulkRequestApi['data']>
+) {
+  try {
+    const { uploadIds, updates } = request.validatedData
+
+    if (!uploadIds.every(id => Types.ObjectId.isValid(id))) {
+      return sendApiErrorResponse(new Error('Invalid upload ID'), request, {
+        resource: 'upload',
+      })
+    }
+
+    const result = await UploadService.updateUploadBulk({
+      data: { uploadIds: uploadIds.map(id => new Types.ObjectId(id)), updates },
+    })
+    return sendApiSuccessResponse(result, 'Uploads updated successfully', request)
+  } catch (error: unknown) {
+    return sendApiErrorResponse(error, request, { operation: 'update bulk', resource: 'Uploads' })
+  }
+}
+
+async function deleteUploadBulk(
+  request: AuthenticatedValidationRequest<DeleteUploadBulkRequestApi['data']>
+) {
+  try {
+    const { uploadIds } = request.validatedData
+
+    if (!uploadIds.every(id => Types.ObjectId.isValid(id))) {
+      return sendApiErrorResponse(new Error('Invalid upload ID'), request, {
+        resource: 'upload',
+      })
+    }
+
+    const result = await UploadService.deleteUploadBulk({
+      data: { uploadIds: uploadIds.map(id => new Types.ObjectId(id)) },
+    })
+    return sendApiSuccessResponse(result, 'Uploads deleted successfully', request)
+  } catch (error: unknown) {
+    return sendApiErrorResponse(error, request, { operation: 'delete bulk', resource: 'Uploads' })
+  }
+}
+
+export const GET = withAuthAndDBValidationWithQueryParams({
+  dataSchema: getUploadBulkRequestSchemaApi.shape.data,
+  queryParamsSchema: getUploadBulkRequestSchemaApi.shape.query,
+  handler: getUploadBulk,
+  options: {
+    method: 'json',
+  },
+})
+export const PUT = withAuthAndDBValidation({
+  dataSchema: updateUploadBulkRequestSchemaApi.shape.data,
+  handler: updateUploadBulk,
+  options: {
+    method: 'json',
+  },
+})
+export const DELETE = withAuthAndDBValidation({
+  dataSchema: deleteUploadBulkRequestSchemaApi.shape.data,
+  handler: deleteUploadBulk,
+  options: {
+    method: 'json',
+  },
+})

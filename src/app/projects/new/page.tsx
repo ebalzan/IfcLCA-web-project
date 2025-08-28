@@ -25,7 +25,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { useCreateProject } from '@/hooks/projects/use-project-operations'
-import { CreateProjectSchema, createProjectSchema } from '@/schemas/projects/createProjectSchema'
+import { createProjectSchema, CreateProjectSchema } from '@/schemas/client/project-schemas'
 
 export default function ProjectsNewPage() {
   const router = useRouter()
@@ -98,7 +98,22 @@ export default function ProjectsNewPage() {
       <Breadcrumbs items={breadcrumbItems} />
       <Card className="max-w-2xl mx-auto">
         <Form {...form}>
-          <form onSubmit={handleSubmit(data => createProject(data))}>
+          <form
+            onSubmit={handleSubmit(data =>
+              createProject({
+                project: {
+                  ...data,
+                  indicators: {
+                    gwp: 0,
+                    ubp: 0,
+                    penre: 0,
+                    lastCalculated: new Date(),
+                  },
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                },
+              })
+            )}>
             <CardHeader>
               <CardTitle className="text-2xl font-bold flex items-center gap-2">
                 <PlusCircle className="h-6 w-6 text-muted-foreground" />
