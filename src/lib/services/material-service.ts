@@ -623,6 +623,11 @@ export class MaterialService {
   static async getBestEC3Match(
     materialName: string
   ): Promise<{ ec3Material: IEC3Material; score: number } | null> {
+    if (!materialName) {
+      logger.warn('Material name is null or undefined, skipping EC3 match')
+      return null
+    }
+
     const cleanedName = materialName.trim()
 
     try {
