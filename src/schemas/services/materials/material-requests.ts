@@ -62,14 +62,14 @@ export const getMaterialBulkByProjectRequestSchema = defaultRequestSchema(
 export const updateMaterialRequestSchema = defaultRequestSchema(
   z.object({
     materialId: z.custom<Types.ObjectId>(),
-    updates: z.custom<Partial<Omit<IMaterialDB, 'id'>>>(),
+    updates: z.custom<Partial<Omit<IMaterialDB, '_id' | 'projectId' | 'uploadId'>>>(),
   })
 )
 export const updateMaterialBulkRequestSchema = defaultRequestSchema(
   z.object({
     materialIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one material ID is required'),
     updates: z
-      .array(z.custom<Partial<Omit<IMaterialDB, 'id'>>>())
+      .array(z.custom<Partial<Omit<IMaterialDB, '_id' | 'projectId' | 'uploadId'>>>())
       .min(1, 'At least one update is required'),
   })
 )

@@ -36,10 +36,8 @@ export const createEC3MatchRequestApiSchema = defaultRequestSchemaApi({
   query: z.object({}),
   data: z.object({
     updates: z.custom<
-      Partial<Omit<IMaterialDB, 'id' | 'ec3MatchId' | 'projectId' | 'uploadId'>> & {
-        projectId: string
-        uploadId: string
-      } & Pick<IEC3Match, 'score' | 'ec3MatchId' | 'autoMatched'>
+      Partial<Omit<IMaterialDB, 'id' | 'ec3MatchId' | 'projectId' | 'uploadId'>> &
+        Pick<IEC3Match, 'score' | 'ec3MatchId' | 'autoMatched'>
     >(),
   }),
 })
@@ -51,10 +49,8 @@ export const createEC3BulkMatchRequestApiSchema = defaultRequestSchemaApi({
     updates: z
       .array(
         z.custom<
-          Partial<Omit<IMaterialDB, 'id' | 'ec3MatchId' | 'projectId' | 'uploadId'>> & {} & Pick<
-              IEC3Match,
-              'score' | 'ec3MatchId' | 'autoMatched'
-            >
+          Partial<Omit<IMaterialDB, 'id' | 'ec3MatchId' | 'projectId' | 'uploadId'>> &
+            Pick<IEC3Match, 'score' | 'ec3MatchId' | 'autoMatched'>
         >()
       )
       .min(1, 'At least one update is required'),
@@ -87,12 +83,7 @@ export const updateMaterialRequestApiSchema = defaultRequestSchemaApi({
   pathParams: z.object({ id: z.string() }),
   query: z.object({}),
   data: z.object({
-    updates: z.custom<
-      Partial<Omit<IMaterialDB, 'id' | 'projectId' | 'uploadId'>> & {
-        projectId: string
-        uploadId: string
-      }
-    >(),
+    updates: z.custom<Partial<Omit<IMaterialDB, 'id' | 'projectId' | 'uploadId'>>>(),
   }),
 })
 export const updateMaterialBulkRequestApiSchema = defaultRequestSchemaApi({
@@ -101,14 +92,7 @@ export const updateMaterialBulkRequestApiSchema = defaultRequestSchemaApi({
   data: z.object({
     materialIds: z.array(z.string()).min(1, 'At least one material ID is required'),
     updates: z
-      .array(
-        z.custom<
-          Partial<Omit<IMaterialDB, 'id' | 'projectId' | 'uploadId'>> & {
-            projectId: string
-            uploadId: string
-          }
-        >()
-      )
+      .array(z.custom<Partial<Omit<IMaterialDB, 'id' | 'projectId' | 'uploadId'>>>())
       .min(1, 'At least one update is required'),
   }),
 })
