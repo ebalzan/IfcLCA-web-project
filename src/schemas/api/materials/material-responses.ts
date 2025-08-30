@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { IEC3MatchClient } from '@/interfaces/client/materials/IEC3MatchClient'
-import IMaterialDB from '@/interfaces/materials/IMaterialDB'
+import IMaterialDB, { IMaterialVirtuals } from '@/interfaces/materials/IMaterialDB'
 import { defaultResponseSchema, paginationResponseSchema } from '@/schemas/general'
 
 // Create material types
@@ -65,7 +65,23 @@ export const getMaterialBulkByProjectResponseApiSchema = defaultResponseSchema(
           _id: string
           projectId: string
           uploadId: string
-        }
+        } & IMaterialVirtuals
+      >()
+    ),
+    pagination: paginationResponseSchema,
+  })
+)
+
+// Get material types
+export const getMaterialBulkByUserResponseApiSchema = defaultResponseSchema(
+  z.object({
+    materials: z.array(
+      z.custom<
+        Omit<IMaterialDB, '_id' | 'projectId' | 'uploadId'> & {
+          _id: string
+          projectId: string
+          uploadId: string
+        } & IMaterialVirtuals
       >()
     ),
     pagination: paginationResponseSchema,
@@ -129,6 +145,9 @@ export type GetMaterialResponseApi = z.infer<typeof getMaterialResponseApiSchema
 export type GetMaterialBulkResponseApi = z.infer<typeof getMaterialBulkResponseApiSchema>
 export type GetMaterialBulkByProjectResponseApi = z.infer<
   typeof getMaterialBulkByProjectResponseApiSchema
+>
+export type GetMaterialBulkByUserResponseApi = z.infer<
+  typeof getMaterialBulkByUserResponseApiSchema
 >
 
 // Update material types

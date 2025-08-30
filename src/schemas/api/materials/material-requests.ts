@@ -74,7 +74,12 @@ export const getMaterialBulkRequestApiSchema = defaultRequestSchemaApi({
 })
 export const getMaterialBulkByProjectRequestApiSchema = defaultRequestSchemaApi({
   pathParams: z.object({}),
-  query: defaultQuerySchema(z.object({ projectId: z.string() })),
+  query: defaultQuerySchema(z.object({ projectId: z.string(), userId: z.string() })),
+  data: z.object({}),
+})
+export const getMaterialBulkByUserRequestApiSchema = defaultRequestSchemaApi({
+  pathParams: z.object({ id: z.string() }),
+  query: defaultQuerySchema(z.object({})),
   data: z.object({}),
 })
 
@@ -125,6 +130,7 @@ export type GetMaterialBulkRequestApi = z.infer<typeof getMaterialBulkRequestApi
 export type GetMaterialBulkByProjectRequestApi = z.infer<
   typeof getMaterialBulkByProjectRequestApiSchema
 >
+export type GetMaterialBulkByUserRequestApi = z.infer<typeof getMaterialBulkByUserRequestApiSchema>
 
 // Update material types
 export type UpdateMaterialRequestApi = z.infer<typeof updateMaterialRequestApiSchema>

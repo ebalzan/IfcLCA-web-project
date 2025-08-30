@@ -8,12 +8,7 @@ interface IMaterialDB {
   ec3MatchId: string | null
   densityMin: number | null
   densityMax: number | null
-  category: {
-    id: string
-    name: string
-    description: string | null
-    declaredUnit: string | null
-  } | null
+  category: string | null
   gwp: number | null
   ubp: number | null
   penre: number | null

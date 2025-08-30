@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
+import { IMaterialClient } from '@/interfaces/client/materials/IMaterialClient'
 import { MaterialsLibraryStoreActions } from './interfaces/MaterialsLibraryStoreActions'
 import { MaterialsLibraryStoreState } from './interfaces/MaterialsLibraryStoreState'
 import { TemporaryMatch } from './interfaces/TemporaryMatch'
@@ -8,6 +9,7 @@ const initialState: MaterialsLibraryStoreState = {
   selectedProject: 'all',
   temporaryMatches: [],
   selectedMaterials: [],
+  filteredMaterials: [],
   matchingProgress: {
     matchedCount: 0,
     percentage: 0,
@@ -18,7 +20,17 @@ const initialState: MaterialsLibraryStoreState = {
   ifcSearchValue: '',
   isAutoScrollEnabled: false,
   ec3SearchValue: '',
-  ec3SearchFields: ['id', 'name', 'category', 'gwp', 'ubp', 'penre', 'density', 'declared_unit'],
+  ec3SearchFields: [
+    'id',
+    'name',
+    'category',
+    'gwp',
+    'ubp',
+    'penre',
+    'density_min',
+    'density_max',
+    'declared_unit',
+  ],
   ec3SearchSortBy: '+name',
 }
 
@@ -31,6 +43,10 @@ export const useMaterialsLibraryStore = create<
 
       setSelectedProject: (projectId: string) => {
         set({ selectedProject: projectId })
+      },
+
+      setFilteredMaterials: (materials: IMaterialClient[]) => {
+        set({ filteredMaterials: materials })
       },
 
       setIfcSearchValue: (value: string) => {

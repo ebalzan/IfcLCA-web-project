@@ -5,7 +5,11 @@ import { Badge } from '@/components/ui/badge'
 import { IMaterialClient } from '@/interfaces/client/materials/IMaterialClient'
 import { IMaterialVirtuals } from '@/interfaces/materials/IMaterialDB'
 
-export const materialsColumns: ColumnDef<IMaterialClient & IMaterialVirtuals>[] = [
+type IMaterialColumns = Omit<IMaterialClient, 'densityMin' | 'densityMax'> & {
+  density: number
+} & IMaterialVirtuals
+
+export const materialsColumns: ColumnDef<IMaterialColumns>[] = [
   {
     accessorKey: 'name',
     header: () => <div className="flex items-center">Name</div>,
@@ -41,16 +45,14 @@ export const materialsColumns: ColumnDef<IMaterialClient & IMaterialVirtuals>[] 
     header: 'Density (kg/m³)',
     cell: ({ row }) => {
       const density = row.original.density
+
       if (!density)
         return (
           <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
             Not Set
           </Badge>
         )
-      return density.toLocaleString('de-CH', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-      })
+      return `${density.toFixed(3)} kg/m³`
     },
   },
   {

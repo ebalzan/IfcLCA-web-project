@@ -15,7 +15,7 @@ async function getMaterialBulkByProject(
   context: ValidationContext<never, GetMaterialBulkByProjectRequestApi['query']>
 ) {
   try {
-    const { projectId, pagination } = context.query
+    const { projectId, userId, pagination } = context.query
     const { page, size } = pagination || { page: 1, size: 50 }
 
     if (!Types.ObjectId.isValid(projectId)) {
@@ -27,6 +27,7 @@ async function getMaterialBulkByProject(
     const results = await MaterialService.getMaterialBulkByProject({
       data: {
         projectId: new Types.ObjectId(projectId),
+        userId,
         pagination: { page, size },
       },
     })

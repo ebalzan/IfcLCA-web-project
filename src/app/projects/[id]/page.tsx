@@ -275,43 +275,12 @@ const MaterialsTab = ({ project }: { project: IProjectWithNestedDataClient }) =>
       project.materials.map(({ densityMin, densityMax, ...material }) => ({
         ...material,
         ec3MatchId: material.ec3MatchId !== null ? material.ec3MatchId : null,
-        density: (densityMin || 0) + (densityMax || 0) / 2,
+        density: (densityMax || 0) + (densityMin || 0) / 2,
         gwp: material.gwp || 0,
         ubp: material.ubp || 0,
         penre: material.penre || 0,
         totalVolume: material.totalVolume || 0,
       }))
-    // const materialGroups = project.elements.reduce(
-    //   (acc, element) => {
-    //     element.materialRefs.forEach((materialLayer: IMaterialClient) => {
-    //       const key = materialLayer._id
-    //       if (!acc[key]) {
-    //         acc[key] = {
-    //           ...materialLayer,
-    //           // totalVolume: 0,
-    //           gwp: 0,
-    //           ubp: 0,
-    //           penre: 0,
-    //         }
-    //       }
-    //       acc[key].totalVolume += materialLayer.totalVolume || 0
-    //       acc[key].gwp +=
-    //         materialLayer.totalVolume *
-    //         (materialLayer.density || 0) *
-    //         (materialLayer.indicators.gwp || 0)
-    //       acc[key].ubp +=
-    //         materialLayer.totalVolume *
-    //         (materialLayer.density || 0) *
-    //         (materialLayer.indicators.ubp || 0)
-    //       acc[key].penre +=
-    //         materialLayer.volume *
-    //         (materialLayer.material.density || 0) *
-    //         (materialLayer.material.kbobMatch?.penre || 0)
-    //     })
-    //     return acc
-    //   },
-    //   {} as Record<string, IMaterialClient>
-    // )
 
     return materialGroups
   }, [project.materials])
@@ -337,13 +306,12 @@ const MaterialsTab = ({ project }: { project: IProjectWithNestedDataClient }) =>
 
 const GraphTab = ({ project }: { project: IProjectWithNestedDataClient }) => {
   const materialsData = project.elements.flatMap(element =>
-    // Create one entry per element-material combination
     element.materialRefs.map((material: IMaterialClient) => ({
-      name: element.name, // Element name from elements table
-      elementName: element.name, // Explicit element name for grouping
+      name: element.name,
+      elementName: element.name,
       ifcMaterial: material.name || 'Unknown',
-      openEPDMaterial: material.ec3MatchId,
-      category: element.type, // Ifc entity type
+      ec3Material: material.ec3MatchId,
+      category: element.type,
       // volume: material.volume, // Use individual material volume
       indicators: {
         gwp: 0,
