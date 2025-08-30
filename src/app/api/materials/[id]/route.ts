@@ -75,11 +75,7 @@ async function updateMaterial(
     const result = await MaterialService.updateMaterial({
       data: {
         materialId: new Types.ObjectId(materialId),
-        updates: {
-          ...updates,
-          projectId: new Types.ObjectId(updates.projectId),
-          uploadId: new Types.ObjectId(updates.uploadId),
-        },
+        updates,
       },
     })
 

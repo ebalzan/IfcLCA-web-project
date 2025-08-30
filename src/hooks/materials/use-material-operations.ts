@@ -18,6 +18,7 @@ import {
   DeleteMaterialBulkResponseApi,
   DeleteMaterialResponseApi,
   GetMaterialBulkByProjectResponseApi,
+  GetMaterialBulkByUserResponseApi,
   GetMaterialBulkResponseApi,
   GetMaterialResponseApi,
   UpdateMaterialBulkResponseApi,
@@ -28,6 +29,7 @@ import {
   DeleteMaterialBulkSchema,
   DeleteMaterialSchema,
   GetMaterialBulkByProjectSchema,
+  GetMaterialBulkByUserSchema,
   GetMaterialBulkSchema,
   GetMaterialSchema,
   UpdateMaterialBulkSchema,
@@ -90,20 +92,34 @@ export const useGetMaterialBulk = ({ materialIds }: GetMaterialBulkSchema) => {
     }
   )
 }
-export const useGetMaterialBulkByProject = ({ projectId }: GetMaterialBulkByProjectSchema) => {
+export const useGetMaterialBulkByProject = ({
+  projectId,
+  userId,
+}: GetMaterialBulkByProjectSchema) => {
   return useTanStackInfiniteQuery<GetMaterialBulkByProjectResponseApi, IMaterialClient[]>(
-    `/api/materials/project?projectId=${projectId}`,
+    `/api/materials/project?projectId=${projectId}&userId=${userId}`,
     {
       queryKey: [Queries.GET_MATERIALS, projectId],
+      enabled: projectId !== 'all',
       initialPageParam: 1,
       select: data => {
-        return data.pages.flatMap(page =>
-          page.data.materials.map(material => ({
-            ...material,
-            totalVolume: 0,
-            elements: [],
-          }))
-        )
+        return data.pages.flatMap(page => page.data.materials)
+      },
+      getNextPageParam: (lastPage, allPages, lastPageParam) => {
+        return lastPage.data.pagination.hasMore ? (lastPageParam as number) + 1 : undefined
+      },
+    }
+  )
+}
+export const useGetMaterialBulkByUser = ({ userId }: GetMaterialBulkByUserSchema) => {
+  return useTanStackInfiniteQuery<GetMaterialBulkByUserResponseApi, IMaterialClient[]>(
+    `/api/materials/user/${userId}`,
+    {
+      queryKey: [Queries.GET_MATERIALS, userId],
+      enabled: !!userId,
+      initialPageParam: 1,
+      select: data => {
+        return data.pages.flatMap(page => page.data.materials)
       },
       getNextPageParam: (lastPage, allPages, lastPageParam) => {
         return lastPage.data.pagination.hasMore ? (lastPageParam as number) + 1 : undefined

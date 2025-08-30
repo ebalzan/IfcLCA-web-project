@@ -1,12 +1,18 @@
 import { Types } from 'mongoose'
-import { IEC3Material } from './IEC3Material'
 
-interface IMaterialDB extends Partial<Omit<IEC3Material, 'id' | 'name'>> {
+interface IMaterialDB {
   _id: Types.ObjectId
   name: string
   projectId: Types.ObjectId
   uploadId: Types.ObjectId
   ec3MatchId: string | null
+  densityMin: number | null
+  densityMax: number | null
+  category: string | null
+  gwp: number | null
+  ubp: number | null
+  penre: number | null
+  declaredUnit: string | null
 }
 
 export interface IMaterialVirtuals {

@@ -1,10 +1,12 @@
 import { AutoSuggestedMatch } from '@/components/materials-library/ifc-card/ifc-card-item/AutoSuggestedMatch'
+import { IMaterialClient } from '@/interfaces/client/materials/IMaterialClient'
 import { TemporaryMatch } from './TemporaryMatch'
 
 export interface MaterialsLibraryStoreState {
   selectedProject: string
   temporaryMatches: TemporaryMatch[]
   selectedMaterials: string[]
+  filteredMaterials: IMaterialClient[]
   matchingProgress: {
     matchedCount: number
     percentage: number

@@ -36,7 +36,6 @@ export default function EditProjectPage() {
   const { mutate: deleteProject, isLoading: isDeletingProject } = useDeleteProject({
     id: projectId,
   })
-
   const form = useForm<UpdateProjectFormSchema>({
     resolver: zodResolver(updateProjectFormSchema),
     defaultValues: {
@@ -51,7 +50,6 @@ export default function EditProjectPage() {
     formState: { isDirty },
   } = form
 
-  // Use useEffect instead of useMemo for form initialization
   useEffect(() => {
     if (project && !hasInitialized) {
       reset({
@@ -61,6 +59,15 @@ export default function EditProjectPage() {
       setHasInitialized(true)
     }
   }, [project, reset, hasInitialized])
+
+  function handleDeleteProject() {
+    deleteProject(undefined, {
+      onSuccess: () => {
+        setIsDeleteDialogOpen(false)
+        router.replace('/projects')
+      },
+    })
+  }
 
   const breadcrumbItems = [
     { label: 'Projects', href: '/projects' },
@@ -183,7 +190,7 @@ export default function EditProjectPage() {
       <DeleteProjectDialog
         isOpen={isDeleteDialogOpen}
         onClose={() => setIsDeleteDialogOpen(false)}
-        onDelete={() => deleteProject()}
+        onDelete={handleDeleteProject}
       />
     </div>
   )

@@ -17,6 +17,7 @@ export function IFCCardHeader({
   isSelectAllChecked,
   onSelectAllCheckedChange,
   clearMatches,
+  isSelectAllDisabled,
 }: IFCCardHeaderProps) {
   return (
     <div className="flex flex-col gap-2 p-4 border-b">
@@ -72,6 +73,7 @@ export function IFCCardHeader({
             id="select-all"
             checked={isSelectAllChecked}
             onCheckedChange={onSelectAllCheckedChange}
+            disabled={isSelectAllDisabled}
           />
           <Label htmlFor="select-all">Select all</Label>
         </div>

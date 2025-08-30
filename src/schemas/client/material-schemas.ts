@@ -18,6 +18,10 @@ export const getMaterialBulkSchema = z.object({
 })
 export const getMaterialBulkByProjectSchema = z.object({
   projectId: z.string().min(1),
+  userId: z.string().min(1),
+})
+export const getMaterialBulkByUserSchema = z.object({
+  userId: z.string().min(1),
 })
 
 // UPDATE
@@ -60,6 +64,7 @@ export type CreateMaterialBulkSchema = z.infer<typeof createMaterialBulkSchema>
 export type GetMaterialSchema = z.infer<typeof getMaterialSchema>
 export type GetMaterialBulkSchema = z.infer<typeof getMaterialBulkSchema>
 export type GetMaterialBulkByProjectSchema = z.infer<typeof getMaterialBulkByProjectSchema>
+export type GetMaterialBulkByUserSchema = z.infer<typeof getMaterialBulkByUserSchema>
 
 // Update types
 export type UpdateMaterialSchema = z.infer<typeof updateMaterialSchema>

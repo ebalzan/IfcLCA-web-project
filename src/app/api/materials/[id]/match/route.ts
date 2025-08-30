@@ -26,26 +26,10 @@ async function createEC3Match(
       })
     }
 
-    if (!Types.ObjectId.isValid(updates.projectId)) {
-      return sendApiErrorResponse(new Error('Invalid project ID'), request, {
-        resource: 'project',
-      })
-    }
-
-    if (!Types.ObjectId.isValid(updates.uploadId)) {
-      return sendApiErrorResponse(new Error('Invalid upload ID'), request, {
-        resource: 'upload',
-      })
-    }
-
     const result = await MaterialService.createEC3Match({
       data: {
         materialId: new Types.ObjectId(materialId),
-        updates: {
-          ...updates,
-          projectId: new Types.ObjectId(updates.projectId),
-          uploadId: new Types.ObjectId(updates.uploadId),
-        },
+        updates,
       },
     })
 

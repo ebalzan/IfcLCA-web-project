@@ -20,6 +20,7 @@ import {
   DeleteMaterialBulkRequest,
   DeleteMaterialRequest,
   GetMaterialBulkByProjectRequest,
+  GetMaterialBulkByUserRequest,
   GetMaterialBulkRequest,
   GetMaterialRequest,
   UpdateMaterialBulkRequest,
@@ -37,8 +38,10 @@ import {
   GetMaterialBulkResponse,
   DeleteMaterialBulkResponse,
   GetMaterialBulkByProjectResponse,
+  GetMaterialBulkByUserResponse,
 } from '@/schemas/services/materials/material-responses'
 import { withTransaction } from '@/utils/withTransaction'
+import { ProjectService } from './project-service'
 import { api } from '../fetch'
 
 export class MaterialService {
@@ -341,13 +344,17 @@ export class MaterialService {
    * Get multiple materials by project ID
    */
   static async getMaterialBulkByProject({
-    data: { projectId, pagination },
+    data: { projectId, userId, pagination },
     session,
   }: GetMaterialBulkByProjectRequest): Promise<GetMaterialBulkByProjectResponse> {
     return withTransaction(async useSession => {
       if (!pagination) {
         try {
-          const materials = await Material.find({ projectId }).session(useSession).lean()
+          const projects = await ProjectService.getProjectWithNestedData({
+            data: { projectId, userId },
+            session: useSession,
+          })
+          const materials = projects.materials
 
           if (!materials || materials.length === 0) {
             throw new MaterialNotFoundError(projectId.toString())
@@ -371,11 +378,11 @@ export class MaterialService {
           const { page, size } = pagination
           const skip = (page - 1) * size
 
-          const materials = await Material.find({ projectId })
-            .session(useSession)
-            .limit(size)
-            .skip(skip)
-            .lean()
+          const projects = await ProjectService.getProjectWithNestedData({
+            data: { projectId, userId },
+            session: useSession,
+          })
+          const materials = projects.materials
 
           const totalCount = await Material.countDocuments({ projectId }).session(useSession)
 
@@ -398,6 +405,73 @@ export class MaterialService {
 
           throw new DatabaseError(
             error instanceof Error ? error.message : 'Failed to fetch materials',
+            'read'
+          )
+        }
+      }
+    }, session)
+  }
+
+  /**
+   * Get multiple materials by user ID
+   */
+  static async getMaterialBulkByUser({
+    data: { userId, pagination },
+    session,
+  }: GetMaterialBulkByUserRequest): Promise<GetMaterialBulkByUserResponse> {
+    return withTransaction(async useSession => {
+      if (!pagination) {
+        try {
+          const { projects } = await ProjectService.getProjectWithNestedDataBulkByUser({
+            data: { userId },
+            session: useSession,
+          })
+
+          return { materials: projects.flatMap(project => project.materials) }
+        } catch (error: unknown) {
+          logger.error('❌ [Material Service] Error in getMaterialBulkByUser:', error)
+
+          if (isAppError(error)) {
+            throw error
+          }
+
+          throw new DatabaseError(
+            error instanceof Error ? error.message : 'Failed to fetch materials',
+            'read'
+          )
+        }
+      } else {
+        try {
+          const { page, size } = pagination
+
+          const { projects } = await ProjectService.getProjectWithNestedDataBulkByUser({
+            data: { userId, pagination: { page, size } },
+            session: useSession,
+          })
+
+          const totalCount = await Material.countDocuments({
+            projectId: { $in: projects.map(project => project._id) },
+          }).session(useSession)
+
+          return {
+            materials: projects.flatMap(project => project.materials),
+            pagination: {
+              page,
+              size,
+              totalCount,
+              hasMore: page * size < totalCount,
+              totalPages: Math.ceil(totalCount / size),
+            },
+          }
+        } catch (error: unknown) {
+          logger.error('❌ [Material Service] Error in getMaterialBulkByUser:', error)
+
+          if (isAppError(error)) {
+            throw error
+          }
+
+          throw new DatabaseError(
+            error instanceof Error ? error.message : 'Failed to fetch materials by user',
             'read'
           )
         }
@@ -623,6 +697,11 @@ export class MaterialService {
   static async getBestEC3Match(
     materialName: string
   ): Promise<{ ec3Material: IEC3Material; score: number } | null> {
+    if (!materialName) {
+      logger.warn('Material name is null or undefined, skipping EC3 match')
+      return null
+    }
+
     const cleanedName = materialName.trim()
 
     try {

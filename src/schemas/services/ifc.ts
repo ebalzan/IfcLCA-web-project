@@ -1,6 +1,7 @@
 import { Types } from 'mongoose'
 import { z } from 'zod'
 import { IFCElement, IFCParseResult } from '@/interfaces/ifc'
+import { WASMElement } from '@/interfaces/wasm'
 import { defaultRequestSchema, defaultResponseSchema } from '../general'
 
 // Apply automatic material matches request and response schemas
@@ -37,7 +38,7 @@ export const parseIFCFileRequestSchema = defaultRequestSchema(
   z.object({
     filename: z.string(),
     projectId: z.custom<Types.ObjectId>(),
-    elements: z.array(z.custom<IFCElement>()),
+    elements: z.array(z.custom<WASMElement>()),
     userId: z.string(),
   })
 )
