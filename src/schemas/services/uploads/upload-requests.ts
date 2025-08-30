@@ -48,7 +48,7 @@ export const updateUploadBulkRequestSchema = defaultRequestSchema(
   z.object({
     uploadIds: z.array(z.custom<Types.ObjectId>()).min(1, 'At least one upload ID is required'),
     updates: z
-      .array(z.custom<Partial<Omit<IUploadDB, '_id'>>>())
+      .array(z.custom<Partial<Omit<IUploadDB, '_id' | 'projectId'>>>())
       .min(1, 'At least one update is required'),
   })
 )

@@ -12,9 +12,14 @@ import {
 import { useMaterialsLibraryStore } from '@/hooks/materials/materials-library/materials-library-store'
 import { useEC3Search } from '@/hooks/materials/materials-library/use-ec3-search'
 import { useMaterialMatching } from '@/hooks/materials/materials-library/use-material-matching'
-import { useGetMaterialBulkByProject } from '@/hooks/materials/use-material-operations'
+import {
+  useGetMaterialBulkByProject,
+  useGetMaterialBulkByUser,
+} from '@/hooks/materials/use-material-operations'
 import { useGetProjectWithNestedDataBulkByUser } from '@/hooks/projects/use-project-operations'
 import { useCreateBulkMatch } from '@/hooks/use-create-match'
+import { parseDensity, parseIndicator } from '@/utils/parses'
+import { transformSnakeToCamel } from '@/utils/transformers'
 import { MaterialChangesPreviewModal } from './material-changes-preview-modal'
 import { EC3Card } from './materials-library/ec3-card'
 import { IFCCard } from './materials-library/ifc-card'
@@ -38,13 +43,20 @@ export function MaterialLibraryComponent() {
     isPreviewModalOpen,
     openPreviewModal,
     closePreviewModal,
+    filteredMaterials,
+    setFilteredMaterials,
   } = useMaterialsLibraryStore()
   const { data: projectsWithNestedData } = useGetProjectWithNestedDataBulkByUser({
     userId: userId || '',
   })
-  const { data: materialsData, isLoading: isMaterialsLoading } = useGetMaterialBulkByProject({
-    projectId: selectedProject,
+  const { data: materialsByUser, isLoading: isMaterialsByUserLoading } = useGetMaterialBulkByUser({
+    userId: userId || '',
   })
+  const { data: materialsByProject, isLoading: isMaterialsByProjectLoading } =
+    useGetMaterialBulkByProject({
+      projectId: selectedProject,
+      userId: userId || '',
+    })
   const { ec3SearchValue, EC3Materials, isSearching, handleEC3Search, handleEC3SearchTermChange } =
     useEC3Search()
   const {
@@ -57,41 +69,39 @@ export function MaterialLibraryComponent() {
   } = useMaterialMatching()
   const { mutateAsync: createBulkMatch, isLoading: isCreatingBulkMatch } = useCreateBulkMatch()
 
-  // Helper function to parse GWP string to number
-  const parseGWP = (gwpString: string): number => {
-    const match = gwpString.match(/(\d+(?:\.\d+)?)/)
-    return match ? parseFloat(match[1]) : 0
-  }
-
-  // Helper function to parse density string to number
-  const parseDensity = (densityString: string): number => {
-    const match = densityString.match(/(\d+(?:\.\d+)?)/)
-    return match ? parseFloat(match[1]) : 0
-  }
-
-  // console.log(
-  //   'TEMPORARY MATCHES_UPDATES#########',
-  //   temporaryMatches.map(match => ({
-  //     ...match.ec3MaterialData,
-  //     gwp: parseGWP(match.ec3MaterialData.gwp?.toString() || ''),
-  //     density: parseDensity(match.ec3MaterialData.density?.toString() || ''),
-  //     ec3MatchId: match.ec3MatchId,
-  //     autoMatched: match.autoMatched,
-  //     materialId: match.materialId,
-  //   }))
-  // )
+  useEffect(() => {
+    if (selectedProject === 'all') {
+      setFilteredMaterials(materialsByUser || [])
+    } else {
+      setFilteredMaterials(materialsByProject || [])
+    }
+  }, [selectedProject, materialsByUser, materialsByProject, setFilteredMaterials])
 
   const handleConfirmMatches = useCallback(async () => {
-    await createBulkMatch({
-      materialIds: temporaryMatches.map(match => match.materialId),
-      updates: temporaryMatches.map(match => ({
-        ...match.ec3MaterialData,
-        category: null,
-        gwp: parseGWP(match.ec3MaterialData.gwp?.toString() || ''),
-        density: parseDensity(match.ec3MaterialData.density?.toString() || ''),
+    const transformedMatches = temporaryMatches.map(match => {
+      const ec3Data = transformSnakeToCamel(match.ec3MaterialData)
+      // Remove the name field to avoid duplicate key errors
+      const { name, ...ec3DataWithoutName } = ec3Data
+
+      return {
+        ...ec3DataWithoutName,
+        category: match.ec3MaterialData.category.name,
         ec3MatchId: match.ec3MatchId,
         autoMatched: match.autoMatched,
         materialId: match.materialId,
+      }
+    })
+
+    await createBulkMatch({
+      materialIds: temporaryMatches.map(match => match.materialId),
+      updates: transformedMatches.map(match => ({
+        ...match,
+        densityMin: match.densityMin ? parseDensity(match.densityMin) : null,
+        densityMax: match.densityMax ? parseDensity(match.densityMax) : null,
+        gwp: parseIndicator(match.gwp ?? ''),
+        ubp: parseIndicator(match.ubp ?? ''),
+        penre: parseIndicator(match.penre ?? ''),
+        declaredUnit: match.declaredUnit,
       })),
     })
     confirmMatches()
@@ -113,29 +123,29 @@ export function MaterialLibraryComponent() {
     if (isSelectAllChecked) {
       setSelectedMaterials([])
     } else {
-      const selectableMaterials = materialsData?.filter(
+      const selectableMaterials = filteredMaterials?.filter(
         material => !temporaryMatches.some(match => match.materialId === material._id)
       )
       setSelectedMaterials(selectableMaterials?.map(material => material._id) || [])
     }
-  }, [materialsData, setSelectedMaterials, isSelectAllChecked, temporaryMatches])
+  }, [filteredMaterials, setSelectedMaterials, isSelectAllChecked, temporaryMatches])
 
   useEffect(() => {
-    const selectableMaterials = materialsData?.filter(
+    const selectableMaterials = filteredMaterials?.filter(
       material => !temporaryMatches.some(match => match.materialId === material._id)
     )
     const allSelected =
       selectedMaterials.length === (selectableMaterials?.length || 0) &&
       (selectableMaterials?.length || 0) > 0
     setIsSelectAllChecked(allSelected)
-  }, [selectedMaterials, materialsData, setIsSelectAllChecked, temporaryMatches])
+  }, [selectedMaterials, filteredMaterials, setIsSelectAllChecked, temporaryMatches])
 
   useEffect(() => {
     setMatchingProgress({
       matchedCount: temporaryMatches.length,
-      percentage: (temporaryMatches.length / (materialsData?.length || 0)) * 100,
+      percentage: (temporaryMatches.length / (filteredMaterials?.length || 0)) * 100,
     })
-  }, [materialsData?.length, setMatchingProgress, temporaryMatches.length])
+  }, [filteredMaterials?.length, setMatchingProgress, temporaryMatches.length])
 
   // const handleAcceptSuggestion = useCallback(
   //   (materialId: string, openEPDId: string) => {
@@ -143,11 +153,6 @@ export function MaterialLibraryComponent() {
   //   },
   //   [acceptMatchWithConfetti]
   // )
-
-  // const handleDeleteMaterial = useCallback(async (material: IMaterialClient) => {
-  //   // Implementation for deleting material
-  //   console.log('Delete material:', material._id)
-  // }, [])
 
   // const scrollToMatchingEC3 = useCallback(
   //   (materialName: string) => {
@@ -162,7 +167,7 @@ export function MaterialLibraryComponent() {
   return (
     <div className="flex gap-6 flex-col">
       <div className="flex justify-end gap-4">
-        <Select value={selectedProject || 'all'} onValueChange={setSelectedProject}>
+        <Select value={selectedProject} onValueChange={setSelectedProject}>
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Filter by Project" />
           </SelectTrigger>
@@ -190,8 +195,9 @@ export function MaterialLibraryComponent() {
         <IFCCard.Root>
           <IFCCard.Header
             isSelectAllChecked={isSelectAllChecked}
+            isSelectAllDisabled={filteredMaterials?.length === 0}
             onSelectAllCheckedChange={handleSelectAll}
-            materialsCount={materialsData?.length || 0}
+            materialsCount={filteredMaterials?.length || 0}
             materialsSelectedCount={selectedMaterials.length}
             matchingProgress={{
               matchedCount: matchingProgress.matchedCount,
@@ -203,16 +209,16 @@ export function MaterialLibraryComponent() {
           />
 
           <IFCCard.Content>
-            {isMaterialsLoading ? (
+            {isMaterialsByUserLoading || isMaterialsByProjectLoading ? (
               <div className="flex items-center justify-center h-full">
                 <LoadingSpinner />
               </div>
-            ) : !materialsData ? (
+            ) : !filteredMaterials || filteredMaterials.length === 0 ? (
               <div className="flex items-center justify-center h-full">
                 <p className="text-gray-500">No materials found</p>
               </div>
             ) : (
-              materialsData.map(material => (
+              filteredMaterials.map(material => (
                 <IFCCard.Item
                   key={material._id}
                   material={material}
@@ -245,7 +251,6 @@ export function MaterialLibraryComponent() {
             onSearch={handleEC3Search}
             onIsAutoScrollEnabledChange={() => {}}
           />
-
           <EC3Card.Content>
             {isSearching ? (
               <div className="flex items-center justify-center h-full">

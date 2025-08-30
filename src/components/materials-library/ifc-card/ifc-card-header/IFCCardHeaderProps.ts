@@ -1,5 +1,6 @@
 export interface IFCCardHeaderProps {
   isSelectAllChecked: boolean
+  isSelectAllDisabled: boolean
   materialsCount: number
   materialsSelectedCount: number
   matchingProgress: {

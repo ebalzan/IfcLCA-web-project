@@ -9,6 +9,9 @@ import {
   ProcessElementsAndMaterialsFromIFCRequest,
   ProcessElementsAndMaterialsFromIFCResponse,
 } from '@/schemas/services/ifc'
+import { parseDensity, parseIndicator } from '@/utils/parses'
+import { transformSnakeToCamel } from '@/utils/transformers'
+import { withTransaction } from '@/utils/withTransaction'
 import { MaterialService } from '../material-service'
 
 export class IFCProcessingService {
@@ -22,175 +25,196 @@ export class IFCProcessingService {
     data: { projectId, elements, uploadId },
     session,
   }: ProcessElementsAndMaterialsFromIFCRequest): Promise<ProcessElementsAndMaterialsFromIFCResponse> {
-    try {
-      logger.debug('Starting IFC file processing', {
-        elementCount: elements.length,
-        projectId,
-        uploadId,
-      })
+    return withTransaction(
+      async useSession => {
+        try {
+          if (!elements || elements.length === 0) {
+            return {
+              success: false,
+              data: { elementCount: 0, materialCount: 0 },
+              message: 'No elements found',
+            }
+          }
 
-      const materialNames = new Set<string>(
-        elements.flatMap(element => {
-          const directMaterials = element.materials || []
-          const layerMaterials = Object.keys(element.material_volumes || {})
-          return [...directMaterials, ...layerMaterials]
-        })
-      )
-
-      logger.debug('Materials found', {
-        count: materialNames.size,
-        materials: Array.from(materialNames),
-      })
-
-      const materialOps = Array.from(materialNames).map(name => ({
-        updateOne: {
-          filter: {
-            name,
+          logger.debug('Starting IFC file processing', {
+            elementCount: elements.length,
             projectId,
-          },
-          update: {
-            $setOnInsert: {
-              name,
-              projectId,
-              createdAt: new Date(),
-            },
-            $set: {
-              updatedAt: new Date(),
-            },
-          },
-          upsert: true,
-        },
-      }))
-      const materialResult = await Material.bulkWrite(materialOps, { session })
+            uploadId,
+          })
 
-      logger.debug('Material creation result', {
-        upsertedCount: materialResult.upsertedCount,
-        modifiedCount: materialResult.modifiedCount,
-        matchedCount: materialResult.matchedCount,
-      })
+          const materialNames = new Set<string>(
+            elements.flatMap(element => {
+              const directMaterials = element.materials?.map(material => material.name) || []
+              const layerMaterials =
+                element.materialLayers?.layers.map(layer => layer.materialName) || []
+              return [...directMaterials, ...layerMaterials]
+            })
+          )
 
-      const materialBulkResult = await MaterialService.getMaterialBulkByProject({
-        data: {
-          projectId,
-          pagination: { page: 1, size: materialNames.size },
-        },
-        session,
-      })
-      const materials = materialBulkResult.materials
+          logger.debug('Materials found', {
+            count: materialNames.size,
+            materials: Array.from(materialNames),
+          })
 
-      const materialMap = new Map(materials.map(mat => [mat.name, mat]))
-
-      const BATCH_SIZE = 50
-      let processedCount = 0
-
-      for (let i = 0; i < elements.length; i += BATCH_SIZE) {
-        const batch = elements.slice(i, i + BATCH_SIZE)
-
-        const bulkOps = batch.map(element => {
-          const processedMaterials: IMaterialLayer[] = []
-
-          if (element.materials?.length) {
-            processedMaterials.push(
-              ...element.materials
-                .map(materialName => {
-                  const material = materialMap.get(materialName)
-
-                  if (!material) {
-                    logger.warn(`Material not found: ${materialName}`)
-                    return null
-                  }
-
-                  return {
-                    materialId: new Types.ObjectId(material._id),
-                    materialName: material.name,
-                    volume: 0,
-                    fraction: null,
-                    thickness: null,
-                    indicators: null,
-                  }
-                })
-                .filter(item => item !== null)
-            )
-          }
-
-          if (Object.keys(element.material_volumes).length) {
-            const totalVolume = element.volume
-            const layers = Object.entries(element.material_volumes)
-
-            processedMaterials.push(
-              ...layers
-                .map(([materialName, data], index) => {
-                  const material = materialMap.get(materialName)
-
-                  if (!material) {
-                    logger.warn(`Material not found: ${materialName}`)
-                    return null
-                  }
-
-                  return {
-                    materialId: new Types.ObjectId(material._id),
-                    materialName: material.name,
-                    // volume: data[index].volume / totalVolume,
-                    // fraction: data[index].fraction,
-                    volume: 0,
-                    fraction: 0,
-                    thickness: null,
-                    indicators: null,
-                  }
-                })
-                .filter(item => item !== null)
-            )
-          }
-
-          return {
+          const materialOps = Array.from(materialNames).map(name => ({
             updateOne: {
               filter: {
-                guid: element.id,
+                name,
                 projectId,
               },
               update: {
-                $set: {
-                  name: element.object_type,
-                  type: element.type,
-                  volume: element.volume,
-                  loadBearing: element.properties.loadBearing,
-                  isExternal: element.properties.isExternal,
-                  materialLayers: processedMaterials,
-                  updatedAt: new Date(),
-                },
                 $setOnInsert: {
+                  name,
                   projectId,
                   uploadId,
                   createdAt: new Date(),
                 },
+                $set: {
+                  updatedAt: new Date(),
+                },
               },
               upsert: true,
             },
+          }))
+          const materialResult = await Material.bulkWrite(materialOps, { session: useSession })
+
+          logger.debug('Material creation result', {
+            upsertedCount: materialResult.upsertedCount,
+            modifiedCount: materialResult.modifiedCount,
+            matchedCount: materialResult.matchedCount,
+          })
+
+          const materialBulkResult = await Material.find({
+            name: { $in: Array.from(materialNames) },
+            projectId,
+          })
+            .session(useSession)
+            .lean()
+
+          if (!materialBulkResult || materialBulkResult.length !== materialNames.size) {
+            logger.warn('Material not found', {
+              materialNames: Array.from(materialNames),
+              materialBulkResult: materialBulkResult.map(mat => mat.name),
+            })
           }
-        })
-        const result = await Element.bulkWrite(bulkOps, { session })
-        processedCount += result.upsertedCount + result.modifiedCount
 
-        logger.debug(`Processed batch ${i / BATCH_SIZE + 1}`, {
-          batchSize: batch.length,
-          totalProcessed: processedCount,
-          upsertedCount: result.upsertedCount,
-          modifiedCount: result.modifiedCount,
-        })
-      }
+          const materialMap = new Map(materialBulkResult.map(mat => [mat.name, mat]))
 
-      return {
-        success: true,
-        data: {
-          elementCount: processedCount,
-          materialCount: materials.length,
-        },
-        message: 'Elements and materials processed successfully',
-      }
-    } catch (error: unknown) {
-      logger.error('Error processing elements', { error })
-      throw error
-    }
+          const BATCH_SIZE = 50
+          let processedCount = 0
+
+          for (let i = 0; i < elements.length; i += BATCH_SIZE) {
+            const batch = elements.slice(i, i + BATCH_SIZE)
+
+            const bulkOps = batch.map(element => {
+              const processedMaterials: IMaterialLayer[] = []
+
+              // Process direct materials
+              if (element.materials?.length) {
+                processedMaterials.push(
+                  ...element.materials
+                    .map(ifcMaterial => {
+                      const material = materialMap.get(ifcMaterial.name)
+
+                      if (!material) {
+                        logger.warn(`Material not found: ${ifcMaterial.name}`)
+                        return null
+                      }
+
+                      return {
+                        materialId: material._id,
+                        materialName: ifcMaterial.name,
+                        volume: ifcMaterial.volume,
+                        fraction: ifcMaterial.fraction,
+                        thickness: null,
+                        indicators: null,
+                      }
+                    })
+                    .filter(item => item !== null)
+                )
+              }
+
+              // Process material layers
+              if (element.materialLayers?.layers.length) {
+                const totalVolume = element.volume || 0
+                const layers = element.materialLayers?.layers
+
+                processedMaterials.push(
+                  ...layers
+                    .map(layer => {
+                      const material = materialMap.get(layer.materialName)
+
+                      if (!material) {
+                        logger.warn(`Material not found: ${layer.materialName}`)
+                        return null
+                      }
+
+                      return {
+                        materialId: material._id,
+                        materialName: layer.materialName,
+                        volume: layer.volume || totalVolume / layers.length,
+                        thickness: null,
+                        fraction: null,
+                        indicators: null,
+                      }
+                    })
+                    .filter(item => item !== null)
+                )
+              }
+
+              return {
+                updateOne: {
+                  filter: {
+                    guid: element.globalId,
+                    projectId,
+                  },
+                  update: {
+                    $set: {
+                      name: element.name,
+                      type: element.type,
+                      volume: element.volume,
+                      loadBearing: element.properties.loadBearing || false,
+                      isExternal: element.properties.isExternal || false,
+                      materialLayers: processedMaterials,
+                      updatedAt: new Date(),
+                    },
+                    $setOnInsert: {
+                      projectId,
+                      uploadId,
+                      createdAt: new Date(),
+                    },
+                  },
+                  upsert: true,
+                },
+              }
+            })
+            const result = await Element.bulkWrite(bulkOps, { session: useSession })
+            processedCount += result.upsertedCount + result.modifiedCount
+
+            logger.debug(`Processed batch ${i / BATCH_SIZE + 1}`, {
+              batchSize: batch.length,
+              totalProcessed: processedCount,
+              upsertedCount: result.upsertedCount,
+              modifiedCount: result.modifiedCount,
+            })
+          }
+
+          return {
+            success: true,
+            data: {
+              elementCount: processedCount,
+              materialCount: materialMap.size,
+            },
+            message: 'Elements and materials processed successfully',
+          }
+        } catch (error: unknown) {
+          logger.error('Error processing elements', { error })
+          throw error
+        }
+      },
+      session,
+      'processElementsAndMaterialsFromIFC'
+    )
   }
 
   /**
@@ -206,35 +230,42 @@ export class IFCProcessingService {
         materials: materialIds,
       })
 
-      const materials = await MaterialService.getMaterialBulkByProject({
+      const { materials } = await MaterialService.getMaterialBulkByProject({
         data: {
           projectId,
           pagination: { page: 1, size: materialIds.length },
         },
         session,
       })
+      const materialNames = materials.map(material => material.name)
 
       const bestMatches = await Promise.all(
-        materials.materials.map(async material => {
-          const bestMatch = await MaterialService.getBestEC3Match(material.name)
+        materialNames.map(async name => {
+          const bestMatch = await MaterialService.getBestEC3Match(name)
 
           if (!bestMatch || bestMatch.score < 0.9) {
-            logger.debug(`No good match found for material: ${material.name}`, {
+            logger.debug(`No good match found for material: ${name}`, {
               score: bestMatch?.score || 0,
             })
             return null
           }
 
-          logger.debug(`Found match for material: ${material.name}`, {
-            ec3Material: bestMatch.ec3Material,
+          logger.debug(`Found match for material: ${name}`, {
+            ec3Material: bestMatch.ec3Material.name,
             score: bestMatch.score,
           })
 
-          return {
-            material,
-            ec3Match: bestMatch.ec3Material,
+          // TYPE THIS LATER
+          const result: any = {
+            ec3Material: bestMatch.ec3Material,
+            ec3MatchId: bestMatch.ec3Material.id,
+            materialId:
+              materials.find(material => material.name === name)?._id || new Types.ObjectId(),
+            autoMatched: true,
             score: bestMatch.score,
           }
+
+          return result
         })
       )
 
@@ -244,18 +275,29 @@ export class IFCProcessingService {
       logger.debug('Automatic matching results', {
         totalMaterials: materialIds.length,
         validMatches: validMatches.length,
-        matchedMaterials: validMatches.map(m => m.material.name),
+        matchedMaterials: validMatches.map(m => m.ec3Material.name),
       })
 
       if (hasValidMatches) {
+        const transformedMatches = validMatches.map(match => ({
+          ...transformSnakeToCamel(match),
+          category: null,
+          ec3MatchId: match.ec3Material.id,
+          autoMatched: true,
+          materialId: match.materialId,
+        }))
         await MaterialService.createEC3BulkMatch({
           data: {
-            materialIds: validMatches.map(match => new Types.ObjectId(match.material._id)),
-            updates: validMatches.map(match => ({
-              ...match.ec3Match,
-              ec3MatchId: match.ec3Match.id,
-              score: match.score,
-              autoMatched: true,
+            materialIds: materialIds,
+            updates: transformedMatches.map(match => ({
+              ...match,
+              category: null,
+              densityMin: match.densityMin ? parseDensity(match.densityMin) : null,
+              densityMax: match.densityMax ? parseDensity(match.densityMax) : null,
+              gwp: parseIndicator(match.gwp ?? ''),
+              ubp: parseIndicator(match.ubp ?? ''),
+              penre: parseIndicator(match.penre ?? ''),
+              declaredUnit: match.declaredUnit,
             })),
           },
           session,

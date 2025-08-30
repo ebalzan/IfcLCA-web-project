@@ -1,10 +1,13 @@
 import { useCallback } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { AutoSuggestedMatch } from '@/components/materials-library/ifc-card/ifc-card-item/AutoSuggestedMatch'
-import { useGetProjectWithNestedData } from '@/hooks/projects/use-project-operations'
+import { useGetMaterialBulkByUser } from '@/hooks/materials/use-material-operations'
+import { useGetProjectWithNestedDataBulkByUser } from '@/hooks/projects/use-project-operations'
 import { TemporaryMatch } from './interfaces/TemporaryMatch'
 import { useMaterialsLibraryStore } from './materials-library-store'
 
 export function useMaterialMatching() {
+  const { userId } = useAuth()
   const {
     temporaryMatches,
     autoSuggestedMatches,
@@ -13,7 +16,14 @@ export function useMaterialMatching() {
     setSelectedMaterials,
     selectedProject,
   } = useMaterialsLibraryStore()
-  const { data: projectWithNestedData } = useGetProjectWithNestedData({ id: selectedProject })
+
+  // Get all projects and materials data
+  const { data: projectsWithNestedData } = useGetProjectWithNestedDataBulkByUser({
+    userId: userId || '',
+  })
+  const { data: materialsByUser } = useGetMaterialBulkByUser({
+    userId: userId || '',
+  })
 
   const confirmMatches = useCallback(() => {
     closePreviewModal()
@@ -45,8 +55,14 @@ export function useMaterialMatching() {
     (materialIds: string[], { ec3MaterialData }: Pick<TemporaryMatch, 'ec3MaterialData'>) => {
       const newMatches = [...temporaryMatches]
       materialIds.forEach(materialId => {
+        const material = materialsByUser?.find(m => m._id === materialId)
+
+        const project = projectsWithNestedData?.find(p =>
+          p.materials.some(m => m._id === materialId)
+        )
+
         const elementsAffectedCount =
-          projectWithNestedData?.elements.reduce(
+          project?.elements.reduce(
             (acc, element) =>
               acc +
               element.materialRefs.reduce(
@@ -61,10 +77,8 @@ export function useMaterialMatching() {
           ec3MatchId: ec3MaterialData.id,
           autoMatched: false,
           ec3MaterialData,
-          materialName:
-            projectWithNestedData?.materials.find(material => material._id === materialId)?.name ||
-            '',
-          projectName: projectWithNestedData?.name || '',
+          materialName: material?.name || 'Unknown Material',
+          projectName: project?.name || 'Unknown Project',
           elementsAffectedCount,
         })
       })
@@ -72,9 +86,8 @@ export function useMaterialMatching() {
       setSelectedMaterials([])
     },
     [
-      projectWithNestedData?.elements,
-      projectWithNestedData?.materials,
-      projectWithNestedData?.name,
+      materialsByUser,
+      projectsWithNestedData,
       setSelectedMaterials,
       setTemporaryMatches,
       temporaryMatches,
