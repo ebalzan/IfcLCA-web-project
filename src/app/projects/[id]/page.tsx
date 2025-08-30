@@ -23,7 +23,6 @@ import {
 } from '@/components/ui/pagination'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { UploadModal } from '@/components/upload-modal'
-import { useGetMaterialBulkByProject } from '@/hooks/materials/use-material-operations'
 import { useGetProjectWithNestedData } from '@/hooks/projects/use-project-operations'
 import { IMaterialClient } from '@/interfaces/client/materials/IMaterialClient'
 import { IProjectWithNestedDataClient } from '@/interfaces/client/projects/IProjectWithNestedData'
@@ -270,19 +269,13 @@ const ElementsTab = ({ project }: { project: IProjectWithNestedDataClient }) => 
 }
 
 const MaterialsTab = ({ project }: { project: IProjectWithNestedDataClient }) => {
-  const { data: materials } = useGetMaterialBulkByProject({
-    projectId: project._id,
-  })
-
   const data = useMemo(() => {
-    // Group materials by name and sum volumes
-    console.log('MATERIALS#########', materials)
     const materialGroups =
-      materials &&
-      materials.map(material => ({
+      project.materials &&
+      project.materials.map(({ densityMin, densityMax, ...material }) => ({
         ...material,
         ec3MatchId: material.ec3MatchId !== null ? material.ec3MatchId : null,
-        density: material.density || 0,
+        density: (densityMin || 0) + (densityMax || 0) / 2,
         gwp: material.gwp || 0,
         ubp: material.ubp || 0,
         penre: material.penre || 0,
@@ -321,7 +314,7 @@ const MaterialsTab = ({ project }: { project: IProjectWithNestedDataClient }) =>
     // )
 
     return materialGroups
-  }, [materials])
+  }, [project.materials])
 
   return (
     <>
