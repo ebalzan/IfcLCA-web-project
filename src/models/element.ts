@@ -41,6 +41,12 @@ const materialLayerSchema = new Schema<IMaterialLayer>({
     default: null,
     nullable: true,
   },
+  indicators: {
+    type: Schema.Types.Mixed,
+    required: true,
+    default: null,
+    nullable: true,
+  },
 })
 
 const elementSchema = new Schema<IElementDB, IElementModelType, {}, IElementVirtuals>(
@@ -97,7 +103,11 @@ elementSchema.virtual('totalVolume').get(function () {
 
 // Virtual for emissions
 elementSchema.virtual('indicators').get(async function () {
-  return await calculateElementIndicators({ data: { elementId: this._id } })
+  return {
+    gwp: 0,
+    ubp: 0,
+    penre: 0,
+  }
 })
 
 // Middleware to validate material fractions sum to 1

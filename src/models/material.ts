@@ -29,13 +29,7 @@ const materialSchema = new Schema<IMaterialDB, IMaterialModelType, {}, IMaterial
       type: String,
       required: true,
     },
-    manufacturer: {
-      type: String,
-    },
     category: {
-      type: String,
-    },
-    description: {
       type: String,
     },
     gwp: {
@@ -47,29 +41,14 @@ const materialSchema = new Schema<IMaterialDB, IMaterialModelType, {}, IMaterial
     penre: {
       type: Number,
     },
-    unit: {
-      type: String,
+    densityMin: {
+      type: Number,
     },
-    density: {
+    densityMax: {
       type: Number,
     },
     declaredUnit: {
       type: String,
-    },
-    validFrom: {
-      type: String,
-    },
-    validTo: {
-      type: String,
-    },
-    'kg/unit': {
-      type: Number,
-    },
-    'min density': {
-      type: Number,
-    },
-    'max density': {
-      type: Number,
     },
   },
   {

@@ -153,7 +153,7 @@ export class ProjectService {
             .session(useSession)
             .lean()
 
-          if (!projects || projects.length === 0) {
+          if (!projects) {
             throw new ProjectNotFoundError(projectIds.join(', '))
           }
 
@@ -173,7 +173,7 @@ export class ProjectService {
             .limit(size)
             .lean()
 
-          if (!projects || projects.length === 0) {
+          if (!projects) {
             throw new ProjectNotFoundError(projectIds.join(', '))
           }
 
@@ -220,7 +220,7 @@ export class ProjectService {
         try {
           const projects = await Project.find({ userId }).session(useSession).lean()
 
-          if (!projects || projects.length === 0) {
+          if (!projects) {
             throw new ProjectNotFoundError(userId)
           }
 
@@ -240,7 +240,7 @@ export class ProjectService {
             .limit(size)
             .lean()
 
-          if (!projects || projects.length === 0) {
+          if (!projects) {
             throw new ProjectNotFoundError(userId)
           }
 
@@ -743,10 +743,6 @@ export class ProjectService {
             },
           ]).session(useSession)
 
-          if (!projectWithNestedDataBulk || projectWithNestedDataBulk.length === 0) {
-            throw new ProjectNotFoundError(projectIds.join(', '))
-          }
-
           return { projects: projectWithNestedDataBulk }
         } catch (error: unknown) {
           logger.error('❌ [Project Service] Error in getProjectWithNestedDataBulk:', error)
@@ -1238,10 +1234,6 @@ export class ProjectService {
               },
             },
           ]).session(useSession)
-
-          if (!projectWithNestedDataBulk || projectWithNestedDataBulk.length === 0) {
-            throw new ProjectNotFoundError(userId)
-          }
 
           return { projects: projectWithNestedDataBulk }
         } catch (error: unknown) {

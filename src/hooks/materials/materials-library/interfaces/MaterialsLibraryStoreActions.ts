@@ -1,7 +1,9 @@
+import { IMaterialClient } from '@/interfaces/client/materials/IMaterialClient'
 import { TemporaryMatch } from './TemporaryMatch'
 
 export interface MaterialsLibraryStoreActions {
   setSelectedProject: (projectId: string) => void
+  setFilteredMaterials: (materials: IMaterialClient[]) => void
   setIfcSearchValue: (value: string) => void
   setEc3SearchValue: (value: string) => void
   setMatchingProgress: (progress: { matchedCount: number; percentage: number }) => void

@@ -120,26 +120,10 @@ async function updateMaterialBulk(
       })
     }
 
-    if (
-      !updates.every(
-        update =>
-          Types.ObjectId.isValid(update.uploadId) || Types.ObjectId.isValid(update.projectId)
-      )
-    ) {
-      return sendApiErrorResponse(new Error('Invalid project or upload ID'), request, {
-        operation: 'update bulk',
-        resource: 'materials',
-      })
-    }
-
     const results = await MaterialService.updateMaterialBulk({
       data: {
         materialIds: materialIds.map(id => new Types.ObjectId(id)),
-        updates: updates.map(update => ({
-          ...update,
-          uploadId: new Types.ObjectId(update.uploadId),
-          projectId: new Types.ObjectId(update.projectId),
-        })),
+        updates,
       },
     })
 

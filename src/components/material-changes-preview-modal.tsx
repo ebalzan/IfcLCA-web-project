@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { ReloadIcon } from '@radix-ui/react-icons'
 import { Button } from '@/components/ui/button'
 import {
@@ -19,6 +20,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useMaterialsLibraryStore } from '@/hooks/materials/materials-library/materials-library-store'
+import { parseDensity, parseIndicator } from '@/utils/parses'
+import { transformSnakeToCamel } from '@/utils/transformers'
 
 interface MaterialChangesPreviewModalProps {
   isOpen: boolean
@@ -35,23 +38,31 @@ export function MaterialChangesPreviewModal({
 }: MaterialChangesPreviewModalProps) {
   const { temporaryMatches } = useMaterialsLibraryStore()
 
-  // // Check if all materials are from the same project
-  // const singleProjectId = useMemo(() => {
-  //   if (!changes.length) return null
+  const parsedTemporaryMatches = useMemo(() => {
+    return temporaryMatches.map(match => {
+      const ec3Data = transformSnakeToCamel(match.ec3MaterialData)
+      // // Remove the name field to avoid duplicate key errors
+      // const { name, ...ec3DataWithoutName } = ec3Data
 
-  //   // Get all unique project IDs
-  //   const uniqueProjectIds = new Set<string>()
-  //   changes.forEach(change => {
-  //     if (change.projects) {
-  //       change.projects.forEach(projectId => {
-  //         uniqueProjectIds.add(projectId.toString())
-  //       })
-  //     }
-  //   })
-
-  //   // Return the project ID if there's exactly one, otherwise null
-  //   return uniqueProjectIds.size === 1 ? Array.from(uniqueProjectIds)[0] : null
-  // }, [changes])
+      return {
+        ...ec3Data,
+        ec3MaterialName: ec3Data.name,
+        category: match.ec3MaterialData.category.name,
+        ec3MatchId: match.ec3MatchId,
+        autoMatched: match.autoMatched,
+        materialId: match.materialId,
+        materialName: match.materialName,
+        projectName: match.projectName,
+        elementsAffectedCount: match.elementsAffectedCount,
+        densityMin: ec3Data.densityMin ? parseDensity(ec3Data.densityMin) : null,
+        densityMax: ec3Data.densityMax ? parseDensity(ec3Data.densityMax) : null,
+        gwp: parseIndicator(ec3Data.gwp ?? ''),
+        ubp: parseIndicator(ec3Data.ubp ?? ''),
+        penre: parseIndicator(ec3Data.penre ?? ''),
+        declaredUnit: ec3Data.declaredUnit,
+      }
+    })
+  }, [temporaryMatches])
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -75,8 +86,8 @@ export function MaterialChangesPreviewModal({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {temporaryMatches.map(match => (
-                <TableRow key={match.ec3MaterialData.id}>
+              {parsedTemporaryMatches.map(match => (
+                <TableRow key={match.materialId}>
                   <TableCell>{match.materialName}</TableCell>
                   {/* <TableCell>
                     {match.oldEC3Match && (
@@ -86,7 +97,7 @@ export function MaterialChangesPreviewModal({
                     )}
                     <div className="text-green-600">{change.newEC3Match?.name}</div>
                   </TableCell> */}
-                  <TableCell>{match.ec3MaterialData.name}</TableCell>
+                  <TableCell>{match.ec3MaterialName}</TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-2">
                       {/* {change.oldEC3Match && (
@@ -96,7 +107,9 @@ export function MaterialChangesPreviewModal({
                       )} */}
                       <div className="flex items-center justify-between">
                         <span className="text-green-600">
-                          {match.ec3MaterialData.density || 'No density set'}
+                          {match.densityMax && match.densityMin
+                            ? ((match.densityMax + match.densityMin) / 2).toFixed(0)
+                            : 'No density set'}
                         </span>
                       </div>
                       {/* {change.newEC3Match &&

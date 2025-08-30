@@ -1,4 +1,5 @@
 import { Types } from 'mongoose'
+import { WASMElement } from '@/interfaces/wasm'
 import { logger } from '@/lib/logger'
 import { ParseIFCFileRequest, ParseIFCFileResponse } from '@/schemas/services/ifc'
 import { withTransaction } from '@/utils/withTransaction'
@@ -48,7 +49,39 @@ export async function parseIFCFile({
         await IFCProcessingService.processElementsAndMaterialsFromIFC({
           data: {
             projectId,
-            elements,
+            elements: elements.map((element: WASMElement) => ({
+              globalId: element.id,
+              type: element.type,
+              name: element.object_type,
+              volume: element.volume || 0,
+              properties: {
+                loadBearing: element.properties.loadBearing || false,
+                isExternal: element.properties.isExternal || false,
+              },
+              materials:
+                element.materials?.map((materialName: string) => {
+                  const materialVolumeData = element.material_volumes?.[materialName]
+                  const materialVolume =
+                    materialVolumeData?.volume ||
+                    (element.volume || 0) / (element.materials?.length || 1)
+
+                  return {
+                    name: materialName,
+                    volume: materialVolume,
+                    fraction: materialVolumeData?.fraction || 0,
+                  }
+                }) || [],
+              materialLayers: element.material_volumes
+                ? {
+                    layerSetName: `${element.type}_Layers`,
+                    layers: Object.entries(element.material_volumes).map(([name, data]) => ({
+                      materialName: name,
+                      volume: data.volume,
+                      fraction: data.fraction,
+                    })),
+                  }
+                : undefined,
+            })),
             uploadId: new Types.ObjectId(uploadResult._id),
           },
           session: useSession,
@@ -77,7 +110,7 @@ export async function parseIFCFile({
       const applyAutomaticMaterialMatchesResponse =
         await IFCProcessingService.applyAutomaticMaterialMatches({
           data: {
-            materialIds: materials.materials.map(material => new Types.ObjectId(material._id)),
+            materialIds: materials.materials.map(material => material._id),
             projectId,
           },
           session: useSession,
