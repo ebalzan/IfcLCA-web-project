@@ -201,18 +201,13 @@ export const useUpdateProjectBulk = ({ projectIds }: UpdateProjectBulkSchema) =>
 
 // DELETE
 export const useDeleteProject = ({ id: projectId }: DeleteProjectSchema) => {
-  const router = useRouter()
-
   return useTanStackMutation<void, DeleteProjectResponseApi>(`/api/projects/${projectId}`, {
     method: 'DELETE',
     mutationKey: [Queries.DELETE_PROJECT, projectId],
     showSuccessToast: true,
     successMessage: 'The project has been successfully deleted.',
     showErrorToast: true,
-    invalidateQueries: [[Queries.GET_PROJECTS], [Queries.GET_PROJECT, projectId]],
-    onSuccess: () => {
-      router.replace('/projects')
-    },
+    invalidateQueries: [[Queries.GET_PROJECTS_NESTED_USER]],
   })
 }
 export const useDeleteProjectBulk = ({ projectIds }: DeleteProjectBulkSchema) => {
